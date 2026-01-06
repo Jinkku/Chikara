@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.shortcuts import render, HttpResponse
 from django.http import JsonResponse
 from Chikara.settings import BASE_DIR, STATIC_ROOT, REPLAYS,storage_root,client_id,client_secret
@@ -9,7 +10,7 @@ import sys,time,datetime
 from ossapi import Ossapi
 from dbview.models import *
 import sys,json
-starttime=time.time()
+starttime=timezone.now().timestamp()
 perfbom=0.035
 dedipoints=0.00000727
 maxperf=800
@@ -229,7 +230,7 @@ def get_leaderboard(id): # Leaderboard processing
             "GOOD": randint(1,int(template[14]//perfbom)),
             "MEH": randint(1,int(template[14]//perfbom)),
             "BAD": randint(1,int(template[14]//perfbom)),
-            "time": int(time.time()-(e*16000))
+            "time": int(timezone.now().timestamp()-(e*16000))
                     }
                     x.append(data)
                 e+=1
@@ -488,7 +489,7 @@ def get_userscore(user='',recent=True,mini=False,limit=50):
         else:
             gradet='D'
         try:
-            timeest = timeform(time.time()-float(tmp['created'].timestamp()))
+            timeest = timeform(timezone.now().timestamp()-float(tmp['created'].timestamp()))
         except Exception as error:
             timeest = 'Error Processing Time:' + str(error) + ' ' + str(tmp['created'])
         weighted = str(int(tmp['weighted_pp']))
@@ -641,7 +642,7 @@ def api(request,command,value=None):
                    maxpoints=getpoint(smax+sgreat+smeh+sbad,0,0,0,float(mult),combo=combo)
                    finalscore=(points/maxpoints)*(1000000*mult)
                    mycursor.execute("SELECT * FROM beatmaps WHERE beatmapid = %s AND beatmapsetid = %s", (beatmap_id, beatmapset_id))
-                   replay_name = f"{REPLAYS}/{time.time()}-{beatmapset_id}-{beatmap_id}-{user}-{mods}.qrf"
+                   replay_name = f"{REPLAYS}/{timezone.now().timestamp()}-{beatmapset_id}-{beatmap_id}-{user}-{mods}.qrf"
                    info = mycursor.fetchone()
                    if info == None:
                         info = fetch_beatmap(beatmapset_id,beatmap_id)
@@ -816,7 +817,7 @@ def api(request,command,value=None):
             if checklogin(username,password,signup=True)[0]:
                 accept=1
             if accept and len(text) >0:
-                mycursor.execute("UPDATE users SET stattime = %s, status = %s WHERE username = %s",(int(time.time()),text,username))
+                mycursor.execute("UPDATE users SET stattime = %s, status = %s WHERE username = %s",(int(timezone.now().timestamp()),text,username))
                 mydb.commit()
         elif command[0]=='chkprofile':
             msg=''
@@ -863,15 +864,12 @@ def header(request):
     return head
 
 def user(request, user):
-    tickle= time.time()
+    tickle= timezone.now().timestamp()
     html = header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/userpage.html").read()
     usertest = checklogin(user,'x',signup=True,id=user)
     if usertest[0]:
         if user=='aquapoki':
             emblem='Dev',
-            donator=1
-        elif user=='Beatsu':
-            emblem='JBF!','Dev'
             donator=1
         else:
             emblem=''
@@ -918,10 +916,10 @@ def user(request, user):
             html += '<div class="infobox infoboxtile column spacetop spacebottom">'
             html += '<span>'
             try:
-                if (tmp['stattime'],tmp['status'])!=(None,None) and not time.time()-tmp['stattime']>300:
+                if (tmp['stattime'],tmp['status'])!=(None,None) and not timezone.now().timestamp()-tmp['stattime']>300:
                     html += tmp['status']
                 else:
-                    html += 'Last Seen '+str( timeform(time.time()-tmp['stattime']))
+                    html += 'Last Seen '+str( timeform(timezone.now().timestamp()-tmp['stattime']))
             except Exception as err:
                 html += 'New player <3'
             html += '</span></div>' # Status Card
@@ -995,7 +993,7 @@ def user(request, user):
     else:
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read()
         html = html.replace('{sitetitle}',"404 not found o-o")
-    tickle = round((time.time() - tickle) / 0.001,2)
+    tickle = round((timezone.now().timestamp() - tickle) / 0.001,2)
     html += str(tickle)
     return HttpResponse(html)
 
