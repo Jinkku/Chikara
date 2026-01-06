@@ -16,9 +16,6 @@
 .stats{
     display: block;
 }
-.column {
-    flex-direction: column;
-}
 .namecard {
     display: flex;
     justify-content: space-between;

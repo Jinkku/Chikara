@@ -1,19 +1,53 @@
-<link rel="stylesheet" href="/static/css/accountprompt.css">
-<script src="/static/script/login.js"></script>
-<div class="header">
+<head>
+    <link rel="icon" type="image/x-icon" href="/static/img/favicon.png">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/accountprompt.css">
+    <script src="/static/script/login.js"></script>
+    <script src="/static/script/checkoldsite.js"></script>
+    <meta charset="utf-8">
+    <meta name="description" content="Where your keys you play are your rhythm!">
+</head>
+<div class="header" id="header">
     <div class="header-left">
-        <img src="https://raw.githubusercontent.com/Jinkkuu/Qlute/master/Skin/System/mainmenulogo.png" alt="Logo">
+        <img src="/static/mainmenulogo.png" alt="Logo">
         <a href="/"><button>home</button></a>
         <a href="/download"><button>download</button></a>
         <a href="/ranking"><button>ranking</button></a>
     </div>
-    <a id="accountbutton" style="cursor: pointer;">
-    <div class="header-right actualbutton">
-        <h3>{usertag}</h3>
-        <img src="/static/img/profile/guest.png" id="userpfp" alt="Right Image">
+    <div class="header-right">
+        <a href="https://buymeacoffee.com/jinkkuproductions">
+            <button>
+                <img src="/static/img/Heart.png"/>
+            </button>
+        </a>
+        <a id="accountbutton" style="cursor: pointer;">
+            <div class="actualbutton">
+                <h3>{usertag}</h3>
+                <img class="pfp" src="/static/img/profile/guest.png" id="userpfp" alt="Right Image">
+            </div>
+        </a>
     </div>
-    </a>
 </div>
+
+<script>
+  const header = document.getElementById("header");
+  const headerOffset = header.offsetTop;
+
+  window.addEventListener("scroll", () => {
+    if (window.scrollY > headerOffset) {
+      header.style.position = "fixed";
+      header.style.top = "0";
+      header.style.left = "0";
+      header.style.right = "0";
+      header.style.zIndex = "999";
+    } else {
+      header.style.position = "static"; // back to normal flow
+    }
+  });
+</script>
+
+
+
 <div id="menuprompt" class="accountprompt">
     <div id="loginForm" class="modal-content">
         <span id="loginprompt">

@@ -20,13 +20,15 @@ import Chikara.views as views
 import Chikara.usersettings as usersettings
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('apiv2/<path:command>', views.api),
     path('apiv2/', views.api, {'command': ''}),
     path('user/<path:user>', views.user),
     path('settings', usersettings.usersettings),
     path('ranking', views.ranking),
     path('ranking/<path:command>', views.ranking),
+    path('beatmapset/<path:command>', views.beatmap),
+    path("robots.txt", views.robots_txt, name="robots"),
+    path("sitemap.xml", views.sitemap),
     path('<path:uri>', views.base),
     path('', views.base, {'uri': ''}),
 ]

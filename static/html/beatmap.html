@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qlute - {sitetitle}</title>
+    <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/Jinkkuu/PyQlute/refurn-v3/assets/icon.png">
+    <link rel="stylesheet" href="/static/css/card.css">
+    <link rel="stylesheet" href="/static/css/downloadbuttons.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/static/script/beatmapquery.js"></script>
+</head>
+<body>
+    <div class="infoboxcontainer">
+        <div class="infoboxtitle"><p>beatmap page</p></div>
+
+        <div class="infobox spacetop spacebottom column">
+            <div id="difficulties">
+                Loading Difficulties... (Make sure javascript is enabled.)
+            </div>
+            <h1 class="spacebottom">{Title}</h1>
+            <h2 class="spacebottom">by {Artist}</h2>
+            <p class="spacebottom">mapped by {Mapper}</p>
+            <div style="display:flex;">
+                <button class="beatmapbutton">Download</button>
+                <button class="beatmapbutton">Favorite</button>
+            </div>
+
+            <div id="leaderboard">
+                Loading Leaderboard... (Make sure javascript is enabled.)
+            </div>
+        </div>
+</body>
+</html>

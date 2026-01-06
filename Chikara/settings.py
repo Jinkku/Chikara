@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
-
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-oy0zni7qao-kzpg%&0euvonu2e$#ih!8bpm-r5@d+#a#%f@oi9'
-
+  
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
+#    'rest_framework',
     'dbview',
 ]
 
@@ -83,11 +83,7 @@ DATABASES = {
         'PASSWORD': 'Qlutaismyfav$23',  # Your database password
         'HOST': 'localhost',  # Change if the database is on another server
         'PORT': '3306',  # Default MariaDB/MySQL port
-        'CONN_MAX_AGE': 30,
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'connect_timeout': 30  # Set connection timeout in seconds
-        }
+        'CONN_MAX_AGE': 600,
     }
 }
 
@@ -110,6 +106,20 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Initial Setup
+
+storage_root = "/Storage/Chikara/"
+client_secret = ""
+client_id = ""
+#Before using this please set these up at /etc/Chikara/config.conf
+for cfg in open("/etc/Chikara/config.conf").read().split("\n"):
+    key = cfg.split("=")
+    if key[0] == "client_id":
+        client_id = key[1]
+    elif key[0] == "client_secret":
+        client_secret = key[1]
+    elif key[0] == "storagepath":
+        storage_root = key[1]
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
@@ -122,6 +132,7 @@ USE_I18N = True
 
 USE_TZ = True
 
+REPLAYS =  os.path.join(storage_root, 'replays')
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/

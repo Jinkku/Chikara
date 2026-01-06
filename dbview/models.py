@@ -21,6 +21,8 @@ class Score(models.Model):
     beatmapdiff = models.CharField(max_length=256, null=True, blank=True)
     mods = models.CharField(max_length=48, null=True, blank=True)
     maxpoints = models.FloatField(null=True, blank=True)
+    speed_multi = models.FloatField(null=False, blank=False, default=1)
+    replay_path = models.TextField(null=True, blank=True)
     
     class Meta:
         db_table = 'scores'  
@@ -49,17 +51,22 @@ class User(models.Model):
 
 class Beatmap(models.Model):
     id = models.AutoField(primary_key=True)
-    title = models.TextField(null=True, blank=True)
-    title_unicode = models.TextField(null=True, blank=True)
-    artist = models.TextField(null=True, blank=True)
-    artist_unicode = models.TextField(null=True, blank=True)
-    difficulty = models.TextField(null=True, blank=True)
-    BPM = models.IntegerField(null=True, blank=True)
-    ranked = models.IntegerField(null=True, blank=True)
+    title = models.TextField(null=False, blank=True)
+    title_unicode = models.TextField(null=False, blank=True)
+    artist = models.TextField(null=False, blank=True)
+    artist_unicode = models.TextField(null=False, blank=True)
+    difficulty = models.TextField(null=False, blank=True)
+    BPM = models.IntegerField(null=False, blank=True)
+    ranked = models.IntegerField(null=False, blank=True)
     created = models.DateTimeField(auto_now_add=True)
-    mapper = models.TextField(null=True, blank=True)
-    osubeatmapid = models.IntegerField(null=True, blank=True)
-    osubeatmapsetid = models.IntegerField(null=True, blank=True)
+    mapper = models.TextField(null=False, blank=True)
+    beatmapid = models.IntegerField(null=False, blank=True)
+    beatmapsetid = models.IntegerField(null=False, blank=True)
+    notecount = models.IntegerField(null=False, blank=True)
+    pp = models.FloatField(null=True, blank=True)
+    playcount = models.IntegerField(null=False, blank=True)
+    beatmapfile = models.TextField(null=False, blank=True)
+
     
     class Meta:
         db_table = 'beatmaps' 

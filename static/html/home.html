@@ -4,18 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home</title>
-    <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/Jinkkuu/Qlute/master/Skin/System/mainmenulogo.png">
-    <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/downloadbuttons.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <div id="intro"></div>
-    <script>
-        $(document).ready(function(){
-            $("#intro").load("static/html/intro.html");
-        });
-    </script>
+    <div class="container-v">
+    <div class="video-wrapper">
+      <video autoplay muted loop playsinline class="bg-video">
+        <source src="/static/videos/ebubleh.mp4" type="video/mp4">
+      </video>
+            <div class="container-h">
+                <div class="homebox">
+                    <h1>Welcome to Qlute!</h1>
+                    <h2>where your keys you play are your rhythm!</h2>
+                    <div class="button-wrapper">
+                        <a href="/download"><button class="downloadbutton spacetop spacebottom">Start Playing!</button></a>
+                    </div>
+                </div>
+                <div class="homebox">
+                    <img class="chloe" src="/static/img/chloe.png"/>
+                </div>
+            </div> 
+        </div>
+    </div>
+
+
+    <div class="infosect">
+            <h1>What is Qlute?</h1>
+            <p>Qlute is a rhythm-game that is mania-focused inspired but has it’s own quirks. This game had been built of by only a solo dev named Jinkku (formerly Poki) </p>
+    </div>
+
+
 </body>
-</html></div>
+</html>

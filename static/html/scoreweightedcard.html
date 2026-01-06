@@ -1,15 +1,16 @@
-
-<div class="score-card">
-    <div class="score-card-left">
-        <div class="rank {rank}">{rank}</div>
-        <div class="info">
-            <span><b>{title}</b> by {artist}</span>
-            <span>{difficulty} - {date} (weighted {weighted_percentage}%)</span>
+<a href="{area}">
+    <div class="score-card">
+        <div class="score-card-left">
+            <div class="rank {rank}">{rank}</div>
+            <div class="info">
+                <span><b>{title}</b> by {artist}</span>
+                <span>{difficulty} - {date} (weighted {weighted_percentage}%)</span>
+            </div>
+        </div>
+        <div class="score-card-right">
+            {mods}
+            <div class="pp">{weighted_points}pp*</div>
+            <div class="pp">{points}pp</div>
         </div>
     </div>
-    <div class="score-card-right">
-        {mods}
-        <div class="pp">{weighted_points}pp*</div>
-        <div class="pp">{points}pp</div>
-    </div>
-</div>
+</a>
