@@ -14,11 +14,11 @@
 <body>
     <div class="infoboxcontainer">
         <div class="infoboxtitle"><p>beatmap page</p></div>
-
-        <div class="infobox spacetop spacebottom column">
-            <div id="difficulties">
+            <div id="difficulties" class="infobox column verticalpadding">
                 Loading Difficulties... (Make sure javascript is enabled.)
             </div>
+
+        <div class="infobox spacetop spacebottom column">
             <h1 class="spacebottom">{Title}</h1>
             <h2 class="spacebottom">by {Artist}</h2>
             <p class="spacebottom">mapped by {Mapper}</p>
@@ -26,10 +26,9 @@
                 <button class="beatmapbutton">Download</button>
                 <button class="beatmapbutton">Favorite</button>
             </div>
-
-            <div id="leaderboard">
+        </div>
+        <div id="leaderboard" class="infobox column verticalpadding">
                 Loading Leaderboard... (Make sure javascript is enabled.)
-            </div>
         </div>
 </body>
 </html>
