@@ -2,6 +2,7 @@ from django.utils import timezone
 from django.shortcuts import render, HttpResponse
 from django.http import JsonResponse
 from Chikara.settings import BASE_DIR, STATIC_ROOT, REPLAYS,storage_root,client_id,client_secret
+from django.db.models import Q
 from random import randint
 import mysql.connector
 import json,hashlib
@@ -41,55 +42,40 @@ def connect_db():
 
 mydb = connect_db()
 mycursor = mydb.cursor(buffered=True, dictionary=True)
-def fetch_beatmap(beatmapidset,beatmapid):
+def fetch_beatmap(beatmapidset, beatmapid):
     api = Ossapi(client_id, client_secret)
-    if int(beatmapidset) != 0 and int(beatmapid) != 0:
+
+    if int(beatmapidset) == 0 or int(beatmapid) == 0:
+        return None, "", 0, 0
+
+    try:
         beatset = api.beatmapset(int(beatmapidset))
-        beatmaps = beatset.beatmaps
-        difficulty = None
-        for a in beatmaps:
-            if int(beatmapid) == a.id:
-                exists = 1
-                difficulty = a.version
-                break
-        if exists:
-            title = beatset.title
-            titleuni = beatset.title_unicode
-            artist = beatset.artist
-            artistuni = beatset.artist_unicode
-            bpm = beatset.bpm
-            creator = beatset.creator
-            ranked = beatset.ranked.value
-            if ranked < 4 and ranked > 0:
-                ranked = 1
-            elif ranked == 4:
-                ranked = 2
-            else:
-                ranked = 0
-            info = {
-                "title" : title,
-                "titleuni" : titleuni,
-                "artist" : artist,
-                "artistuni" : artistuni,
-                "difficulty" : difficulty,
-                "creator" : creator,
-                "ranked" : ranked,
-                "bpm" : bpm,
-                "exist" : 1
-            }
+    except ValueError:
+        return None, "", 0, 0
+
+    difficulty = ""
+    bpm = 0
+    exists = False
+
+    for a in beatset.beatmaps:
+        if int(beatmapid) == a.id:
+            exists = True
+            difficulty = a.version
+            bpm = a.bpm
+            break
+
+    if not exists:
+        return None, "", 0, 0
+
+    if 0 < beatset.ranked.value < 4:
+        ranked = 1
+    elif beatset.ranked == 4:
+        ranked = 2
     else:
-        info = {
-            "title" : None,
-            "titleuni" : None,
-            "artist" : None,
-            "artistuni" : None,
-            "difficulty" : difficulty,
-            "creator" : None,
-            "ranked" : None,
-            "bpm" : None,
-            "exist" : 0
-        }
-    return info
+        ranked = 0
+
+    return beatset, difficulty, bpm, ranked
+
 
 
 
@@ -187,6 +173,15 @@ Sitemap: https://qlute.jinkku.moe/sitemap.xml
 
 
 
+def getdifficulties(id): # Difficulty processing
+    x=[]
+    if id!=0:
+        beatmaps = Beatmap.objects.values().filter(beatmapsetid=id)
+    else:
+        return {"error",1,"msg","Beatmap set not found"}
+    for a in beatmaps:
+        x.append(a)
+    return x
 def get_leaderboard(id): # Leaderboard processing
         x=[]
         e=0
@@ -522,8 +517,6 @@ def playtime(t):
 # Checking Login
 
 def checklogin(usr,pwd,signup=False,id=0):
-    #html += "SELECT * FROM users WHERE username = %s", (usr,))
-    #return 1
     if usr in ('None','Guest'):
         return (0,0)
     try:
@@ -533,13 +526,16 @@ def checklogin(usr,pwd,signup=False,id=0):
         id=0
     fake=0
     if signup:
-        mycursor.execute("SELECT * FROM users WHERE username = %s OR id = %s", (usr, id))
+        result = User.objects.filter(
+            Q(username=usr) | Q(id=id)
+        ).first()
     else:
-        mycursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (usr,pwd))
-    if not fake:
-        result = mycursor.fetchone()
+        result = User.objects.filter(
+            username=usr,
+            password=pwd
+        ).first()
     if result!=None and not signup:
-        p=str(result['password'])
+        p=str(result.password)
         result = (pwd == p)
     elif result != None and signup:
         result = 1
@@ -579,9 +575,11 @@ def api(request,command,value=None):
                 accept=not checklogin(username, '',signup=True)[0]
                 
                 # Process the credentials (authentication logic here)
-                if accept:  # Example check
-                    mycursor.execute("INSERT INTO users (username, email_address, password) VALUES (%s, %s, %s)", (username,"",password))
-                    mydb.commit()
+                if accept:  
+                    User.objects.create(
+                    username=username,
+                    password=password
+                    )
                     response = JsonResponse({"success": True}, status=200)
                 else:
                     response =  JsonResponse({"success": False}, status=401)
@@ -612,13 +610,13 @@ def api(request,command,value=None):
                 user = request.META.get("HTTP_USERNAME","")
                 test=checklogin(user,request.META.get("HTTP_PASSWORD",""))[0]
                 if "AT" in request.META.get("HTTP_MODS",""):
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": info["ranked"],"msg": "Don't try to cheat with Auto dude. :/","error": 1})
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Don't try to cheat with Auto dude. :/","error": 1})
                 elif len(replay_data) < 64:
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": info["ranked"],"msg": "Replay data is empty.","error": 1})
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Replay data is empty.","error": 1})
                 elif not test:
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": info["ranked"],"msg": "Incorrect Credentials.","error": 1})
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Incorrect Credentials.","error": 1})
                 elif not allowsubmissions:
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": info["ranked"],"msg": "Submissions are disabled.","error": 1})
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Submissions are disabled.","error": 1})
                 else:
                     accept = 1
                 if accept and allowsubmissions:
@@ -640,40 +638,64 @@ def api(request,command,value=None):
                    mult=getmult(mods, speed=speed_multi)
                    points = getpoint(smax,sgreat,smeh,sbad,float(mult),combo=combo)
                    maxpoints=getpoint(smax+sgreat+smeh+sbad,0,0,0,float(mult),combo=combo)
-                   finalscore=(points/maxpoints)*(1000000*mult)
-                   mycursor.execute("SELECT * FROM beatmaps WHERE beatmapid = %s AND beatmapsetid = %s", (beatmap_id, beatmapset_id))
+                   finalscore=int( (points/maxpoints)*(1000000*mult) )
+                   info = Beatmap.objects.filter(beatmapid = beatmap_id, beatmapsetid = beatmapset_id).first()
                    replay_name = f"{REPLAYS}/{timezone.now().timestamp()}-{beatmapset_id}-{beatmap_id}-{user}-{mods}.qrf"
-                   info = mycursor.fetchone()
                    if info == None:
-                        info = fetch_beatmap(beatmapset_id,beatmap_id)
-                        if info["exist"]:
-                            mycursor.execute("INSERT INTO beatmaps (title, title_unicode, artist, artist_unicode, difficulty, BPM, ranked, mapper, beatmapid, beatmapsetid) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",(info["title"],info["titleuni"],info["artist"],info["artistuni"], info["difficulty"], info["bpm"],info["ranked"],info["creator"],int(beatmap_id),int(beatmapset_id)))
-                            mydb.commit()
-                            ranked = info["ranked"]
+                        info, difficulty, bpm, ranked= fetch_beatmap(beatmapset_id,beatmap_id)
+                        if info != None:
+                            Beatmap.objects.create(
+                                title = info.title,
+                                title_unicode = info.title_unicode,
+                                artist = info.artist,
+                                artist_unicode = info.artist_unicode,
+                                difficulty = difficulty,
+                                BPM = bpm,
+                                ranked = ranked,
+                                mapper = info.creator,
+                                beatmapid = int(beatmap_id),
+                                beatmapsetid = int(beatmapset_id)
+                            )
+                            ranked = ranked
                         else:
                             ranked = 0
                    else:
-                        ranked = info["ranked"]
+                        ranked = info.ranked
+                        difficulty = info.difficulty
+                        bpm = info.BPM
                    if not float(points)>maxperf and accept and ranked > 0:
-                        mycursor.execute("SELECT * FROM scores WHERE beatmap_id = %s AND username = %s ORDER BY points DESC ", (beatmap_id, user))
-                        tmp=mycursor.fetchone()
+                        tmp = Score.objects.filter(beatmap_id = beatmap_id, username = user).first()
                         if not tmp==None:
                             #print(float(data[3]),tmp['points'])
-                            oldmult=getmult(getmult(tmp["mods"],submit=True))
-                            if points > float(getpoint(tmp["max"],tmp["great"],tmp["meh"],tmp["bad"],oldmult)):# and usr['ranked_points']!=None and usr['ranked_points']+11<=float(data[3]):
-                                mycursor.execute("DELETE FROM scores WHERE beatmap_id = %s AND username = %s", (beatmap_id, user))
+                            oldmult=getmult(getmult(tmp.mods,submit=True))
+                            if points > float(getpoint(tmp.max,tmp.great,tmp.meh,tmp.bad,oldmult)):# and usr['ranked_points']!=None and usr['ranked_points']+11<=float(data[3]):
+                                tmp.delete()
                                 submit=True
                             else:
                                 submit=False
                         else:
                             submit=True
-                        mycursor.execute("SELECT * FROM users WHERE username = %s", (user,))
-                        usr=mycursor.fetchone()
+                        usr = User.objects.get(username = user)
                         if submit:
-                            scoreentry = (user, info["title"],info["artist"],points, combo, beatmap_id, beatmapset_id, smax,sgreat,smeh,sbad, info["difficulty"],mods, maxpoints, replay_name, 2, speed_multi)
-                            mycursor.execute("INSERT INTO scores (username, beatmapname, artist, points, combo, beatmap_id, beatmapset_id, max, great, meh, bad, beatmapdiff, mods, maxpoints, replay_path, version, speed_multi) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", scoreentry)
-                            mydb.commit()
-                        tmp=usr
+                            Score.objects.create(
+                                username = user,
+                                beatmapname = info.title,
+                                artist = info.artist,
+                                points = points,
+                                combo = combo,
+                                beatmap_id = beatmap_id,
+                                beatmapset_id = beatmapset_id,
+                                max = smax,
+                                great = sgreat,
+                                meh = smeh,
+                                bad = sbad,
+                                beatmapdiff = difficulty,
+                                mods = mods,
+                                maxpoints = maxpoints,
+                                replay_path = replay_name,
+                                version = 2,
+                                speed_multi = speed_multi
+                            )
                         # ACC
 
                         hits=[0,0,0,0]
@@ -684,17 +706,16 @@ def api(request,command,value=None):
                             hits[2]+=a['meh']
                             hits[3]+=a['bad']
                         t=round(((hits[0]+(hits[1]/2)+(hits[2]/3))/(hits[0]+hits[1]+hits[2]+hits[3]))*100,2)
-                        mycursor.execute("UPDATE users SET accuracy = %s WHERE username = %s", (t,user))
-                        mycursor.execute("UPDATE users SET max = %s WHERE username = %s", (hits[0],user))
-                        mycursor.execute("UPDATE users SET great = %s WHERE username = %s", (hits[1],user))
-                        mycursor.execute("UPDATE users SET meh = %s WHERE username = %s", (hits[2],user))
-                        mycursor.execute("UPDATE users SET bad = %s WHERE username = %s", (hits[3],user))
+                        usr.accuracy = t
+                        usr.max = hits[0]
+                        usr.great = hits[1]
+                        usr.meh= hits[2]
+                        usr.bad = hits[3]
                         # Combo
 
-                        mycursor.execute("SELECT * FROM scores WHERE username = %s ORDER BY combo DESC ", (user,))
-                        result = mycursor.fetchone()
-                        max_combo=result['combo']
-                        mycursor.execute("UPDATE users SET max_combo = %s WHERE username = %s", (max_combo,user))
+                        max_combo = Score.objects.filter(username = user).order_by("-combo").first().combo
+                        usr.max_combo = max_combo
+
                         # Points
                         rankedpoints=0
                         x=0
@@ -705,14 +726,13 @@ def api(request,command,value=None):
                                 rankedpoints+=int(al)
                             except Exception as err:
                                 sys.stdout.write(str(err))
-                        rankedscore=tmp['ranked_score']
+                        rankedscore=usr.ranked_score
                         if rankedscore:
                             t+=(int(rankedscore)+int(finalscore))*dedipoints
                         users=[]
-                        mycursor.execute("SELECT username,ranked_points FROM users ORDER BY ranked_points DESC")
-                        for a in mycursor.fetchall():
-                            name=a['username']
-                            pp=a['ranked_points']
+                        for a in User.objects.order_by("-ranked_points"):
+                            name=a.username
+                            pp=a.ranked_points
                             if not pp:
                                 pp=0
                             users.append((name,pp))
@@ -729,39 +749,38 @@ def api(request,command,value=None):
                         else:
                             rankb=(simulatedrank - ((rankedpoints/simulatedpp) * simulatedrank)) + 1
                         ranking=rankb
-                        mycursor.execute("UPDATE users SET ranked_points = %s WHERE username = %s", (rankedpoints,user))
-                        mycursor.execute("UPDATE users SET ranking = %s WHERE username = %s", (ranking,user))
-                        if tmp['playtime']==None:
-                            mycursor.execute("UPDATE users SET playtime = %s WHERE username = %s", (int(taken),user))
+                        usr.ranked_points = rankedpoints
+                        usr.ranking = ranking
+                        if usr.playtime == None:
+                            usr.playtime = int(taken)
                         else:
-                            mycursor.execute("UPDATE users SET playtime = playtime + %s WHERE username = %s", (int(taken),user))
-                        if tmp['ranked_score']==None:
-                            mycursor.execute("UPDATE users SET ranked_score = %s WHERE username = %s", (int(finalscore),user))
+                            usr.playtime += int(taken)
+                        if usr.ranked_score == None:
+                            usr.ranked_score = finalscore
                             level = 1
-                            rankedscore = int(finalscore)
+                            rankedscore = finalscore
                         else:
-                            mycursor.execute("UPDATE users SET ranked_score = ranked_score + %s WHERE username = %s", (int(finalscore),user))
-                            level=int(int(tmp['ranked_score'])*leveltemp)
-                            rankedscore = int(tmp['ranked_score']) + int(finalscore)
-                        if tmp["max_combo"] != None:
-                            maxcombo = int(tmp["max_combo"])
+                            usr.ranked_score += finalscore
+                            level=int(usr.ranked_score*leveltemp)
+                        if usr.max_combo != None:
+                            maxcombo = int(usr.max_combo)
                         else:
                             maxcombo = 0
-                        if tmp["accuracy"] != None:
-                            accuracy = float(tmp["accuracy"]) * 0.01
+                        if usr.accuracy != None:
+                            accuracy = float(usr.accuracy) * 0.01
                         else:
                             accuracy = 0
                         if level<1:
                             level=1
-                        mydb.commit()
+                        usr.save()
                         replayfile = open(replay_name, "w")
                         replayfile.write(replay_data)
                         replayfile.close()
-                        return JsonResponse({"rank": ranking,"points": rankedpoints,"level": level,"score": rankedscore,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": info["ranked"],"msg": "", "error": 0})
+                        return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0})
                    else:
-                        return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": info["ranked"],"msg": "Forbidden Score","error": 1})
+                        return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": "Forbidden Score","error": 1})
             except Exception as err:
-                return HttpResponse(str(['ERR',err,'Line '+str(sys.exc_info()[-1].tb_lineno)]))
+                return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": str(['ERR',err,'Line '+str(sys.exc_info()[-1].tb_lineno)]),"error": 1})
         return response
     elif len(command)>0 and request.method == "GET":
         if command[0]=='listmedal':
@@ -773,6 +792,11 @@ def api(request,command,value=None):
                 return HttpResponse(json.dumps(data))
             except Exception as err:
                 return HttpResponse(err)
+        elif command[0]=='getdifficulties' and not request.META.get('HTTP_BEATMAPSETID', '') == "":
+            try:
+                return JsonResponse(getdifficulties(request.META.get('HTTP_BEATMAPSETID', '')),safe=False)
+            except Exception as error:
+                return JsonResponse({"error" : 1,"reason": str(error)})
         elif command[0]=='getleaderboard' and not request.META.get('HTTP_BEATMAPID', '') == "":
             try:
                 return JsonResponse(get_leaderboard(request.META.get('HTTP_BEATMAPID', '')),safe=False)
@@ -817,8 +841,10 @@ def api(request,command,value=None):
             if checklogin(username,password,signup=True)[0]:
                 accept=1
             if accept and len(text) >0:
-                mycursor.execute("UPDATE users SET stattime = %s, status = %s WHERE username = %s",(int(timezone.now().timestamp()),text,username))
-                mydb.commit()
+                usr = User.objects.get(username = username)
+                usr.stattime = int(timezone.now().timestamp())
+                usr.status = text
+                usr.save()
         elif command[0]=='chkprofile':
             msg=''
             usrpwd=request.META.get('HTTP_USERNAME', ''),request.META.get('HTTP_PASSWORD', '')

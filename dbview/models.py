@@ -21,6 +21,7 @@ class Score(models.Model):
     beatmapdiff = models.CharField(max_length=256, null=True, blank=True)
     mods = models.CharField(max_length=48, null=True, blank=True)
     maxpoints = models.FloatField(null=True, blank=True)
+    version = models.IntegerField(null=False, blank=False, default=2)
     speed_multi = models.FloatField(null=False, blank=False, default=1)
     replay_path = models.TextField(null=True, blank=True)
     
@@ -64,7 +65,7 @@ class Beatmap(models.Model):
     beatmapsetid = models.IntegerField(null=False, blank=True)
     notecount = models.IntegerField(null=False, blank=True)
     pp = models.FloatField(null=True, blank=True)
-    playcount = models.IntegerField(null=False, blank=True)
+    playcount = models.IntegerField(null=False, blank=False, default=0)
     beatmapfile = models.TextField(null=False, blank=True)
 
     
