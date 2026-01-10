@@ -1,7 +1,7 @@
 from django.utils import timezone
 from django.shortcuts import render, HttpResponse
 from django.http import JsonResponse
-from Chikara.settings import BASE_DIR, STATIC_ROOT, REPLAYS,storage_root,client_id,client_secret
+from Chikara.settings import BASE_DIR, STATIC_ROOT, REPLAYS,storage_root,client_id,client_secret, DataURL
 from django.db.models import Q
 from random import randint
 import mysql.connector
@@ -236,17 +236,25 @@ def get_leaderboard(id): # Leaderboard processing
 
 def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter with default value
     if command == 'score':
-        user = User.objects.filter(username=useris).first()
+        user = User.objects.get(username=useris)
         t = user.ranked_score if user and user.ranked_score is not None else 0
     elif command == 'level':
-        user = User.objects.filter(username=useris).first()
+        user = User.objects.get(username=useris)
         ranked_score = user.ranked_score if user and user.ranked_score is not None else 0
         t = int(int(ranked_score) * leveltemp)
     
     elif command == 'rank':
-        user = User.objects.filter(username=useris).first()
+        user = User.objects.get(username=useris)
         t = user.ranking if user else None
     
+    elif command == 'pfp_path':
+        user = User.objects.get(username=useris)
+        t = user.pfppath if user else NoProfilePictureURL
+        if t == None:
+            t = NoProfilePictureURL
+        else:
+            t = DataURL + t
+        t = {"url" : str(t)}
     elif command == 'ranking':
         tols = 0
         users = []
@@ -269,7 +277,7 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
         return users, tols
     
     elif command in ['accuracy', 'max', 'great', 'meh', 'bad', 'max_combo']:
-        user = User.objects.filter(username=useris).first()
+        user = User.objects.get(username=useris)
         t = getattr(user, command) if user else None
     
     elif command == 'full':
@@ -280,6 +288,7 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
             "accuracy": getstat('accuracy', useris) * 0.01,
             "max_combo": getstat('max_combo', useris),
             "level": getstat('level', useris),
+            "pfp_path": getstat('pfp_path', useris)["url"],
             "donator": False,
             "restricted": False
         }
@@ -567,7 +576,7 @@ def getsimscore(achieved,max,mult,type=str):
 
 def api(request,command,value=None):
     command=command.split('/')
-    if len(command)>0 and request.method == "POST":
+    if command[0] != "" and request.method == "POST":
         if command[0]=='signup' and len(command) >1:
             try:
                 username = request.META.get('HTTP_USERNAME', '')
@@ -782,7 +791,7 @@ def api(request,command,value=None):
             except Exception as err:
                 return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": str(['ERR',err,'Line '+str(sys.exc_info()[-1].tb_lineno)]),"error": 1})
         return response
-    elif len(command)>0 and request.method == "GET":
+    elif command[0] != "" and request.method == "GET":
         if command[0]=='listmedal':
             username=command[1]
             data=[]
@@ -804,7 +813,7 @@ def api(request,command,value=None):
                 return JsonResponse({"error" : 1,"reason": str(error)})
         elif command[0]=='getleaderboard':
             return JsonResponse({"error" : 0,"reason": "No BeatmapID"})
-        elif command[0]=='createroom':
+        elif command[0]=='createroom' and 0 != 0:
             login=command[1:]
             currently=urllib.parse.unquote(login[5])
             beatmapid=login[4]
@@ -816,7 +825,7 @@ def api(request,command,value=None):
                 print(login)
                 mycursor.execute("INSERT INTO multiplayer (room_name,currently_playing,player_list,host,state) VALUES (%s,%s,%s,%s,%s)",(roomname,currently,username+';',username,1))
                 mydb.commit()
-        elif command[0]=='getmultilist':
+        elif command[0]=='getmultilist' and 0 != 0:
             try:
                 mycursor.execute("SELECT id,room_name,currently_playing,player_list,host,state FROM multiplayer ORDER BY created DESC LIMIT 5")
                 multilist=mycursor.fetchall()
@@ -864,7 +873,7 @@ def api(request,command,value=None):
             if checklogin(user,'x',signup=True)[0]:
                 accept=1
             if accept:
-                if command[1] == "full":
+                if command[1] in ("pfp_path", "full"):
                     raw=True
                 else:
                     raw=False
@@ -873,7 +882,7 @@ def api(request,command,value=None):
             else:
                 return JsonResponse({"error":1})
         else:
-            return HttpResponse('Unknown Command')
+            return HttpResponse('Unknown Command ' + str(command))
     else:
         return HttpResponse('(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ Welcome to Chikara!')
 
@@ -882,11 +891,13 @@ def api(request,command,value=None):
 
 def header(request):
     head = open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/header.html").read()
-    accept=checklogin(request.COOKIES.get('username', None), request.COOKIES.get('password', None))[0]
+    username = request.COOKIES.get('username')
+    password = request.COOKIES.get('password', None)
+    accept=checklogin(username, password)[0]
     if accept:
-        head = head.replace("{usertag}", request.COOKIES.get('username'))
+        head = head.replace("{usertag}", username).replace("{pfppath}", getstat("pfp_path",username)["url"])
     else:
-        head = head.replace("{usertag}", "Guest")
+        head = head.replace("{usertag}", "Guest").replace("{pfppath}", NoProfilePictureURL)
     return head
 
 def user(request, user):

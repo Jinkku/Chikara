@@ -137,7 +137,9 @@ REPLAYS =  os.path.join(storage_root, 'replays')
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-
+# Please put your path to the image for this to work.
+DataURL = "https://data.jinkku.moe"
+NoProfilePictureURL = "https://qlute.jinkku.moe/static/img/profile/guest.png"
 STATIC_ROOT = 'static'
 STATIC_URL = 'static/'
 

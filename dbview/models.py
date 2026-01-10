@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Func, F
+from Chikara.settings import NoProfilePictureURL
 
 class UnixTimestamp(Func):
     function = 'UNIX_TIMESTAMP'
@@ -46,6 +47,7 @@ class User(models.Model):
     ranking = models.IntegerField(null=True, blank=True)
     money = models.FloatField(null=True, blank=True)
     accuracy = models.FloatField(null=True, blank=True)
+    pfppath = models.TextField(null=False, blank=False, default=NoProfilePictureURL)
     
     class Meta:
         db_table = 'users'

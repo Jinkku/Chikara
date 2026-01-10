@@ -22,6 +22,7 @@ import Chikara.usersettings as usersettings
 urlpatterns = [
     path('apiv2/<path:command>', views.api),
     path('apiv2/', views.api, {'command': ''}),
+    path('apiv2', views.api, {'command': ''}),
     path('user/<path:user>', views.user),
     path('settings', usersettings.usersettings),
     path('ranking', views.ranking),
