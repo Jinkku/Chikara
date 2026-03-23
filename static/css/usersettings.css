@@ -1,0 +1,18 @@
+.usersettingsblock {
+    display: flex;
+    height: 50%;
+}
+.userSettings {
+    display: flex;
+    width: 100%;
+    padding: 15px 15px;
+    flex-direction: column;
+}
+.userCatagory {
+    display: flex;
+    width: 100%;
+    padding: 15px 15px;
+    margin-top: 25px;
+    margin-left: 25px;
+    font-size: 20px;
+}

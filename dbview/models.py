@@ -45,7 +45,7 @@ class User(models.Model):
     bad = models.IntegerField(null=True, blank=True)
     max_combo = models.IntegerField(null=True, blank=True)
     ranking = models.IntegerField(null=True, blank=True)
-    money = models.FloatField(null=True, blank=True)
+    money = models.FloatField(null=True, blank=True, default=0)
     accuracy = models.FloatField(null=True, blank=True)
     pfppath = models.TextField(null=False, blank=False, default=NoProfilePictureURL)
     

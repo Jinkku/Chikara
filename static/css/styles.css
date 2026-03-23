@@ -181,6 +181,10 @@ button:hover, input[type=submit]:hover {
     height: 40px;
     border-radius: 5px;
 }
+.pfp_userpage {
+    height: 64px;
+    border-radius: 5px;
+}
 .header-right h3 {
     margin-right: 15px;
 }
@@ -294,4 +298,31 @@ button:hover, input[type=submit]:hover {
 }
 .infoboxtile{
   background-color: #f3baff2a;
+}
+.statblock {
+    display: flex;
+}
+.statinfo {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.bar {
+    display: flex;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    text-align: right;
+}
+.importantinfo {
+    height: 0%;
+    display: flex;
+    min-width: 15%;
+    flex-direction: column;
+    margin-left: 15px;
+    margin-right: 15px;
+    
+}
+.statpillar {
+    display: flex;
 }

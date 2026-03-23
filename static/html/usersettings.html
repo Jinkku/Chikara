@@ -7,8 +7,10 @@
     <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/Jinkkuu/PyQlute/refurn-v3/assets/icon.png">
     <link rel="stylesheet" href="/static/css/card.css">
     <link rel="stylesheet" href="/static/css/accountprompt.css">
+    <link rel="stylesheet" href="/static/css/usersettings.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/static/script/usersettings.js"></script>
 </head>
 <body>
     <div class="infoboxcontainer">
@@ -16,12 +18,11 @@
             <p>user settings</p>
         </div>
         <span class="infobox column verticalpadding">
-            <div style="display: flex;height: 50%;">
-                <div style="width: 100%;">
-                    <p style="margin-top: 25px;margin-left: 25px;font-size: 20px;padding: 15px 15px;">Profile</p>
-
+            <div class="usersettingsblock">
+                <div class="userCatagory">
+                    <p>Avatar</p>
                 </div>
-                <div style="width: 100%;padding: 15px 15px">
+                <div class="userSettings">
 
                     <div class="account-edit-entry account-edit-entry--block js-account-edit-avatar">
                         <div class="account-edit-entry__avatar">
@@ -39,19 +40,39 @@
                         </div>
 
                         <p>
-                            <label class="btn-osu-big btn-osu-big--account-edit">
-                                <button>Upload image</button>
-
-                                <input class="js-account-edit-avatar__button fileupload" type="file" name="avatar_file" data-url="https://osu.ppy.sh/home/account/avatar">
-                            </label>
+                            <button id="avatarbutton">Upload image</button>
+                            <input class="js-account-edit-avatar__button" type="file" id="avatarupload" accept="image/*" name="avatar_file" data-url="https://osu.ppy.sh/home/account/avatar" hidden>
                         </p>
 
                         Please ensure your avatar adheres to the Visual content considerations.<br>This means it must be <strong>suitable for all ages</strong>. i.e. no nudity, offensive or suggestive content.
                     </div>
+                </div>
+            </div>
 
+            <div class="usersettingsblock">
+                <div class="userCatagory">
+                    <p>Biography</p>
+                </div>
+                <div class="userSettings">
+                    Bios
+                </div>
+            </div>
 
+            <div class="usersettingsblock">
+                <div class="userCatagory">
+                    <p>Preferences</p>
+                </div>
+                <div class="userSettings">
+                    ...
+                </div>
+            </div>
 
-
+            <div class="usersettingsblock">
+                <div class="userCatagory">
+                    <p>Privacy</p>
+                </div>
+                <div class="userSettings">
+                    You got privacy anyways o-o
                 </div>
             </div>
         </span>

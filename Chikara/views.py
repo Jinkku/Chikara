@@ -1,18 +1,19 @@
 from django.utils import timezone
 from django.shortcuts import render, HttpResponse
+import traceback
 from django.http import JsonResponse
 from Chikara.settings import BASE_DIR, STATIC_ROOT, REPLAYS,storage_root,client_id,client_secret, DataURL
 from django.db.models import Q
 from random import randint
-import mysql.connector
 import json,hashlib
 import urllib.parse
-import sys,time,datetime
+import sys,time,datetime,os
 from ossapi import Ossapi
 from dbview.models import *
-import sys,json
+import json
 starttime=timezone.now().timestamp()
 perfbom=0.035
+pulseinflation = 1.2
 dedipoints=0.00000727
 maxperf=800
 nom=2
@@ -31,17 +32,6 @@ allowsubmissions = 1
 simulatedpp=23000
 simulatedrank=10000000
 
-
-def connect_db():
-    return mysql.connector.connect(
-        host="localhost",
-        user="qluta",
-        password="Qlutaismyfav$23",
-        database='qluta'
-    )
-
-mydb = connect_db()
-mycursor = mydb.cursor(buffered=True, dictionary=True)
 def fetch_beatmap(beatmapidset, beatmapid):
     api = Ossapi(client_id, client_secret)
 
@@ -185,8 +175,11 @@ def getdifficulties(id): # Difficulty processing
 def get_leaderboard(id): # Leaderboard processing
         x=[]
         e=0
+        pointtest = 0
         for a in getscores(beatmapid=id):
             points = getpoint(int(a['max']),int(a['great']),int(a['meh']),int(a['bad']),float(getmult(a['mods'])),combo=a['combo'])
+            if pointtest < points:
+                pointtest = pointtest
             maxpoints = getpoint(int(a['max'])+int(a['great'])+int(a['meh'])+int(a['bad']),0,0,0,float(getmult(a['mods'])),combo=a['combo'])
             data = {
     "username": a['username'],
@@ -205,26 +198,21 @@ def get_leaderboard(id): # Leaderboard processing
             e+=1
         spp=0
         if spp:
-            if len(result)>0:
-                template=result[0]
-            else:
-                template=(100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,)
-            #print(template)
-            for a in open('userlist').read().rstrip('\n').split('\n')[::-1]:
+            for a in range(1,250):
                 if e>49:
                     break
                 else:
                     mult=1.2
-                    pp=randint(1,int(template[14]*mult))
+                    pp=randint(1,int(pointtest*mult))
                     data = {
-            "username": a,
+            "username": str(a),
             "points": pp,
-            "score": getsimscore(pp,template[14],mult,type=int),
-            "combo": randint(1,int(template[14]//perfbom)),
-            "MAX": randint(1,int(template[14]//perfbom)),
-            "GOOD": randint(1,int(template[14]//perfbom)),
-            "MEH": randint(1,int(template[14]//perfbom)),
-            "BAD": randint(1,int(template[14]//perfbom)),
+            "score": getsimscore(pp,pointtest,mult,type=int),
+            "combo": randint(1,int(pointtest//perfbom)),
+            "MAX": randint(1,int(pointtest//perfbom)),
+            "GOOD": randint(1,int(pointtest//perfbom)),
+            "MEH": randint(1,int(pointtest//perfbom)),
+            "BAD": randint(1,int(pointtest//perfbom)),
             "time": int(timezone.now().timestamp()-(e*16000))
                     }
                     x.append(data)
@@ -252,7 +240,7 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
         t = user.pfppath if user else NoProfilePictureURL
         if t == None:
             t = NoProfilePictureURL
-        else:
+        elif not t.startswith("http"):
             t = DataURL + t
         t = {"url" : str(t)}
     elif command == 'ranking':
@@ -330,13 +318,17 @@ def getmult(multiplier,submit=False, speed = 1):
                elif a == 'DT':
                   multiplier*=1.15 / ( speed / 1.25 )
                elif a == 'HT':
-                  multiplier/=0.3 / ( speed / 0.5 )
+                  multiplier*=0.3 / ( speed / 0.5 )
                elif a == 'NF':
-                  multiplier/=0.5
+                  multiplier*=0.5
                elif not a in ('AT','RND'):
                   multiplier+=0.5
     return multiplier
 
+def getpulses(pp):
+    pulses = pp
+    pulses **= pulseinflation
+    return pulses
 
 def getpoint(perfect,good,meh,bad,multiplier,combo=1,type=int): # Points System 2024/06/15
     ppvalue = 0
@@ -525,7 +517,7 @@ def playtime(t):
 
 # Checking Login
 
-def checklogin(usr,pwd,signup=False,id=0):
+def checklogin(usr,pwd="",signup=False,id=0):
     if usr in ('None','Guest'):
         return (0,0)
     try:
@@ -650,6 +642,9 @@ def api(request,command,value=None):
                    finalscore=int( (points/maxpoints)*(1000000*mult) )
                    info = Beatmap.objects.filter(beatmapid = beatmap_id, beatmapsetid = beatmapset_id).first()
                    replay_name = f"{REPLAYS}/{timezone.now().timestamp()}-{beatmapset_id}-{beatmap_id}-{user}-{mods}.qrf"
+                   replayfile = open(replay_name, "w")
+                   replayfile.write(replay_data)
+                   replayfile.close()
                    if info == None:
                         info, difficulty, bpm, ranked= fetch_beatmap(beatmapset_id,beatmap_id)
                         if info != None:
@@ -716,10 +711,22 @@ def api(request,command,value=None):
                             hits[3]+=a['bad']
                         t=round(((hits[0]+(hits[1]/2)+(hits[2]/3))/(hits[0]+hits[1]+hits[2]+hits[3]))*100,2)
                         usr.accuracy = t
-                        usr.max = hits[0]
-                        usr.great = hits[1]
-                        usr.meh= hits[2]
-                        usr.bad = hits[3]
+                        if usr.max != None:
+                            usr.max += smax
+                        else:
+                            usr.max = smax
+                        if usr.great != None:
+                            usr.great += sgreat
+                        else:
+                            usr.great = sgreat
+                        if usr.meh != None:
+                            usr.meh += smeh
+                        else:
+                            usr.meh = smeh
+                        if usr.bad != None:
+                            usr.bad += sbad
+                        else:
+                            usr.bad = sbad
                         # Combo
 
                         max_combo = Score.objects.filter(username = user).order_by("-combo").first().combo
@@ -735,6 +742,10 @@ def api(request,command,value=None):
                                 rankedpoints+=int(al)
                             except Exception as err:
                                 sys.stdout.write(str(err))
+                        if usr.money is None:
+                            usr.money = getpulses(rankedpoints)
+                        else:
+                            usr.money += getpulses(points)
                         rankedscore=usr.ranked_score
                         if rankedscore:
                             t+=(int(rankedscore)+int(finalscore))*dedipoints
@@ -782,14 +793,11 @@ def api(request,command,value=None):
                         if level<1:
                             level=1
                         usr.save()
-                        replayfile = open(replay_name, "w")
-                        replayfile.write(replay_data)
-                        replayfile.close()
                         return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0})
                    else:
                         return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": "Forbidden Score","error": 1})
             except Exception as err:
-                return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": str(['ERR',err,'Line '+str(sys.exc_info()[-1].tb_lineno)]),"error": 1})
+                return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": str(traceback.format_exc()),"error": 1})
         return response
     elif command[0] != "" and request.method == "GET":
         if command[0]=='listmedal':
@@ -801,6 +809,13 @@ def api(request,command,value=None):
                 return HttpResponse(json.dumps(data))
             except Exception as err:
                 return HttpResponse(err)
+        elif command[0]=='getnotice':
+            f=os.listdir(storage_root + "events")
+            data = []
+            for a in f:
+                data.append({"url" : DataURL + "/events/" + a, "text" : a,"redirect": ""})
+            return JsonResponse(data,safe=False)
+
         elif command[0]=='getdifficulties' and not request.META.get('HTTP_BEATMAPSETID', '') == "":
             try:
                 return JsonResponse(getdifficulties(request.META.get('HTTP_BEATMAPSETID', '')),safe=False)
@@ -823,12 +838,12 @@ def api(request,command,value=None):
             username=login[0]
             if checklogin(username,password):
                 print(login)
-                mycursor.execute("INSERT INTO multiplayer (room_name,currently_playing,player_list,host,state) VALUES (%s,%s,%s,%s,%s)",(roomname,currently,username+';',username,1))
-                mydb.commit()
+                #mycursor.execute("INSERT INTO multiplayer (room_name,currently_playing,player_list,host,state) VALUES (%s,%s,%s,%s,%s)",(roomname,currently,username+';',username,1))
+                #mydb.commit()
         elif command[0]=='getmultilist' and 0 != 0:
             try:
-                mycursor.execute("SELECT id,room_name,currently_playing,player_list,host,state FROM multiplayer ORDER BY created DESC LIMIT 5")
-                multilist=mycursor.fetchall()
+                #mycursor.execute("SELECT id,room_name,currently_playing,player_list,host,state FROM multiplayer ORDER BY created DESC LIMIT 5")
+                #multilist=mycursor.fetchall()
                 #print(multilist)
                 #print({'name':'Lv. 15-629 Maps ONLY','current_players':36,'currently_playing':'DJ Dril4 - Nut Mommy'},{'name':'Lv. 3-10 Maps ONLY','current_players':653,'player_limit':9999,'currently_playing':'DJ Dril4 - Nut Mommy [CREEPER]'},)
                 #multilist=()
@@ -913,20 +928,19 @@ def user(request, user):
             donator=0
         if not usertest[1]:
             html = html.replace('{sitetitle}',f"{user}'s Profile")
-            mycursor.execute("SELECT * FROM users WHERE username = %s", (user,))
-            tmp=mycursor.fetchone()
+            usr = User.objects.get(username = user)
             try:
-                rank=int(tmp["ranking"])
-                points=int(getstat('points',user))
-                score=int(getstat('score',user))
+                rank=usr.ranking
+                points=usr.ranked_points
+                score=usr.ranked_score
                 level=int(score*leveltemp)
                 if level<1:
                     level=1
-                accuracy=getstat('accuracy',user)
-                max=getstat('max',user)
-                great=getstat('great',user)
-                meh=getstat('meh',user)
-                bad=getstat('bad',user)
+                accuracy=usr.accuracy
+                max=usr.max
+                great=usr.great
+                meh=usr.meh
+                bad=usr.bad
             except Exception as err:
                 rank = 0
                 points = 0
@@ -942,66 +956,62 @@ def user(request, user):
                 minnum+=1
             if rank<1:
                 rank=None
-            max_combo=getstat('max_combo',user)
+            max_combo=usr.max_combo
             if rank:
                 finalrank=format(rank,',')
             else:
                 finalrank='?'
             html += '<div class="infoboxcontainer">'
-            html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usernamecard.html").read().replace("{rank}",str(finalrank)).replace('{username}',tmp['username']) # User name card
+            html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usernamecard.html").read().replace('{username}',usr.username).replace('{pfppath}',getstat("pfp_path", user)["url"]) # User name card
 
             html += '<div class="infobox infoboxtile column spacetop spacebottom">'
             html += '<span>'
             try:
-                if (tmp['stattime'],tmp['status'])!=(None,None) and not timezone.now().timestamp()-tmp['stattime']>300:
-                    html += tmp['status']
+                if (usr.stattime,usr.status)!=(None,None) and not timezone.now().timestamp()-usr.stattime>300:
+                    html += usr.status
                 else:
-                    html += 'Last Seen '+str( timeform(timezone.now().timestamp()-tmp['stattime']))
+                    html += 'Last Seen '+str( timeform(timezone.now().timestamp()-usr.stattime))
             except Exception as err:
                 html += 'New player <3'
             html += '</span></div>' # Status Card
             html += '<div class="infobox column spacetop spacebottom">'
             html += '<div class="title">Stats</div>'
-            html += '<div style="display:flex;">'
+            html += '<div class="statblock">'
+            html += '<span class="importantinfo"><p>Global Rank</p><h1 style="margin-top:0px;margin-bottom:35px;flex: 1;" class="box">#'+str(finalrank)+'</h1></span>'
             if level>0:
-                html += '<h1 style="margin-top:0px;margin-bottom:35px;flex: 1;" class="box">Level '+str(format(level,','))+'</h1>'
-            
-            html += '<div style="text-align:right;"'
+                html += '<span class="importantinfo"><p>Level</p><h1 style="margin-top:0px;margin-bottom:35px;flex: 1;" class="box">'+str(format(level,','))+'</h1></span>'
+            html += '<div class="statinfo">'
 
-            html += '<br>Ranked Points:  <span class="bar">'
-            html += str(format(points,','))+'pp</span><br></br>'#Ranked Score:  ')
-#            html += '<span class="bar">')
-#            html += str(format(int(getstat('score',user)),','))+'</span>')
-            html += 'Total Play Time: '
-            html += '<span class="bar">'
-#            html += tmp)
-            html += str(playtime(tmp['playtime']))+'</span><br></br>'
+            html += '<span class="bar">Ranked Points: '
+            html += str(format(points,','))+'pp</span>'
+            html += '<span class="bar">Total Play Time: '
+            html += str(playtime(usr.playtime))+'</span>'
             if score>0:
+                html += '<span class="bar">'
                 html += 'Ranked Score: '
-                html += '<span class="bar">'
-                html += str(format(score,','))+'</span><br></br>'
+                html += str(format(score,','))+'</span>'
+            html += '<span class="bar">'
             html += 'Accuracy: '
+            html += str(round(accuracy,2))+'%</span>'
             html += '<span class="bar">'
-            html += str(round(accuracy,2))+'%</span><br></br>'
             html += 'Total Perfect: '
+            html += str(max)+'</span>'
             html += '<span class="bar">'
-            html += str(max)+'</span><br></br>'
             html += 'Total Great: '
+            html += str(great)+'</span>'
             html += '<span class="bar">'
-            html += str(great)+'</span><br></br>'
             html += 'Total Meh: '
+            html += str(meh)+'</span>'
             html += '<span class="bar">'
-            html += str(meh)+'</span><br></br>'
             html += 'Total Bad: '
+            html += str(bad)+'</span>'
             html += '<span class="bar">'
-            html += str(bad)+'</span><br></br>'
             html += 'Max Combo: '
-            html += '<span class="bar">'
-            html += str(max_combo)+'x</span><br></br>'
-            if tmp['username']=='aquapoki':
-                html += 'Virgin Meter: '
+            html += str(max_combo)+'x</span>'
+            if usr.username=='aquapoki':
                 html += '<span class="bar">'
-                html += '69.420%</span><br></br>'
+                html += 'Virgin Meter: '
+                html += '69.420%</span>'
             html += "</div>"
             if issignin and username=='aquapoki':
                 html += '<a href="/recentplay"><button class="minibutton">Recent Plays</button></a></span>'

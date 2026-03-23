@@ -128,12 +128,3 @@ input[type="password"] {
     transform: translateZ(0);
     width: 128px;
 }
-.fileupload {
-    cursor: pointer;
-    height: 300%;
-    opacity: 25;
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 300%;
-}
