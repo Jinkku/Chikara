@@ -2,7 +2,7 @@ from django.utils import timezone
 from django.shortcuts import render, HttpResponse
 import traceback
 from django.http import JsonResponse
-from Chikara.settings import BASE_DIR, STATIC_ROOT, REPLAYS,storage_root,client_id,client_secret, DataURL
+from Chikara.settings import BASE_DIR, STATIC_ROOT, REPLAYS,storage_root,client_id,client_secret, DataURL, AssetPath, SongFilePath, CheaterCardBorder
 from django.db.models import Q
 from random import randint
 import json,hashlib
@@ -11,6 +11,7 @@ import sys,time,datetime,os
 from ossapi import Ossapi
 from dbview.models import *
 import json
+import Chikara.ppv2calc as ppv2calc
 starttime=timezone.now().timestamp()
 perfbom=0.035
 pulseinflation = 1.2
@@ -22,9 +23,10 @@ pointsbase=1
 mainurl='https://dev.catboy.best'
 beatmapapi=mainurl+'/api/v2/'
 allowspoof=0
+restrictionnotice = "Your profile is restricted\nYou can't submit scores or interact with the community until it's lifted."
 gradecolour=(81, 149, 194),(114, 123, 179),(105, 173, 99),(113, 85, 173),(173, 136, 61),(168, 70, 50),(20,20,20)
 modsaliasab='AT','DT','HT','SL','BT','RND','NF' # Mods Alias
-medals=("The End","You've made it"),("Baby Steps","Welcome to the Game"),(">~<","Impressive"),('Psycho','Dang you can read that?!'),('Welcome back Veteran','Glad to see you back'),('D-Ranker','Unrhythmic'),('S-Ranker','Like to show off. huh?'),('Donator','Thanks for Supporting the Game!'),('Sniper','First Comes, First Serve!'),('BreakThrough','Unstoppable'),('Top 100','You are the chosen one'),('Top 50','Almost There'),('Top 10','Grab some Popcorn 🍿'),('Top 1,000','Still a Virgin at this game are you?'),('Lorem Ipsum',"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.") # Medals
+medals=("The End","You've made it"),("Baby Steps","Welcome to the Game"),(">~<","Impressive"),('Psycho','Dang you can read that?!'),('Welcome back Veteran','Glad to see you back'),('D-Ranker','Unrhythmic'),('S-Ranker','Like to show off. huh?'),('Donator','Thanks for Supporting the Game!'),('Sniper','First Comes, First Serve!'),('BreakThrough','Unstoppable'),('Top 100','You are the chosen one'),('Top 50','Almost There'),('Top 10','Grab some Popcorn 🍿'),('Top 1,000','Still a Virgin at this game are you?'),("Making the game better", "You are making the community better!") # Medals
 leveltemp=0.0000005 # Level multiplier
 username='0' # Guest mode
 issignin=False # Sign in state
@@ -177,10 +179,10 @@ def get_leaderboard(id): # Leaderboard processing
         e=0
         pointtest = 0
         for a in getscores(beatmapid=id):
-            points = getpoint(int(a['max']),int(a['great']),int(a['meh']),int(a['bad']),float(getmult(a['mods'])),combo=a['combo'])
+            points = a['points']
             if pointtest < points:
                 pointtest = pointtest
-            maxpoints = getpoint(int(a['max'])+int(a['great'])+int(a['meh'])+int(a['bad']),0,0,0,float(getmult(a['mods'])),combo=a['combo'])
+            maxpoints = a['maxpoints']
             data = {
     "username": a['username'],
     "points": points,
@@ -243,12 +245,22 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
         elif not t.startswith("http"):
             t = DataURL + t
         t = {"url" : str(t)}
+    elif command == 'cardborder':
+        user = User.objects.get(username=useris)
+        t = user.cardborder if user else None
+        if user.restricted:
+            t = CheaterCardBorder
+        elif t == None:
+            t = None
+        elif not t.startswith("http"):
+            t = DataURL + t
+        t = {"url" : t}
     elif command == 'ranking':
         tols = 0
         users = []
         
         # Get users from DB ordered by ranked_points
-        db_users = User.objects.all().order_by('-ranked_points')[50*(page-1):50*page]
+        db_users = User.objects.all().filter(restricted = False).order_by('-ranked_points')[50*(page-1):50*page]
         
         for a in db_users:
             try:
@@ -267,7 +279,8 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
     elif command in ['accuracy', 'max', 'great', 'meh', 'bad', 'max_combo']:
         user = User.objects.get(username=useris)
         t = getattr(user, command) if user else None
-    
+    elif command == 'restricted':
+        return User.objects.values().filter(username = useris).first()["restricted"]
     elif command == 'full':
         data = {
             "rank": getstat('rank', useris),
@@ -277,8 +290,9 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
             "max_combo": getstat('max_combo', useris),
             "level": getstat('level', useris),
             "pfp_path": getstat('pfp_path', useris)["url"],
+            "cardborder": getstat('cardborder', useris)["url"],
             "donator": False,
-            "restricted": False
+            "restricted": getstat('restricted', useris),
         }
         
         if not raw:
@@ -330,7 +344,7 @@ def getpulses(pp):
     pulses **= pulseinflation
     return pulses
 
-def getpoint(perfect,good,meh,bad,multiplier,combo=1,type=int): # Points System 2024/06/15
+def getpoint(perfect,good,meh,bad,multiplier,combo=1,type=int): # Points System 2024/06/15 Now Obsolete
     ppvalue = 0
     ppvalue = perfect * perfbom
     ppvalue -= perfbom/2 * good
@@ -387,7 +401,7 @@ def getmedals(user):
 
 # Querying scores
 
-def getscores(user='',beatmapid=0,orderbybiggest=False,limit=30):
+def getscores(user='',beatmapid=0,orderbybiggest=False,limit=30,ranked = 1):
     tols=0
     if orderbybiggest:
         strip='points'
@@ -395,16 +409,18 @@ def getscores(user='',beatmapid=0,orderbybiggest=False,limit=30):
         strip='created'
     if user=='':
         if beatmapid!=0:
-            score = Score.objects.values().filter(beatmap_id=beatmapid)[:limit]
+            score = Score.objects.values().filter(beatmap_id=beatmapid).filter(ranked=ranked)[:limit]
         else:
-            score = Score.objects.values().order_by(f"-{str(strip)}")[:limit]
-    else:
+            score = Score.objects.values().order_by(f"-{str(strip)}").filter(ranked=ranked)[:limit]
+    elif user != '' and ranked != -1:
+        score = Score.objects.filter(username=user).values().order_by(f"-{str(strip)}").filter(ranked=ranked)[:limit]
+    elif user != '' and ranked == -1:
         score = Score.objects.filter(username=user).values().order_by(f"-{str(strip)}")[:limit]
     per=1
     for a in score:
         mods=a['mods']
         a['multiplier']=getmult(mods)
-        a['points']=getpoint(a['max'],a['great'],a['meh'],a['bad'],a['multiplier'], a['combo'])
+        #a['points']=getpoint(a['max'],a['great'],a['meh'],a['bad'],a['multiplier'], a['combo'])
         a['weighted_pp']=a['points']*per#*(tmp[15]*2)
         
         if user in a['username'] or beatmapid in a['beatmap_id']:
@@ -494,7 +510,7 @@ def get_userscore(user='',recent=True,mini=False,limit=50):
         for a in modsaliasab:
             if a in tmp['mods']:
                 modse += f'<span class="mod">{a}</span>'
-        peak += scorecard.replace("{date}",timeest).replace("{title}",str(tmp['beatmapname'])).replace("{artist}",str(tmp['artist'])).replace("{rank}",gradet).replace("{difficulty}",str(tmp['beatmapdiff'])).replace("{points}",str(int(getpoint(tmp['max'],tmp['great'],tmp['meh'],tmp['bad'],tmp['multiplier'],combo=tmp['combo'])))).replace("{weighted_points}",weighted).replace("{weighted_percentage}",weightedp).replace("{mods}",str(modse)).replace("{area}","/beatmapset/"+str(tmp["beatmapset_id"])+"/"+str(tmp["beatmap_id"]))
+        peak += scorecard.replace("{date}",timeest).replace("{title}",str(tmp['beatmapname'])).replace("{artist}",str(tmp['artist'])).replace("{rank}",gradet).replace("{difficulty}",str(tmp['beatmapdiff'])).replace("{points}",str(int(tmp['points']))).replace("{weighted_points}",weighted).replace("{weighted_percentage}",weightedp).replace("{mods}",str(modse)).replace("{area}","/beatmapset/"+str(tmp["beatmapset_id"])+"/"+str(tmp["beatmap_id"]))
         pek-=0.02
     if tols==0:
         peak +='<h3 class="bar">No Recent Plays -n-</h3>'
@@ -525,7 +541,7 @@ def checklogin(usr,pwd="",signup=False,id=0):
         id=0
     except Exception:
         id=0
-    fake=0
+    restricted = False
     if signup:
         result = User.objects.filter(
             Q(username=usr) | Q(id=id)
@@ -536,6 +552,7 @@ def checklogin(usr,pwd="",signup=False,id=0):
             password=pwd
         ).first()
     if result!=None and not signup:
+        restricted = result.restricted
         p=str(result.password)
         result = (pwd == p)
     elif result != None and signup:
@@ -543,9 +560,9 @@ def checklogin(usr,pwd="",signup=False,id=0):
     else:
         result=0
     if result:
-        return (1,fake)
+        return (1,restricted)
     else:
-        return (0,fake)
+        return (0,restricted)
 
         
 def getsimscore(achieved,max,mult,type=str):
@@ -603,19 +620,21 @@ def api(request,command,value=None):
                     response =  JsonResponse({"success": False}, status=401)
             except json.JSONDecodeError:
                 response = JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
-        elif command[0] == "ss":
+        elif command[0] == "sas":
             try:
                 replay_data = request.body.decode("utf-8")
-                
+
                 accept=0
                 user = request.META.get("HTTP_USERNAME","")
-                test=checklogin(user,request.META.get("HTTP_PASSWORD",""))[0]
+                test=(1,0)
                 if "AT" in request.META.get("HTTP_MODS",""):
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Don't try to cheat with Auto dude. :/","error": 1})
                 elif len(replay_data) < 64:
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Replay data is empty.","error": 1})
-                elif not test:
+                elif not test[0]:
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Incorrect Credentials.","error": 1})
+                elif test[1]:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "You can't submit scores because your restricted.","error": 1})
                 elif not allowsubmissions:
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Submissions are disabled.","error": 1})
                 else:
@@ -636,50 +655,39 @@ def api(request,command,value=None):
                    beatmap_id = int(request.META.get("HTTP_BEATMAPID",""))
                    beatmapset_id = int(request.META.get("HTTP_BEATMAPSETID",""))
                    speed_multi = float(request.META.get("HTTP_MULTIPLIER",""))
-                   mult=getmult(mods, speed=speed_multi)
-                   points = getpoint(smax,sgreat,smeh,sbad,float(mult),combo=combo)
-                   maxpoints=getpoint(smax+sgreat+smeh+sbad,0,0,0,float(mult),combo=combo)
-                   finalscore=int( (points/maxpoints)*(1000000*mult) )
                    info = Beatmap.objects.filter(beatmapid = beatmap_id, beatmapsetid = beatmapset_id).first()
-                   replay_name = f"{REPLAYS}/{timezone.now().timestamp()}-{beatmapset_id}-{beatmap_id}-{user}-{mods}.qrf"
-                   replayfile = open(replay_name, "w")
-                   replayfile.write(replay_data)
-                   replayfile.close()
                    if info == None:
-                        info, difficulty, bpm, ranked= fetch_beatmap(beatmapset_id,beatmap_id)
-                        if info != None:
-                            Beatmap.objects.create(
-                                title = info.title,
-                                title_unicode = info.title_unicode,
-                                artist = info.artist,
-                                artist_unicode = info.artist_unicode,
-                                difficulty = difficulty,
-                                BPM = bpm,
-                                ranked = ranked,
-                                mapper = info.creator,
-                                beatmapid = int(beatmap_id),
-                                beatmapsetid = int(beatmapset_id)
-                            )
-                            ranked = ranked
-                        else:
-                            ranked = 0
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "There is no beatmaps that I recognize with this one :/","error": 1})
                    else:
                         ranked = info.ranked
                         difficulty = info.difficulty
                         bpm = info.BPM
-                   if not float(points)>maxperf and accept and ranked > 0:
+                   replay_name = f"{REPLAYS}/{timezone.now().timestamp()}-{beatmapset_id}-{beatmap_id}-{user}-{mods}.qrf"
+                   replayfile = open(replay_name, "w")
+                   replayfile.write(replay_data)
+                   replayfile.close()
+                   mult=getmult(mods, speed=speed_multi)
+                   if info.ranked != 0:
+                       pointsdata = ppv2calc.calculate_ppv2(replay_name, storage_root + info.chartfile)
+                       points = pointsdata.pp * mult
+                       maxpoints=pointsdata.max_pp * mult
+                   else:
+                       points = 0.000000001
+                       maxpoints = 0.01
+                   finalscore=int( (points/maxpoints)*(1000000*mult) )
+                   usr = User.objects.get(username = user)
+                   if not float(points)>usr.ranked_points / 4 and accept and ranked > 0:
                         tmp = Score.objects.filter(beatmap_id = beatmap_id, username = user).first()
                         if not tmp==None:
-                            #print(float(data[3]),tmp['points'])
                             oldmult=getmult(getmult(tmp.mods,submit=True))
-                            if points > float(getpoint(tmp.max,tmp.great,tmp.meh,tmp.bad,oldmult)):# and usr['ranked_points']!=None and usr['ranked_points']+11<=float(data[3]):
+                            
+                            if tmp.replay_path == None or ppv2calc.calculate_ppv2(storage_root + tmp.replay_path, storage_root + info.chartfile).pp:
                                 tmp.delete()
                                 submit=True
                             else:
                                 submit=False
                         else:
                             submit=True
-                        usr = User.objects.get(username = user)
                         if submit:
                             Score.objects.create(
                                 username = user,
@@ -694,9 +702,10 @@ def api(request,command,value=None):
                                 meh = smeh,
                                 bad = sbad,
                                 beatmapdiff = difficulty,
+                                ranked = info.ranked,
                                 mods = mods,
                                 maxpoints = maxpoints,
-                                replay_path = replay_name,
+                                replay_path = replay_name.removeprefix(storage_root),
                                 version = 2,
                                 speed_multi = speed_multi
                             )
@@ -761,13 +770,13 @@ def api(request,command,value=None):
                                 users.append((name,pp))
                             users=sorted(users, key=lambda x: x[1],reverse=True)
                         rankb=1
-                        if user != "aquapoki":
-                            for a in users:
-                                if a[0]==user:
-                                    break
-                                rankb+=1
-                        else:
-                            rankb=(simulatedrank - ((rankedpoints/simulatedpp) * simulatedrank)) + 1
+#                        if user != "aquapoki":
+                        for a in users:
+                            if a[0]==user:
+                                break
+                            rankb+=1
+#                        else:
+#                            rankb=(simulatedrank - ((rankedpoints/simulatedpp) * simulatedrank)) + 1
                         ranking=rankb
                         usr.ranked_points = rankedpoints
                         usr.ranking = ranking
@@ -794,8 +803,203 @@ def api(request,command,value=None):
                             level=1
                         usr.save()
                         return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0})
+                   elif accept and ranked > 0:
+                        usr.restricted = True
+                        usr.save()
+                        return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": restrictionnotice,"error": 1})
                    else:
-                        return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": "Forbidden Score","error": 1})
+                       return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": "Forbidden Score.","error": 1})
+            except Exception as err:
+                return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": str(traceback.format_exc()),"error": 1})
+        elif command[0] == "ss":
+            try:
+                replay_data = request.body.decode("utf-8")
+
+                accept=0
+                user = request.META.get("HTTP_USERNAME","")
+                test=checklogin(user,request.META.get("HTTP_PASSWORD",""))
+                if "AT" in request.META.get("HTTP_MODS",""):
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Don't try to cheat with Auto dude. :/","error": 1})
+                elif len(replay_data) < 64:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Replay data is empty.","error": 1})
+                elif not test[0]:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Incorrect Credentials.","error": 1})
+                elif test[1]:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "You can't submit scores because your restricted.","error": 1})
+                elif not allowsubmissions:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Submissions are disabled.","error": 1})
+                else:
+                    accept = 1
+                if accept and allowsubmissions:
+                   # ORDER BY points DESC 
+                   try:
+                       taken=int(float(request.META.get("HTTP_TAKEN","")))
+                   except Exception as error:
+                       print(str(error))
+                       taken=0
+                   mods = getmult(request.META.get("HTTP_MODS",""),submit=True)
+                   combo = int(request.META.get("HTTP_COMBO",""))
+                   smax = int(request.META.get("HTTP_MAX",""))
+                   sgreat = int(request.META.get("HTTP_GREAT",""))
+                   smeh = int(request.META.get("HTTP_MEH",""))
+                   sbad = int(request.META.get("HTTP_BAD",""))
+                   beatmap_id = int(request.META.get("HTTP_BEATMAPID",""))
+                   beatmapset_id = int(request.META.get("HTTP_BEATMAPSETID",""))
+                   speed_multi = float(request.META.get("HTTP_MULTIPLIER",""))
+                   info = Beatmap.objects.filter(beatmapid = beatmap_id, beatmapsetid = beatmapset_id).first()
+                   if info == None:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "There is no beatmaps that I recognize with this one :/","error": 1})
+                   else:
+                        ranked = info.ranked
+                        difficulty = info.difficulty
+                        bpm = info.BPM
+                   replay_name = f"{REPLAYS}/{timezone.now().timestamp()}-{beatmapset_id}-{beatmap_id}-{user}-{mods}.qrf"
+                   replayfile = open(replay_name, "w")
+                   replayfile.write(replay_data)
+                   replayfile.close()
+                   mult=getmult(mods, speed=speed_multi)
+                   if info.ranked != 0:
+                       pointsdata = ppv2calc.calculate_ppv2(replay_name, storage_root + info.chartfile)
+                       points = pointsdata.pp * mult
+                       maxpoints=pointsdata.max_pp * mult
+                   else:
+                       points = 0.000000001
+                       maxpoints = 0.01
+                   finalscore=int( (points/maxpoints)*(1000000*mult) )
+                   usr = User.objects.get(username = user)
+                   if not float(points)>usr.ranked_points / 4 and accept and ranked > 0:
+                        tmp = Score.objects.filter(beatmap_id = beatmap_id, username = user).first()
+                        if not tmp==None:
+                            oldmult=getmult(getmult(tmp.mods,submit=True))
+                            
+                            if tmp.replay_path == None or ppv2calc.calculate_ppv2(storage_root + tmp.replay_path, storage_root + info.chartfile).pp:
+                                tmp.delete()
+                                submit=True
+                            else:
+                                submit=False
+                        else:
+                            submit=True
+                        if submit:
+                            Score.objects.create(
+                                username = user,
+                                beatmapname = info.title,
+                                artist = info.artist,
+                                points = points,
+                                combo = combo,
+                                beatmap_id = beatmap_id,
+                                beatmapset_id = beatmapset_id,
+                                max = smax,
+                                great = sgreat,
+                                meh = smeh,
+                                bad = sbad,
+                                beatmapdiff = difficulty,
+                                ranked = info.ranked,
+                                mods = mods,
+                                maxpoints = maxpoints,
+                                replay_path = replay_name.removeprefix(storage_root),
+                                version = 2,
+                                speed_multi = speed_multi
+                            )
+                        # ACC
+
+                        hits=[0,0,0,0]
+                        b=1
+                        for a in getscores(user=user,orderbybiggest=True,limit=50):
+                            hits[0]+=a['max']
+                            hits[1]+=a['great']
+                            hits[2]+=a['meh']
+                            hits[3]+=a['bad']
+                        t=round(((hits[0]+(hits[1]/2)+(hits[2]/3))/(hits[0]+hits[1]+hits[2]+hits[3]))*100,2)
+                        usr.accuracy = t
+                        if usr.max != None:
+                            usr.max += smax
+                        else:
+                            usr.max = smax
+                        if usr.great != None:
+                            usr.great += sgreat
+                        else:
+                            usr.great = sgreat
+                        if usr.meh != None:
+                            usr.meh += smeh
+                        else:
+                            usr.meh = smeh
+                        if usr.bad != None:
+                            usr.bad += sbad
+                        else:
+                            usr.bad = sbad
+                        # Combo
+
+                        max_combo = Score.objects.filter(username = user).order_by("-combo").first().combo
+                        usr.max_combo = max_combo
+
+                        # Points
+                        rankedpoints=0
+                        x=0
+                        for a in getscores(user=user,orderbybiggest=True,limit=50):
+                            try:
+                                al=int(a['weighted_pp'])
+                                x+=1
+                                rankedpoints+=int(al)
+                            except Exception as err:
+                                sys.stdout.write(str(err))
+                        if usr.money is None:
+                            usr.money = getpulses(rankedpoints)
+                        else:
+                            usr.money += getpulses(points)
+                        rankedscore=usr.ranked_score
+                        if rankedscore:
+                            t+=(int(rankedscore)+int(finalscore))*dedipoints
+                        users=[]
+                        for a in User.objects.order_by("-ranked_points"):
+                            name=a.username
+                            pp=a.ranked_points
+                            if not pp:
+                                pp=0
+                            users.append((name,pp))
+                        if allowspoof:
+                            for name,pp in getspp():
+                                users.append((name,pp))
+                            users=sorted(users, key=lambda x: x[1],reverse=True)
+                        rankb=1
+#                        if user != "aquapoki":
+                        for a in users:
+                            if a[0]==user:
+                                break
+                            rankb+=1
+#                        else:
+#                            rankb=(simulatedrank - ((rankedpoints/simulatedpp) * simulatedrank)) + 1
+                        ranking=rankb
+                        usr.ranked_points = rankedpoints
+                        usr.ranking = ranking
+                        if usr.playtime == None:
+                            usr.playtime = int(taken)
+                        else:
+                            usr.playtime += int(taken)
+                        if usr.ranked_score == None:
+                            usr.ranked_score = finalscore
+                            level = 1
+                            rankedscore = finalscore
+                        else:
+                            usr.ranked_score += finalscore
+                            level=int(usr.ranked_score*leveltemp)
+                        if usr.max_combo != None:
+                            maxcombo = int(usr.max_combo)
+                        else:
+                            maxcombo = 0
+                        if usr.accuracy != None:
+                            accuracy = float(usr.accuracy) * 0.01
+                        else:
+                            accuracy = 0
+                        if level<1:
+                            level=1
+                        usr.save()
+                        return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0})
+                   elif accept and ranked > 0:
+                        usr.restricted = True
+                        usr.save()
+                        return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": restrictionnotice,"error": 1})
+                   else:
+                       return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": "Forbidden Score.","error": 1})
             except Exception as err:
                 return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": str(traceback.format_exc()),"error": 1})
         return response
@@ -850,9 +1054,85 @@ def api(request,command,value=None):
                 print(json.dumps(multilist))
             except Exception as err:
                 print(err)
-        elif command[0]=='getbeatmap':
-            exit()
-            print(json.dumps({'RankedStatus':1,'BPM':19000}))
+        elif command[0]=='s' and len(command) == 2:
+            beatmap = Beatmap.objects.values_list('ranked', flat=True).filter(beatmapid=command[1]).first()
+            if beatmap != None:
+                return JsonResponse({"error" : 0, "RankedStatus" : beatmap})
+            else:
+                return JsonResponse({"error": 1, "msg": "BeatmapSet not found", "RankedStatus" : -1})
+
+        elif command[0]=='s' and len(command) != 2:
+            return JsonResponse({"error": 1, "msg": "Missing Beatmapset ID", "RankedStatus" : -1})
+        elif command[0]=='search':
+            t = time.time()
+            searchentry = request.GET.get("query")
+            if searchentry == None:
+                searchentry = ""
+            status = request.GET.get("status")
+            if status == None:
+                status = 1
+            else:
+                status = int(status)
+            page = request.GET.get("page")
+            if page == None:
+                page = 0
+            else:
+                page = int(page)
+            page *= 100
+            if searchentry == "":
+                cache = Beatmap.objects.values().filter(ranked = status).order_by("-created")[page: page + 100]
+            else:
+                cache = Beatmap.objects.values().filter(
+                    Q(title__icontains=searchentry) |
+                    Q(title_unicode__icontains=searchentry) |
+                    Q(artist__icontains=searchentry) |
+                    Q(beatmapid__icontains=searchentry) |
+                    Q(beatmapsetid__icontains=searchentry)
+                ).filter(ranked = status).order_by("-created")[page: page + 100]
+            lis = []
+            js = {}
+            beatmaps = []
+            if len(cache) != 0:
+                oldbid = cache[0]["beatmapsetid"]
+                for a in cache:
+                    if oldbid != a["beatmapsetid"]:
+                        if js != {}:
+                            lis.append(js)
+                        js = {}
+                        beatmaps = []
+                        js["id"] = a["beatmapsetid"]
+                        js["bpm"] = a["BPM"]
+                        js["title"] = a["title"]
+                        js["artist"] = a["artist"]
+                        js["creator"] = a["mapper"]
+                        js["preview_url"] = DataURL + a["previewpath"]
+                        js["download_url"] = DataURL + a["beatmapfile"]
+                        js["covers"] = {
+                            "cover" : DataURL + a["backgroundpath"],
+                            "card" : DataURL + a["backgroundpath"],
+                            "list" : DataURL + a["backgroundpath"],
+                            "slimcover" : DataURL + a["backgroundpath"],
+                        }
+                        js["source"] = ""
+                        js["last_updated"] = int(a["created"].timestamp())
+                        js["beatmaps"] = beatmaps
+                        oldbid = a["beatmapsetid"]
+                    beatmaps.append({
+                        "id" : a["beatmapid"],
+                        "level" : a["Level"],
+                        "count_circles" : a["notecount"],
+                        "count_sliders" : 0,
+                        "max_combo" : a["notecount"],
+                        "ranked" : a["ranked"],
+                        "total_length" : a["Length"],
+                        "version" : a["difficulty"],
+                        "bpm" : a["BPM"],
+                        "pp" : a["pp"],
+                        
+                        
+                    })    
+            t = time.time() - t
+            return JsonResponse(lis, safe= False)
         elif command[0]=='menunotice':
             f=open('motd').read().rstrip('\n').split('\n')
             r=randint(1,len(f))
@@ -872,10 +1152,13 @@ def api(request,command,value=None):
         elif command[0]=='chkprofile':
             msg=''
             usrpwd=request.META.get('HTTP_USERNAME', ''),request.META.get('HTTP_PASSWORD', '')
-            if checklogin(usrpwd[0],usrpwd[1])[0]:
+            prof = checklogin(usrpwd[0],usrpwd[1])
+            if prof[0]:
                 ac=1
             else:
                 ac=0
+            if prof[1]:
+                msg = restrictionnotice
             prompt={'success':ac,'notification':msg}
             return JsonResponse(prompt)
 
@@ -908,11 +1191,14 @@ def header(request):
     head = open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/header.html").read()
     username = request.COOKIES.get('username')
     password = request.COOKIES.get('password', None)
-    accept=checklogin(username, password)[0]
+    proc = checklogin(username, password)
+    accept=proc[0]
     if accept:
         head = head.replace("{usertag}", username).replace("{pfppath}", getstat("pfp_path",username)["url"])
     else:
         head = head.replace("{usertag}", "Guest").replace("{pfppath}", NoProfilePictureURL)
+    if proc[1]:
+        head += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/restricted.html").read()
     return head
 
 def user(request, user):

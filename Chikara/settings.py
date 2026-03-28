@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+from django.core.management.utils import get_random_secret_key
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-oy0zni7qao-kzpg%&0euvonu2e$#ih!8bpm-r5@d+#a#%f@oi9'
+SECRET_KEY = ''
   
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -107,19 +108,33 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Initial Setup
-
 storage_root = "/Storage/Chikara/"
 client_secret = ""
 client_id = ""
+CONFIG_FILE = str(BASE_DIR) + "/config/config.conf"
+tmp = "/"
 #Before using this please set these up at /etc/Chikara/config.conf
-for cfg in open("/etc/Chikara/config.conf").read().split("\n"):
-    key = cfg.split("=")
-    if key[0] == "client_id":
-        client_id = key[1]
-    elif key[0] == "client_secret":
-        client_secret = key[1]
-    elif key[0] == "storagepath":
-        storage_root = key[1]
+if os.path.isfile(CONFIG_FILE):
+    for cfg in open(CONFIG_FILE).read().split("\n"):
+        if not cfg.startswith("#"):
+            key = cfg.split("=")
+            if key[0] == "storagepath":
+                storage_root = key[1]
+            elif key[0] == "secretkey":
+                SECRET_KEY = key[1]
+else:
+    with open(CONFIG_FILE, "w") as f:
+        f.write("""#Config file for Chikara (Qlute's backend processor.)
+#storagepath=
+""")
+
+
+# If missing or None → generate new
+if SECRET_KEY == '':
+    SECRET_KEY = get_random_secret_key()
+
+    with open(CONFIG_FILE, "a") as f:
+        f.write(f"secretkey={SECRET_KEY}\n")
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
@@ -137,9 +152,13 @@ REPLAYS =  os.path.join(storage_root, 'replays')
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-# Please put your path to the image for this to work.
+# Settings for the website.
 DataURL = "https://data.jinkku.moe"
+AssetPath = DataURL + "/song_assets/"
+SongFilePath = DataURL + "/songs/"
+# Please put your path to the image for this to work.
 NoProfilePictureURL = "https://qlute.jinkku.moe/static/img/profile/guest.png"
+CheaterCardBorder = "https://qlute.jinkku.moe/static/img/profile/Cheater.png"
 STATIC_ROOT = 'static'
 STATIC_URL = 'static/'
 

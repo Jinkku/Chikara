@@ -20,6 +20,7 @@ import Chikara.views as views
 import Chikara.usersettings as usersettings
 
 urlpatterns = [
+    path('apiv2/search', views.api, {'command': 'search'}),
     path('apiv2/<path:command>', views.api),
     path('apiv2/', views.api, {'command': ''}),
     path('apiv2', views.api, {'command': ''}),
@@ -28,7 +29,7 @@ urlpatterns = [
     path('ranking', views.ranking),
     path('ranking/<path:command>', views.ranking),
     path('beatmapset/<path:command>', views.beatmap),
-    path("robots.txt", views.robots_txt, name="robots"),
+    #path("robots.txt", views.robots_txt, name="robots"),
     path("sitemap.xml", views.sitemap),
     path('<path:uri>', views.base),
     path('', views.base, {'uri': ''}),

@@ -25,6 +25,7 @@ class Score(models.Model):
     version = models.IntegerField(null=False, blank=False, default=2)
     speed_multi = models.FloatField(null=False, blank=False, default=1)
     replay_path = models.TextField(null=True, blank=True)
+    ranked = models.IntegerField(null=False, blank=False, default=0)
     
     class Meta:
         db_table = 'scores'  
@@ -48,6 +49,8 @@ class User(models.Model):
     money = models.FloatField(null=True, blank=True, default=0)
     accuracy = models.FloatField(null=True, blank=True)
     pfppath = models.TextField(null=False, blank=False, default=NoProfilePictureURL)
+    restricted = models.BooleanField(null=False, blank=False, default=False)
+    cardborder = models.TextField(null=False, blank=False, default=NoProfilePictureURL)
     
     class Meta:
         db_table = 'users'
@@ -60,15 +63,21 @@ class Beatmap(models.Model):
     artist_unicode = models.TextField(null=False, blank=True)
     difficulty = models.TextField(null=False, blank=True)
     BPM = models.IntegerField(null=False, blank=True)
-    ranked = models.IntegerField(null=False, blank=True)
+    ranked = models.IntegerField(null=False, blank=False, default=0)
     created = models.DateTimeField(auto_now_add=True)
     mapper = models.TextField(null=False, blank=True)
-    beatmapid = models.IntegerField(null=False, blank=True)
-    beatmapsetid = models.IntegerField(null=False, blank=True)
-    notecount = models.IntegerField(null=False, blank=True)
-    pp = models.FloatField(null=True, blank=True)
+    beatmapid = models.IntegerField(null=False, blank=False, default=0)
+    beatmapsetid = models.IntegerField(null=False, blank=False, default=0)
     playcount = models.IntegerField(null=False, blank=False, default=0)
+    pp = models.FloatField(null=True, blank=True)
     beatmapfile = models.TextField(null=False, blank=True)
+    notecount = models.IntegerField(null=False, blank=False, default=0)
+    Level = models.IntegerField(null=False, blank=False, default=0)
+    Length = models.IntegerField(null=False, blank=False, default=0)
+    Accuracy = models.FloatField(null=False, blank=False, default=0)
+    backgroundpath = models.TextField(null=False, blank=True)
+    previewpath = models.TextField(null=False, blank=True)
+    chartfile = models.TextField(null=False, blank=True)
 
     
     class Meta:
