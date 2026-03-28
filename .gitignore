@@ -169,3 +169,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Compiled stuff
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Chikara Config file
+config/config.conf
