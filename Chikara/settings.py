@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = ''
   
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
@@ -52,6 +52,7 @@ MIDDLEWARE = [
     'dbview.dailycheck.CheckUserAuthMiddleware'
 ]
 
+SECURE_HSTS_SECONDS = 3600
 ROOT_URLCONF = 'Chikara.urls'
 
 TEMPLATES = [
@@ -135,6 +136,16 @@ if SECRET_KEY == '':
 
     with open(CONFIG_FILE, "a") as f:
         f.write(f"secretkey={SECRET_KEY}\n")
+
+# Sentry Config
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://7ad73bfdbf9c3f42103b168a1ff04fa9@o4510694149914624.ingest.us.sentry.io/4510740441530368", # change this to use your own sentry server.
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+)
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
