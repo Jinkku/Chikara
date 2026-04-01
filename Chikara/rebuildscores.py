@@ -3,32 +3,27 @@ import ppv2calc
 import zipfile
 modsaliasab='AT','DT','HT','SL','BT','RND','NF' # Mods Alias
 def getmult(multiplier,submit=False, speed = 1):
-    if not submit:
-        try:
-            multiplier=float(multiplier)
-            #multiplier=1
-            newmodsys=0
-        except Exception:
-            fulltmp=multiplier
-            multiplier=1
-            newmodsys=1
-    else:
-        return multiplier
-        newmodsys=1
+    try:
+        multiplier=float(multiplier)
+        #multiplier=1
+        newmodsys=0
+    except Exception:
+        fulltmp=multiplier
         multiplier=1
+        newmodsys=1
     if newmodsys:
-       for a in modsaliasab:
+        for a in modsaliasab:
             if a in str(fulltmp):
-               if a=='BT':
-                  multiplier*=1.15
-               elif a == 'DT':
-                  multiplier*=1.15 / ( speed / 1.25 )
-               elif a == 'HT':
-                  multiplier*=0.3 / ( speed / 0.5 )
-               elif a == 'NF':
-                  multiplier*=0.5
-               elif not a in ('AT','RND'):
-                  multiplier+=0.5
+                if a == 'BT':
+                    multiplier *= 1.15
+                elif a == 'DT':
+                    multiplier *= 1.15 * (speed / 1.25)
+                elif a == 'HT':
+                    multiplier *= 0.3 * (speed / 0.5)
+                elif a == 'NF':
+                    multiplier *= 0.5
+                elif a not in ('AT', 'RND'):
+                    multiplier *= 1.05
     return multiplier
 conn = mysql.connector.connect(
     host="localhost",
