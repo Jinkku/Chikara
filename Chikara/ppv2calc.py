@@ -1,7 +1,8 @@
 import math
 import re
 import statistics
-from dataclasses import dataclass, field
+from collections import defaultdict
+from dataclasses import dataclass
 from typing import Optional
 
 
@@ -40,21 +41,14 @@ def _damage(health: float, amount: float) -> float:
 # Spam protection
 # ---------------------------------------------------------------------------
 
-# Minimum ms between accepted key-down events per column.
-# Matches the C# SPAM_COOLDOWN_MS = 80f constant.
 SPAM_COOLDOWN_MS: float = 80.0
 
 
 def _is_spam(
     col: int,
-    event_time_ms: int,
+    event_time_ms: float,
     last_press_time: list[float],
 ) -> bool:
-    """
-    Returns True if this key-down on `col` arrived too soon after the last
-    accepted one (i.e. the player is spamming).
-    Updates last_press_time in-place when the press is accepted.
-    """
     elapsed = event_time_ms - last_press_time[col]
     if 0 <= elapsed < SPAM_COOLDOWN_MS:
         return True
@@ -67,116 +61,9 @@ def _is_spam(
 # ---------------------------------------------------------------------------
 
 def _compute_unstable_rate(hit_offsets: list[float]) -> float:
-    """
-    UR = std_dev(hit_offsets) * 10  — matches osu!mania convention.
-    Each offset is (actual_hit_time - note_time) in ms;
-    negative = early, positive = late.
-    Returns 0.0 when fewer than 2 hits have been recorded.
-    """
     if len(hit_offsets) < 2:
         return 0.0
     return statistics.pstdev(hit_offsets) * 10.0
-
-
-# ---------------------------------------------------------------------------
-# Judge
-# ---------------------------------------------------------------------------
-
-def check_judge(
-    timing_diff: int,
-    perfect_window: int,
-    great_window: int,
-    meh_window: int,
-    note_ppv2xp: float,
-    result: GameplayResult,
-    hit_offsets: list[float],
-    missed: bool = False,
-) -> int:
-    """
-    Mirrors C# checkjudge().
-
-    C# window setup (from _Ready):
-        PerfectJudge = PerfectJudgeMin - min(5 * OD, 50)
-        GreatJudge   = PerfectJudge * 4
-        MehJudge     = PerfectJudge * 6
-
-    C# hit condition (symmetric around HitPoint):
-        Perfect: abs(diff) < PerfectJudge
-        Great:   abs(diff) < GreatJudge / 2  (= PerfectJudge * 2)
-        Meh:     abs(diff) < MehJudge / 2    (= PerfectJudge * 3)
-
-    Returns: 0=Perfect, 1=Great, 2=Meh, 3=Miss, 4=No judgement
-
-    hit_offsets is updated in-place for Perfect/Great/Meh hits so that
-    unstable rate can be computed afterwards via _compute_unstable_rate().
-    """
-    abs_diff = abs(timing_diff)
-
-    if not missed and abs_diff < perfect_window:
-        result.perfect += 1
-        result.combo += 1
-        result.max_combo = max(result.max_combo, result.combo)
-        result.pp += note_ppv2xp
-        result.bad_combo = 0
-        result.health = _heal(result.health, (5 * (result.combo / 100)) + 1)
-        hit_offsets.append(float(timing_diff))
-        return 0
-
-    elif not missed and abs_diff < great_window / 2:
-        result.great += 1
-        result.combo += 1
-        result.max_combo = max(result.max_combo, result.combo)
-        result.pp += note_ppv2xp * 0.6
-        result.bad_combo = 0
-        result.health = _heal(result.health, (3 * (result.combo / 300)) + 1)
-        hit_offsets.append(float(timing_diff))
-        return 1
-
-    elif not missed and abs_diff < meh_window / 2:
-        result.meh += 1
-        result.combo += 1
-        result.max_combo = max(result.max_combo, result.combo)
-        result.pp += note_ppv2xp * 0.3
-        result.bad_combo = 0
-        result.health = _heal(result.health, (1 * (result.combo / 500)) + 1)
-        hit_offsets.append(float(timing_diff))
-        return 2
-
-    elif missed:
-        result.bad += 1
-        result.combo = 0
-        result.pp = max(0.0, result.pp / 1.2)
-        result.bad_combo += 1
-        result.health = _damage(result.health, 5 * result.bad_combo)
-        return 3
-
-    else:
-        return 4
-
-
-# ---------------------------------------------------------------------------
-# Spam-miss helper
-# ---------------------------------------------------------------------------
-
-def _trigger_spam_miss(
-    col: int,
-    notes: list[tuple[int, int, float]],
-    note_hit: list[bool],
-    result: GameplayResult,
-) -> None:
-    """
-    Mirrors C# TriggerSpamMiss(): finds the first unhit visible note in
-    `col` and registers a forced miss.
-    """
-    for idx, (note_col, _note_time, ppv2xp) in enumerate(notes):
-        if note_col == col and not note_hit[idx]:
-            result.bad += 1
-            result.combo = 0
-            result.pp = max(0.0, result.pp - (ppv2xp * 4))
-            result.bad_combo += 1
-            result.health = _damage(result.health, 5 * result.bad_combo)
-            note_hit[idx] = True
-            break
 
 
 # ---------------------------------------------------------------------------
@@ -187,9 +74,49 @@ def calculate_ppv2(
     replay_file: str = "",
     beatmap_file: str = "",
     beatmap_text_compressed="",
+    frame_lag_ms: int = 10,
 ) -> GameplayResult:
-    PP_BASE = 0.045
-    MAX_PERFECT = 105  # C#: PerfectJudgeMin
+    """
+    Bugs fixed vs. the original implementation
+    -------------------------------------------
+    FIX 1 - round() instead of int() for PerfectJudge
+        Python float64 gives 120 * 0.2 = 23.9999, so int() truncates to 23.
+        C# float32 gives 24. Using round() matches C#.
+
+    FIX 2 - great and meh windows halved
+        C# checkjudge uses GreatJudge/2 and MehJudge/2 as the actual radii.
+        The original code passed the full x4/x6 values, making windows twice
+        as wide.
+
+    FIX 3 - nodeSize=54 pixel offset applied to hit windows
+        C# checkjudge tests (timing + nodeSize) relative to HitPoint.
+        nodeSize=54 px = 54 ms at scrollspeed=1, shifting the entire window
+        ~54 ms early. The asymmetric windows below encode this correctly.
+
+    FIX 4 - spam check removed from the "too early" branch
+        Previously _is_spam()/_trigger_spam_miss() were called for every frame
+        predating the current note's window. _trigger_spam_miss() hunts forward
+        and marks a future note as missed, corrupting the score. Early frames
+        are now simply skipped.
+
+    FIX 5 - per-column frame pointers instead of one shared replay_idx
+        One shared index caused frames from column 0 to advance past frames
+        that column 2 still needed.
+
+    FIX 6 - frame_lag_ms applied to all frame times
+        In Godot 4, _Input fires before _Process, so the est stored in the
+        replay is stale by ~one game frame (~10 ms at 60 fps) relative to the
+        est used by checkjudge.
+
+    FIX 7 - phantom notes at song end not counted as misses
+        The C# game ends the scene before its loop reaches the last 2 notes.
+        They scroll off silently with no miss recorded.
+    """
+    PP_BASE     = 0.045
+    MAX_PERFECT = 120
+    NODE_SIZE   = 54
+    FUDGE_P     = 5
+    FUDGE_M     = 15
 
     standalone = replay_file == ""
     if not standalone:
@@ -211,7 +138,7 @@ def calculate_ppv2(
     beat_length = float(osu_lines[tp_start].split(",")[1])
 
     # ── Parse Overall Difficulty → judge windows ──────────────────────────────
-    diff_start = osu_lines.index("[Difficulty]\n") + 1
+    diff_start  = osu_lines.index("[Difficulty]\n") + 1
     event_start = osu_lines.index("[Events]\n")
     od = 0.0
     for line in osu_lines[diff_start:event_start]:
@@ -219,22 +146,30 @@ def calculate_ppv2(
             od = float(line.split(":")[1].strip())
             break
 
-    # Matches C# _Ready():
-    #   PerfectJudge = PerfectJudgeMin - min(5 * OD, 50)  → e.g. OD8 → 65ms
-    #   GreatJudge   = PerfectJudge * 4
-    #   MehJudge     = PerfectJudge * 6
-    perfect_window = MAX_PERFECT - min(5 * od, 50)
-    great_window   = perfect_window * 4
-    meh_window     = perfect_window * 6
+    # FIX 1: round() matches C# (int)(float32) truncation.
+    scale = 1 - (od / 10)
+    PW = max(16, round(MAX_PERFECT * scale))  # PerfectJudge        e.g. 24 at OD8
+    GW = round(PW * 4) // 2                  # GreatJudge / 2      e.g. 48
+    MW = round(PW * 6) // 2                  # MehJudge  / 2       e.g. 72
 
-    if not standalone:
-        # ── Parse replay frames: (time_ms, key) ──────────────────────────────
-        replay_frames: list[tuple[int, int]] = []
-        for line in raw_replay:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                t, key = line.split(",")
-                replay_frames.append((int(t), int(key)))
+    # FIX 2 + FIX 3: asymmetric windows in replay-diff space.
+    #
+    # C# checkjudge tests (timing + nodeSize) against +/-(judge + fudge) around
+    # HitPoint, where timing = est - note_osu_time + HitPoint. Substituting:
+    #
+    #   diff = replay_t - note_osu_time   (negative = early, positive = late)
+    #
+    #   Perfect : -(PW + FUDGE_P + NODE_SIZE) < diff < PW + FUDGE_P - NODE_SIZE
+    #   Great   : -(GW + FUDGE_P + NODE_SIZE) < diff < GW + FUDGE_P - NODE_SIZE
+    #   Meh     : -(MW + FUDGE_M + NODE_SIZE) < diff < MW + FUDGE_M - NODE_SIZE
+    #
+    # At OD8: Perfect in (-83,-25), Great in (-107,-1), Meh in (-141,+33)
+    P_LO = -(PW + FUDGE_P + NODE_SIZE)
+    P_HI =   PW + FUDGE_P - NODE_SIZE
+    G_LO = -(GW + FUDGE_P + NODE_SIZE)
+    G_HI =   GW + FUDGE_P - NODE_SIZE
+    M_LO = -(MW + FUDGE_M + NODE_SIZE)
+    M_HI =   MW + FUDGE_M - NODE_SIZE
 
     # ── Parse hit objects → (column, time_ms, ppv2xp) ────────────────────────
     notes: list[tuple[int, int, float]] = []
@@ -255,86 +190,127 @@ def calculate_ppv2(
             last_pp_t = t_ms
             multi_pp  = 1
 
-        ppv2xp = PP_BASE * multi_pp
-        notes.append((col, t_ms, ppv2xp))
+        notes.append((col, t_ms, PP_BASE * multi_pp))
 
-    result    = GameplayResult()
+    result        = GameplayResult()
     result.max_pp = round(sum(n[2] for n in notes), 4)
 
+    if standalone:
+        result.pp = result.max_pp
+        return result
+
+    # FIX 5: per-column frame lists.
+    # FIX 4 (lead-in): drop frames with t < 0 — they predate all notes.
+    # FIX 6: apply frame_lag_ms to every frame time.
+    frames_by_col: dict[int, list[int]] = defaultdict(list)
+    for line in raw_replay:
+        line = line.strip()
+        if line and not line.startswith("#"):
+            t, key = line.split(",")
+            t_int  = int(t)
+            if t_int >= 0:
+                frames_by_col[int(key)].append(t_int + frame_lag_ms)
+    for c in range(4):
+        frames_by_col[c].sort()
+
     # ── Main judge loop ───────────────────────────────────────────────────────
-    if not standalone:
-        # Spam protection: track last accepted key-down time per column (ms).
-        # Initialised to -inf so the first press is always accepted.
-        last_press_time: list[float] = [float('-inf')] * 4
+    last_press_time: list[float] = [float('-inf')] * 4
+    frame_ptr:       dict[int, int] = {c: 0 for c in range(4)}
+    note_hit:        list[bool]     = [False] * len(notes)
+    hit_offsets:     list[float]    = []
 
-        # Track which notes have already been hit/missed (for spam-miss lookup).
-        note_hit: list[bool] = [False] * len(notes)
+    # FIX 7: detect song end for phantom note handling.
+    song_end_ms = notes[-1][1] if notes else 0
 
-        # Accumulate hit offsets for UR calculation.
-        hit_offsets: list[float] = []
+    for note_idx, (col, note_time, ppv2xp) in enumerate(notes):
+        if note_hit[note_idx]:
+            continue
 
-        replay_idx = 0
-        for note_idx, (col, note_time, ppv2xp) in enumerate(notes):
-            if note_hit[note_idx]:
-                continue  # already consumed by a spam-miss
+        col_frames = frames_by_col[col]
+        ptr        = frame_ptr[col]
 
-            judged = False
+        # FIX 4: skip early frames with NO spam check.
+        while ptr < len(col_frames) and col_frames[ptr] - note_time < M_LO:
+            ptr += 1
+        frame_ptr[col] = ptr
 
-            while replay_idx < len(replay_frames):
-                r_time, r_key = replay_frames[replay_idx]
-                diff = r_time - note_time
+        judged = False
 
-                if diff < -meh_window / 2:
-                    # Frame is too early — check spam before advancing
-                    if _is_spam(r_key, r_time, last_press_time):
-                        _trigger_spam_miss(r_key, notes, note_hit, result)
-                    replay_idx += 1
-                    continue
+        if ptr < len(col_frames):
+            r_time = col_frames[ptr]
+            diff   = r_time - note_time
 
-                if diff <= meh_window / 2:
-                    # Frame is inside the hit window
-                    if _is_spam(r_key, r_time, last_press_time):
-                        # Spammed key → force miss, skip this frame
-                        _trigger_spam_miss(r_key, notes, note_hit, result)
-                        replay_idx += 1
-                        judged = True  # note was consumed as spam-miss
-                        break
-
-                    judge = check_judge(
-                        timing_diff    = diff,
-                        perfect_window = perfect_window,
-                        great_window   = great_window,
-                        meh_window     = meh_window,
-                        note_ppv2xp    = ppv2xp,
-                        result         = result,
-                        hit_offsets    = hit_offsets,
-                    )
-                    if judge != 4:
-                        note_hit[note_idx] = True
-                        replay_idx += 1
+            if diff <= M_HI:
+                orig_r = r_time - frame_lag_ms
+                if _is_spam(col, orig_r, last_press_time):
+                    # Spam-miss: consume the first unhit note in this column.
+                    for idx, (nc, _, pv) in enumerate(notes):
+                        if nc == col and not note_hit[idx]:
+                            result.bad      += 1
+                            result.combo     = 0
+                            result.pp        = max(0.0, result.pp - pv * 4)
+                            result.bad_combo += 1
+                            result.health    = _damage(result.health, 5 * result.bad_combo)
+                            note_hit[idx]    = True
+                            break
+                    frame_ptr[col] = ptr + 1
+                    judged = True
+                else:
+                    frame_ptr[col] = ptr + 1
+                    # FIX 2 + FIX 3: asymmetric range checks replace abs_diff < window.
+                    if P_LO < diff < P_HI:
+                        result.perfect   += 1
+                        result.combo     += 1
+                        result.max_combo  = max(result.max_combo, result.combo)
+                        result.pp        += ppv2xp
+                        result.bad_combo  = 0
+                        result.health     = _heal(result.health, (5 * (result.combo / 100)) + 1)
+                        hit_offsets.append(float(diff))
                         judged = True
-                    break
 
-                break  # frame is past meh window → note will be missed
+                    elif G_LO < diff < G_HI:
+                        result.great     += 1
+                        result.combo     += 1
+                        result.max_combo  = max(result.max_combo, result.combo)
+                        result.pp        += ppv2xp * 0.6
+                        result.bad_combo  = 0
+                        result.health     = _heal(result.health, (3 * (result.combo / 300)) + 1)
+                        hit_offsets.append(float(diff))
+                        judged = True
 
-            if not judged:
-                check_judge(
-                    timing_diff    = 0,
-                    perfect_window = perfect_window,
-                    great_window   = great_window,
-                    meh_window     = meh_window,
-                    note_ppv2xp    = ppv2xp,
-                    result         = result,
-                    hit_offsets    = hit_offsets,
-                    missed         = True,
-                )
+                    elif M_LO < diff < M_HI:
+                        result.meh       += 1
+                        result.combo     += 1
+                        result.max_combo  = max(result.max_combo, result.combo)
+                        result.pp        += ppv2xp * 0.3
+                        result.bad_combo  = 0
+                        result.health     = _heal(result.health, (1 * (result.combo / 500)) + 1)
+                        hit_offsets.append(float(diff))
+                        judged = True
+
+                    note_hit[note_idx] = judged
+
+        if not judged:
+            # FIX 7: phantom note — no frames left for this column and the note
+            # is at or near song end. C# ends the scene before reaching it, so
+            # no miss is recorded.
+            if ptr >= len(col_frames) and note_time >= song_end_ms - beat_length * 2:
                 note_hit[note_idx] = True
+                continue
 
-        # ── Unstable Rate ─────────────────────────────────────────────────────
-        # std_dev(hit_offsets) * 10, matching osu!mania convention.
-        # Only perfect/great/meh hits contribute; misses and spam-misses do not.
-        result.unstable_rate = round(_compute_unstable_rate(hit_offsets), 2)
+            # Regular miss.
+            result.bad       += 1
+            result.combo      = 0
+            result.pp         = max(0.0, result.pp / 1.2)
+            result.bad_combo += 1
+            result.health     = _damage(result.health, 5 * result.bad_combo)
+            note_hit[note_idx] = True
+
+    # ── Unstable Rate ─────────────────────────────────────────────────────────
+    result.unstable_rate = round(_compute_unstable_rate(hit_offsets), 2)
 
     result.pp     = round(max(0.0, result.pp), 4)
     result.max_pp = round(result.max_pp, 4)
     return result
+
+

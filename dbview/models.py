@@ -50,7 +50,7 @@ class User(models.Model):
     accuracy = models.FloatField(null=True, blank=True)
     pfppath = models.TextField(null=False, blank=False, default=NoProfilePictureURL)
     restricted = models.BooleanField(null=False, blank=False, default=False)
-    cardborder = models.TextField(null=False, blank=False, default=NoProfilePictureURL)
+    cardborder = models.TextField(null=True, blank=True)
     
     class Meta:
         db_table = 'users'
@@ -82,3 +82,8 @@ class Beatmap(models.Model):
     
     class Meta:
         db_table = 'beatmaps' 
+class Hashes(models.Model):
+    ostype = models.TextField(null=True, blank=True)
+    hash = models.TextField(null=True, blank=True)
+    class Meta:
+        db_table = 'hashes' 

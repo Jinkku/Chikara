@@ -1,5 +1,6 @@
 from django.utils import timezone
 from django.shortcuts import render, HttpResponse
+import sentry_sdk
 import traceback
 from django.http import JsonResponse
 from Chikara.settings import BASE_DIR, STATIC_ROOT, REPLAYS,storage_root,client_id,client_secret, DataURL, AssetPath, SongFilePath, CheaterCardBorder
@@ -20,8 +21,6 @@ maxperf=800
 nom=2
 bio = "test"
 pointsbase=1
-mainurl='https://dev.catboy.best'
-beatmapapi=mainurl+'/api/v2/'
 allowspoof=0
 restrictionnotice = "Your profile is restricted\nYou can't submit scores or interact with the community until it's lifted."
 gradecolour=(81, 149, 194),(114, 123, 179),(105, 173, 99),(113, 85, 173),(173, 136, 61),(168, 70, 50),(20,20,20)
@@ -69,8 +68,17 @@ def fetch_beatmap(beatmapidset, beatmapid):
     return beatset, difficulty, bpm, ranked
 
 
-
-
+testhash = "2c21d9b8dbaf3427201da3ef82e70affaa9267ef670ee39c99ce7105a415d9f2"
+def checkgamehash(request):
+    agent = request.META.get("HTTP_USER_AGENT", "")
+    game = agent.split("-")
+    if "GodotEngine" in agent:
+        return ("Qlute", False)
+    tmp = Hashes.objects.values().filter(hash = game[1]).first()
+    if tmp != None:
+        return (game[0], (tmp["hash"] == game[1]) )
+    else:
+        return (game[0], False )
 def getspp(offset=0,limit=0):
     tols=offset
     tan=0
@@ -186,7 +194,7 @@ def get_leaderboard(id): # Leaderboard processing
             data = {
     "username": a['username'],
     "points": points,
-    "score": getsimscore(points,maxpoints,float(getmult(a['mods'])),type=int),
+    "score": process_score(a["max"], a["great"], a["meh"], getmult(a["mods"],speed=a["speed_multi"]),a["max"] + a["great"] + a["meh"] + a["bad"]),
     "combo": a['combo'],
     "MAX": a['max'],
     "GOOD": a['great'],
@@ -311,32 +319,27 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
     return t# Add multiplier of a mod to the performance
 
 def getmult(multiplier,submit=False, speed = 1):
-    if not submit:
-        try:
-            multiplier=float(multiplier)
-            #multiplier=1
-            newmodsys=0
-        except Exception:
-            fulltmp=multiplier
-            multiplier=1
-            newmodsys=1
-    else:
-        return multiplier
-        newmodsys=1
+    try:
+        multiplier=float(multiplier)
+        #multiplier=1
+        newmodsys=0
+    except Exception:
+        fulltmp=multiplier
         multiplier=1
+        newmodsys=1
     if newmodsys:
-       for a in modsaliasab:
+        for a in modsaliasab:
             if a in str(fulltmp):
-               if a=='BT':
-                  multiplier*=1.15
-               elif a == 'DT':
-                  multiplier*=1.15 / ( speed / 1.25 )
-               elif a == 'HT':
-                  multiplier*=0.3 / ( speed / 0.5 )
-               elif a == 'NF':
-                  multiplier*=0.5
-               elif not a in ('AT','RND'):
-                  multiplier+=0.5
+                if a == 'BT':
+                    multiplier *= 1.15
+                elif a == 'DT':
+                    multiplier *= 1.15 * (speed / 1.25)
+                elif a == 'HT':
+                    multiplier *= 0.3 * (speed / 0.5)
+                elif a == 'NF':
+                    multiplier *= 0.5
+                elif a not in ('AT', 'RND'):
+                    multiplier *= 1.05
     return multiplier
 
 def getpulses(pp):
@@ -460,14 +463,16 @@ def timeform(t): # Parses time and date to a human readable format
 # Beatmap Leaderboard
 def beatmap(request, command):
     arg = command.split("/")
-    html = header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/beatmap.html").read()
+    head = """
+    <script src="/static/script/beatmapquery.js"></script>
+    <script src="/static/script/difficultyloading.js"></script>"""
     if len(arg) > 1:
         id = int(arg[1])
         object = Beatmap.objects.filter(beatmapsetid=int(arg[0]), beatmapid=id).first()
     else:
         object = Beatmap.objects.filter(beatmapsetid=int(arg[0])).first()
         id = -1
-    html = html.replace('{sitetitle}',"Beatmap")
+    html = header(request, customhead=head, title="Qlute - " + str(object.title)) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/beatmap.html").read()
     if object != None:
         html = html.replace("{Title}",object.title).replace("{Artist}",object.artist).replace("{Mapper}",object.mapper)
     return HttpResponse(html)
@@ -510,11 +515,26 @@ def get_userscore(user='',recent=True,mini=False,limit=50):
         for a in modsaliasab:
             if a in tmp['mods']:
                 modse += f'<span class="mod">{a}</span>'
-        peak += scorecard.replace("{date}",timeest).replace("{title}",str(tmp['beatmapname'])).replace("{artist}",str(tmp['artist'])).replace("{rank}",gradet).replace("{difficulty}",str(tmp['beatmapdiff'])).replace("{points}",str(int(tmp['points']))).replace("{weighted_points}",weighted).replace("{weighted_percentage}",weightedp).replace("{mods}",str(modse)).replace("{area}","/beatmapset/"+str(tmp["beatmapset_id"])+"/"+str(tmp["beatmap_id"]))
+        peak += scorecard.replace("{date}",timeest).replace("{sitetitle}",str(tmp['beatmapname'])).replace("{artist}",str(tmp['artist'])).replace("{rank}",gradet).replace("{difficulty}",str(tmp['beatmapdiff'])).replace("{points}",str(int(tmp['points']))).replace("{weighted_points}",weighted).replace("{weighted_percentage}",weightedp).replace("{mods}",str(modse)).replace("{area}","/beatmapset/"+str(tmp["beatmapset_id"])+"/"+str(tmp["beatmap_id"]))
         pek-=0.02
     if tols==0:
         peak +='<h3 class="bar">No Recent Plays -n-</h3>'
     return peak
+
+# Score Processor
+
+def process_score(maxc=0, great=0, meh=0, multiplier=1.0, notecount=1):
+    ratio = int(maxc)
+    ratio += int(great) // 2
+    ratio += int(meh) // 3
+
+    note_count = float(max(notecount, 1))  # force float like C#
+    accuracy = ratio / note_count
+
+    scorelocal = accuracy * 1_000_000 * float(multiplier)
+    scorelocal = max(0.0, scorelocal)
+
+    return int(round(scorelocal))
 
 # Playtime parse
 
@@ -581,6 +601,9 @@ def getsimscore(achieved,max,mult,type=str):
     else:
         return format(tmp,',')
 
+def update_pfp(request, command):
+    return None
+
 # API
 
 def api(request,command,value=None):
@@ -620,203 +643,13 @@ def api(request,command,value=None):
                     response =  JsonResponse({"success": False}, status=401)
             except json.JSONDecodeError:
                 response = JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
-        elif command[0] == "sas":
-            try:
-                replay_data = request.body.decode("utf-8")
-
-                accept=0
-                user = request.META.get("HTTP_USERNAME","")
-                test=(1,0)
-                if "AT" in request.META.get("HTTP_MODS",""):
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Don't try to cheat with Auto dude. :/","error": 1})
-                elif len(replay_data) < 64:
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Replay data is empty.","error": 1})
-                elif not test[0]:
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Incorrect Credentials.","error": 1})
-                elif test[1]:
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "You can't submit scores because your restricted.","error": 1})
-                elif not allowsubmissions:
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Submissions are disabled.","error": 1})
-                else:
-                    accept = 1
-                if accept and allowsubmissions:
-                   # ORDER BY points DESC 
-                   try:
-                       taken=int(float(request.META.get("HTTP_TAKEN","")))
-                   except Exception as error:
-                       print(str(error))
-                       taken=0
-                   mods = getmult(request.META.get("HTTP_MODS",""),submit=True)
-                   combo = int(request.META.get("HTTP_COMBO",""))
-                   smax = int(request.META.get("HTTP_MAX",""))
-                   sgreat = int(request.META.get("HTTP_GREAT",""))
-                   smeh = int(request.META.get("HTTP_MEH",""))
-                   sbad = int(request.META.get("HTTP_BAD",""))
-                   beatmap_id = int(request.META.get("HTTP_BEATMAPID",""))
-                   beatmapset_id = int(request.META.get("HTTP_BEATMAPSETID",""))
-                   speed_multi = float(request.META.get("HTTP_MULTIPLIER",""))
-                   info = Beatmap.objects.filter(beatmapid = beatmap_id, beatmapsetid = beatmapset_id).first()
-                   if info == None:
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "There is no beatmaps that I recognize with this one :/","error": 1})
-                   else:
-                        ranked = info.ranked
-                        difficulty = info.difficulty
-                        bpm = info.BPM
-                   replay_name = f"{REPLAYS}/{timezone.now().timestamp()}-{beatmapset_id}-{beatmap_id}-{user}-{mods}.qrf"
-                   replayfile = open(replay_name, "w")
-                   replayfile.write(replay_data)
-                   replayfile.close()
-                   mult=getmult(mods, speed=speed_multi)
-                   if info.ranked != 0:
-                       pointsdata = ppv2calc.calculate_ppv2(replay_name, storage_root + info.chartfile)
-                       points = pointsdata.pp * mult
-                       maxpoints=pointsdata.max_pp * mult
-                   else:
-                       points = 0.000000001
-                       maxpoints = 0.01
-                   finalscore=int( (points/maxpoints)*(1000000*mult) )
-                   usr = User.objects.get(username = user)
-                   if not float(points)>usr.ranked_points / 4 and accept and ranked > 0:
-                        tmp = Score.objects.filter(beatmap_id = beatmap_id, username = user).first()
-                        if not tmp==None:
-                            oldmult=getmult(getmult(tmp.mods,submit=True))
-                            
-                            if tmp.replay_path == None or ppv2calc.calculate_ppv2(storage_root + tmp.replay_path, storage_root + info.chartfile).pp:
-                                tmp.delete()
-                                submit=True
-                            else:
-                                submit=False
-                        else:
-                            submit=True
-                        if submit:
-                            Score.objects.create(
-                                username = user,
-                                beatmapname = info.title,
-                                artist = info.artist,
-                                points = points,
-                                combo = combo,
-                                beatmap_id = beatmap_id,
-                                beatmapset_id = beatmapset_id,
-                                max = smax,
-                                great = sgreat,
-                                meh = smeh,
-                                bad = sbad,
-                                beatmapdiff = difficulty,
-                                ranked = info.ranked,
-                                mods = mods,
-                                maxpoints = maxpoints,
-                                replay_path = replay_name.removeprefix(storage_root),
-                                version = 2,
-                                speed_multi = speed_multi
-                            )
-                        # ACC
-
-                        hits=[0,0,0,0]
-                        b=1
-                        for a in getscores(user=user,orderbybiggest=True,limit=50):
-                            hits[0]+=a['max']
-                            hits[1]+=a['great']
-                            hits[2]+=a['meh']
-                            hits[3]+=a['bad']
-                        t=round(((hits[0]+(hits[1]/2)+(hits[2]/3))/(hits[0]+hits[1]+hits[2]+hits[3]))*100,2)
-                        usr.accuracy = t
-                        if usr.max != None:
-                            usr.max += smax
-                        else:
-                            usr.max = smax
-                        if usr.great != None:
-                            usr.great += sgreat
-                        else:
-                            usr.great = sgreat
-                        if usr.meh != None:
-                            usr.meh += smeh
-                        else:
-                            usr.meh = smeh
-                        if usr.bad != None:
-                            usr.bad += sbad
-                        else:
-                            usr.bad = sbad
-                        # Combo
-
-                        max_combo = Score.objects.filter(username = user).order_by("-combo").first().combo
-                        usr.max_combo = max_combo
-
-                        # Points
-                        rankedpoints=0
-                        x=0
-                        for a in getscores(user=user,orderbybiggest=True,limit=50):
-                            try:
-                                al=int(a['weighted_pp'])
-                                x+=1
-                                rankedpoints+=int(al)
-                            except Exception as err:
-                                sys.stdout.write(str(err))
-                        if usr.money is None:
-                            usr.money = getpulses(rankedpoints)
-                        else:
-                            usr.money += getpulses(points)
-                        rankedscore=usr.ranked_score
-                        if rankedscore:
-                            t+=(int(rankedscore)+int(finalscore))*dedipoints
-                        users=[]
-                        for a in User.objects.order_by("-ranked_points"):
-                            name=a.username
-                            pp=a.ranked_points
-                            if not pp:
-                                pp=0
-                            users.append((name,pp))
-                        if allowspoof:
-                            for name,pp in getspp():
-                                users.append((name,pp))
-                            users=sorted(users, key=lambda x: x[1],reverse=True)
-                        rankb=1
-#                        if user != "aquapoki":
-                        for a in users:
-                            if a[0]==user:
-                                break
-                            rankb+=1
-#                        else:
-#                            rankb=(simulatedrank - ((rankedpoints/simulatedpp) * simulatedrank)) + 1
-                        ranking=rankb
-                        usr.ranked_points = rankedpoints
-                        usr.ranking = ranking
-                        if usr.playtime == None:
-                            usr.playtime = int(taken)
-                        else:
-                            usr.playtime += int(taken)
-                        if usr.ranked_score == None:
-                            usr.ranked_score = finalscore
-                            level = 1
-                            rankedscore = finalscore
-                        else:
-                            usr.ranked_score += finalscore
-                            level=int(usr.ranked_score*leveltemp)
-                        if usr.max_combo != None:
-                            maxcombo = int(usr.max_combo)
-                        else:
-                            maxcombo = 0
-                        if usr.accuracy != None:
-                            accuracy = float(usr.accuracy) * 0.01
-                        else:
-                            accuracy = 0
-                        if level<1:
-                            level=1
-                        usr.save()
-                        return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0})
-                   elif accept and ranked > 0:
-                        usr.restricted = True
-                        usr.save()
-                        return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": restrictionnotice,"error": 1})
-                   else:
-                       return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": ranked,"msg": "Forbidden Score.","error": 1})
-            except Exception as err:
-                return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": str(traceback.format_exc()),"error": 1})
         elif command[0] == "ss":
             try:
                 replay_data = request.body.decode("utf-8")
 
                 accept=0
                 user = request.META.get("HTTP_USERNAME","")
+                game = checkgamehash(request)
                 test=checklogin(user,request.META.get("HTTP_PASSWORD",""))
                 if "AT" in request.META.get("HTTP_MODS",""):
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Don't try to cheat with Auto dude. :/","error": 1})
@@ -828,6 +661,8 @@ def api(request,command,value=None):
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "You can't submit scores because your restricted.","error": 1})
                 elif not allowsubmissions:
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Submissions are disabled.","error": 1})
+                elif not game[1]:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": f"Please update to the latest version to submit scores.\nThis score will not be submitted :<","error": 1})
                 else:
                     accept = 1
                 if accept and allowsubmissions:
@@ -837,7 +672,7 @@ def api(request,command,value=None):
                    except Exception as error:
                        print(str(error))
                        taken=0
-                   mods = getmult(request.META.get("HTTP_MODS",""),submit=True)
+                   mods = request.META.get("HTTP_MODS","")
                    combo = int(request.META.get("HTTP_COMBO",""))
                    smax = int(request.META.get("HTTP_MAX",""))
                    sgreat = int(request.META.get("HTTP_GREAT",""))
@@ -846,7 +681,9 @@ def api(request,command,value=None):
                    beatmap_id = int(request.META.get("HTTP_BEATMAPID",""))
                    beatmapset_id = int(request.META.get("HTTP_BEATMAPSETID",""))
                    speed_multi = float(request.META.get("HTTP_MULTIPLIER",""))
+                   mult = getmult(mods,speed=speed_multi)
                    info = Beatmap.objects.filter(beatmapid = beatmap_id, beatmapsetid = beatmapset_id).first()
+                   
                    if info == None:
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "There is no beatmaps that I recognize with this one :/","error": 1})
                    else:
@@ -857,7 +694,6 @@ def api(request,command,value=None):
                    replayfile = open(replay_name, "w")
                    replayfile.write(replay_data)
                    replayfile.close()
-                   mult=getmult(mods, speed=speed_multi)
                    if info.ranked != 0:
                        pointsdata = ppv2calc.calculate_ppv2(replay_name, storage_root + info.chartfile)
                        points = pointsdata.pp * mult
@@ -865,14 +701,14 @@ def api(request,command,value=None):
                    else:
                        points = 0.000000001
                        maxpoints = 0.01
-                   finalscore=int( (points/maxpoints)*(1000000*mult) )
+                   finalscore=process_score(smax, sgreat, smeh, mult, info.notecount)
                    usr = User.objects.get(username = user)
                    if not float(points)>usr.ranked_points / 4 and accept and ranked > 0:
                         tmp = Score.objects.filter(beatmap_id = beatmap_id, username = user).first()
                         if not tmp==None:
-                            oldmult=getmult(getmult(tmp.mods,submit=True))
+                            oldmult=getmult(tmp.mods)
                             
-                            if tmp.replay_path == None or ppv2calc.calculate_ppv2(storage_root + tmp.replay_path, storage_root + info.chartfile).pp:
+                            if tmp.replay_path == None or pointsdata.pp:
                                 tmp.delete()
                                 submit=True
                             else:
@@ -994,6 +830,28 @@ def api(request,command,value=None):
                             level=1
                         usr.save()
                         return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0})
+                   elif accept and ranked == 0 and submit:
+                        Score.objects.create(
+                                username = user,
+                                beatmapname = info.title,
+                                artist = info.artist,
+                                points = points,
+                                combo = combo,
+                                beatmap_id = beatmap_id,
+                                beatmapset_id = beatmapset_id,
+                                max = smax,
+                                great = sgreat,
+                                meh = smeh,
+                                bad = sbad,
+                                beatmapdiff = difficulty,
+                                ranked = info.ranked,
+                                mods = mods,
+                                maxpoints = maxpoints,
+                                replay_path = replay_name.removeprefix(storage_root),
+                                version = 2,
+                                speed_multi = speed_multi
+                        )
+                        return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": 0,"score": usr.ranked_score,"accuracy": usr.accuracy,"max_combo": usr.max_combo,"rankedmap": 0,"msg": "", "error": 0})
                    elif accept and ranked > 0:
                         usr.restricted = True
                         usr.save()
@@ -1093,7 +951,7 @@ def api(request,command,value=None):
             js = {}
             beatmaps = []
             if len(cache) != 0:
-                oldbid = cache[0]["beatmapsetid"]
+                oldbid = 0
                 for a in cache:
                     if oldbid != a["beatmapsetid"]:
                         if js != {}:
@@ -1130,7 +988,9 @@ def api(request,command,value=None):
                         "pp" : a["pp"],
                         
                         
-                    })    
+                        })    
+                if js != {} and not js in lis:
+                    lis.append(js)
             t = time.time() - t
             return JsonResponse(lis, safe= False)
         elif command[0]=='menunotice':
@@ -1150,15 +1010,19 @@ def api(request,command,value=None):
                 usr.status = text
                 usr.save()
         elif command[0]=='chkprofile':
+            sentry_sdk.capture_message("You caught me!")
             msg=''
             usrpwd=request.META.get('HTTP_USERNAME', ''),request.META.get('HTTP_PASSWORD', '')
             prof = checklogin(usrpwd[0],usrpwd[1])
+            game = checkgamehash(request)
             if prof[0]:
                 ac=1
             else:
                 ac=0
             if prof[1]:
                 msg = restrictionnotice
+            elif not game[1]:
+                msg = f"This version of {game[0]} is not supported.\nPlease update to the latest version to continue."
             prompt={'success':ac,'notification':msg}
             return JsonResponse(prompt)
 
@@ -1187,7 +1051,7 @@ def api(request,command,value=None):
 
 # User Page
 
-def header(request):
+def header(request, customhead="", title="{sitetitle}"):
     head = open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/header.html").read()
     username = request.COOKIES.get('username')
     password = request.COOKIES.get('password', None)
@@ -1199,11 +1063,13 @@ def header(request):
         head = head.replace("{usertag}", "Guest").replace("{pfppath}", NoProfilePictureURL)
     if proc[1]:
         head += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/restricted.html").read()
+    head = head.replace("{head}", customhead)
+    head = head.replace("{sitetitle}", title)
     return head
 
 def user(request, user):
     tickle= timezone.now().timestamp()
-    html = header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/userpage.html").read()
+    html = header(request)
     usertest = checklogin(user,'x',signup=True,id=user)
     if usertest[0]:
         if user=='aquapoki':
@@ -1326,12 +1192,13 @@ def user(request, user):
     else:
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read()
         html = html.replace('{sitetitle}',"404 not found o-o")
-    tickle = round((timezone.now().timestamp() - tickle) / 0.001,2)
-    html += str(tickle)
+#    tickle = round((timezone.now().timestamp() - tickle) / 0.001,2)
+    html += "</div>"
+    html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
     return HttpResponse(html)
 
 def ranking(request, command=""):
-    htmltemp = header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/ranking.html").read()
+    htmltemp = header(request, title="Qlute - Ranking Page") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/ranking.html").read()
     html = ''
     users, tols = getstat('ranking', None, page=1)        
     if not tols:
@@ -1364,15 +1231,18 @@ def ranking(request, command=""):
     for a in range(1, 11):
         html += f"<a href='../ranking/{a}'><button class='minibutton'>{a}</button></a> "        
     html += "</center></div></div><br>"
+    html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
     htmltemp = htmltemp.replace('{entry}',html)
     return HttpResponse(htmltemp)
 
 def base(request, uri,command=""):
     if uri == "" and not checklogin(request.COOKIES.get('username', None), request.COOKIES.get('password', None))[0]:
-        return HttpResponse(header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/home.html").read())
+        html = header(request, title="Qlute - A free rhythm game inspired by osu!mania") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/home.html").read()
     elif uri == "" and checklogin(request.COOKIES.get('username', None), request.COOKIES.get('password', None))[0]:
-        return HttpResponse(header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/homes.html").read().replace("{usertag}",request.COOKIES.get('username', None)).replace("{usercount}",str(format(User.objects.last().id,","))).replace("{active}","0")  )
+        html = header(request, title="Qlute - home page") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/homes.html").read().replace("{usertag}",request.COOKIES.get('username', None)).replace("{usercount}",str(format(User.objects.last().id,","))).replace("{active}","0")
     elif uri == "download":
-        return HttpResponse(header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/download.html").read().replace("{sitetitle}","Download"))
+        html = header(request, title="Qlute - download page") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/download.html").read().replace("{sitetitle}","Download")
     else:
-        return HttpResponse(header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read().replace('{sitetitle}',"404 not found o-o"))
+        html = header(request, title="Qlute - the black hole of death.") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read().replace('{sitetitle}',"404 not found o-o")
+    html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
+    return HttpResponse(html)
