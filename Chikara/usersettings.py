@@ -5,7 +5,9 @@ from django.http import JsonResponse
 from Chikara.views import header,BASE_DIR,STATIC_ROOT
 def usersettings(request):
     if checklogin(request.COOKIES.get('username'),request.COOKIES.get('password'))[0]:
-        html = header(request) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read()
+        html = header(request,title="Qlute - User settings", customhead="""
+    <link rel="stylesheet" href="/static/css/usersettings.css">
+    <script src="/static/script/usersettings.js"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read()
         return HttpResponse(html)
     else:
         return HttpResponseForbidden("Please login...",)

@@ -1,2 +1,5 @@
 sentry-sdk
 django
+channels
+channels-redis
+daphne

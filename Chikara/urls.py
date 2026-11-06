@@ -29,7 +29,7 @@ urlpatterns = [
     path('ranking', views.ranking),
     path('ranking/<path:command>', views.ranking),
     path('beatmapset/<path:command>', views.beatmap),
-    #path("robots.txt", views.robots_txt, name="robots"),
+    path("robots.txt", views.robots_txt, name="robots"),
     path("sitemap.xml", views.sitemap),
     path('<path:uri>', views.base),
     path('', views.base, {'uri': ''}),

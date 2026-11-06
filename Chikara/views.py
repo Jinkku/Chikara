@@ -140,6 +140,8 @@ def robots_txt(request):
 User-Agent: *
 Content-signal: search=yes,ai-train=no
 Allow: /
+Disallow: /settings
+Disallow: /user/
 
 User-agent: Amazonbot
 Disallow: /
@@ -515,7 +517,7 @@ def get_userscore(user='',recent=True,mini=False,limit=50):
         for a in modsaliasab:
             if a in tmp['mods']:
                 modse += f'<span class="mod">{a}</span>'
-        peak += scorecard.replace("{date}",timeest).replace("{sitetitle}",str(tmp['beatmapname'])).replace("{artist}",str(tmp['artist'])).replace("{rank}",gradet).replace("{difficulty}",str(tmp['beatmapdiff'])).replace("{points}",str(int(tmp['points']))).replace("{weighted_points}",weighted).replace("{weighted_percentage}",weightedp).replace("{mods}",str(modse)).replace("{area}","/beatmapset/"+str(tmp["beatmapset_id"])+"/"+str(tmp["beatmap_id"]))
+        peak += scorecard.replace("{date}",timeest).replace("{title}",str(tmp['beatmapname'])).replace("{artist}",str(tmp['artist'])).replace("{rank}",gradet).replace("{difficulty}",str(tmp['beatmapdiff'])).replace("{points}",str(int(tmp['points']))).replace("{weighted_points}",weighted).replace("{weighted_percentage}",weightedp).replace("{mods}",str(modse)).replace("{area}","/beatmapset/"+str(tmp["beatmapset_id"])+"/"+str(tmp["beatmap_id"]))
         pek-=0.02
     if tols==0:
         peak +='<h3 class="bar">No Recent Plays -n-</h3>'
@@ -661,7 +663,7 @@ def api(request,command,value=None):
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "You can't submit scores because your restricted.","error": 1})
                 elif not allowsubmissions:
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Submissions are disabled.","error": 1})
-                elif not game[1]:
+                elif not game[1] and not user in ("Kupachan" , "aquapoki"):
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": f"Please update to the latest version to submit scores.\nThis score will not be submitted :<","error": 1})
                 else:
                     accept = 1
@@ -703,7 +705,13 @@ def api(request,command,value=None):
                        maxpoints = 0.01
                    finalscore=process_score(smax, sgreat, smeh, mult, info.notecount)
                    usr = User.objects.get(username = user)
-                   if not float(points)>usr.ranked_points / 4 and accept and ranked > 0:
+                   if usr.ranked_points == None:
+                     pp = 0
+                   else:
+                     pp = usr.ranked_points
+                   current_pp = usr.ranked_points or 0
+                   threshold = max(current_pp / 4, 120)
+                   if accept and ranked > 0 and float(points) <= threshold:
                         tmp = Score.objects.filter(beatmap_id = beatmap_id, username = user).first()
                         if not tmp==None:
                             oldmult=getmult(tmp.mods)
