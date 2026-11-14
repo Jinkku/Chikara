@@ -1,43 +1,88 @@
-    <div class="container-v">
-    <div class="video-wrapper">
-      <video autoplay muted loop playsinline class="bg-video">
-        <source src="/static/videos/ebubleh.mp4" type="video/mp4">
-      </video>
-            <div class="container-h">
-                <div class="homebox">
-                    <h1>Qlute - Free Rhythm Game Inspired by osu!mania</h1>
-                    <h2>Creativity is your imagination</h2>
-                    <div class="button-wrapper">
-                        <a href="/download"><button class="downloadbutton spacetop spacebottom">Start Playing!</button></a>
-                    </div>
+    <div id="home-page">
+    <section class="hm-hero">
+        <video autoplay muted loop playsinline class="hm-hero-video" aria-hidden="true">
+            <source src="/static/videos/ebubleh.mp4" type="video/mp4">
+        </video>
+        <div class="hm-hero-shade"></div>
+        <div class="hm-wrap hm-hero-inner">
+            <div class="hm-hero-text">
+                <p class="hm-pill">Free &middot; Open source &middot; Windows, macOS &amp; Linux</p>
+                <h1>
+                    <span class="hm-logo">Qlute</span>
+                    <span class="hm-sr"> - </span>
+                    <span class="hm-h1-sub">Free Rhythm Game Inspired by osu!mania</span>
+                </h1>
+                <p class="hm-tagline">Creativity is your imagination.</p>
+                <div class="hm-ctas">
+                    <a class="hm-btn hm-btn-primary" href="/download">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11.04-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14Z"/></svg>
+                        Start Playing!
+                    </a>
+                    <a class="hm-btn hm-btn-ghost" href="/beatmaps">Browse beatmaps</a>
                 </div>
-                <div class="homebox homebox-art">
-                    <img class="chloe" src="/static/img/chloe.png" alt="Chloe, the Qlute mascot" fetchpriority="high">
-                </div>
-            </div> 
+            </div>
+            <div class="hm-hero-art">
+                <div class="hm-glow"></div>
+                <img class="hm-chloe" src="/static/img/chloe.png" alt="Chloe, the Qlute mascot" width="1220" height="720" fetchpriority="high">
+            </div>
         </div>
-    </div>
+        <a class="hm-scroll" href="#what" aria-label="Scroll to learn more">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        </a>
+    </section>
 
-
-    <section class="infosect">
+    <section class="hm-wrap hm-section hm-about" id="what">
+        <div class="hm-about-text">
+            <p class="hm-eyebrow">About</p>
             <h2>What is Qlute?</h2>
             <p>
-            Qlute is a free rhythm game for PC inspired by osu!mania. It features
-            fast-paced mania-style gameplay, custom beatmaps, and an online ranking
-            system where players can compete with others.
+                Qlute is a free rhythm game for PC inspired by osu!mania. It features
+                fast-paced mania-style gameplay, custom beatmaps, and an online ranking
+                system where players can compete with others.
             </p>
-            <p>In the future this game will have 3 new game modes but will disclose this in a later time when the time is right <3.</p>
-            <p>This game had been built of by only a solo dev named Jinkku (formerly Poki)</p>
-            <h2>Features</h2>
-            <ul>
-            <li>Play community-created beatmaps and custom charts</li>
-            <li>Compete in an online ranking system against other players</li>
-            <li>Enjoy fast-paced mania-style gameplay inspired by osu!mania</li>
-            <li>More game modes planned for future updates</li>
-            </ul>
-            <h2>Interested? Download the game! <3</h2>
             <p>
-            You can <a href="/download">download Qlute here</a> and start playing instantly.
-            Check the <a href="/ranking">ranking page</a> to compete with other players.
+                Built with love by a solo dev, <strong>Jinkku</strong> (formerly Poki).
             </p>
+        </div>
+        <figure class="hm-shot">
+            <img src="/static/img/gamescreens/1.png" alt="Qlute gameplay: four lanes of notes with a Perfect judgement" width="1062" height="672" loading="lazy">
+        </figure>
     </section>
+
+    <section class="hm-wrap hm-section">
+        <p class="hm-eyebrow hm-center">Features</p>
+        <h2 class="hm-center">Everything you need to tap along</h2>
+        <ul class="hm-features">
+            <li class="hm-feature">
+                <span class="hm-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></span>
+                <h3>Community beatmaps</h3>
+                <p>Play community-created beatmaps and custom charts.</p>
+            </li>
+            <li class="hm-feature">
+                <span class="hm-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4ZM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span>
+                <h3>Online ranking</h3>
+                <p>Compete in an online ranking system against other players.</p>
+            </li>
+            <li class="hm-feature">
+                <span class="hm-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></span>
+                <h3>Fast mania gameplay</h3>
+                <p>Enjoy fast-paced mania-style gameplay inspired by osu!mania.</p>
+            </li>
+            <li class="hm-feature">
+                <span class="hm-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg></span>
+                <h3>More modes coming</h3>
+                <p>3 new game modes are planned &mdash; we'll reveal them when the time is right &lt;3</p>
+            </li>
+        </ul>
+    </section>
+
+    <section class="hm-wrap hm-section">
+        <div class="hm-cta-band">
+            <div>
+                <h2>Interested? Download the game! &lt;3</h2>
+                <p>Start playing instantly, then check the <a href="/ranking">ranking page</a> to compete with other players.</p>
+            </div>
+            <a class="hm-btn hm-btn-primary" href="/download">Download Qlute</a>
+        </div>
+    </section>
+    </div>
