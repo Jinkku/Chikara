@@ -1,1 +1,16 @@
 When importing these to systemd please change the path to where your server stack is placed
+
+Websockets (online chat + multiplayer) need daphne next to gunicorn, and Redis for the channel layer:
+  sudo apt install redis-server && sudo systemctl enable --now redis-server
+  sudo cp daphne.service /etc/systemd/system/ && sudo systemctl enable --now daphne
+  python3 manage.py migrate online
+Then add this to the nginx server block (before the catch-all location):
+
+    location /ws/ {
+        proxy_pass http://unix:/run/daphne.sock;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 120s;
+    }

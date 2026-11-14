@@ -1,0 +1,15 @@
+[Unit]
+Description=daphne (Chikara websockets: online chat + multiplayer)
+After=network.target redis-server.service mariadb.service
+Wants=redis-server.service
+
+[Service]
+User=tokana
+Group=www-data
+WorkingDirectory=/qlute-devdj
+Environment=DJANGO_SETTINGS_MODULE=Chikara.settings
+ExecStart=/usr/bin/daphne -u /run/daphne.sock Chikara.asgi:application
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
