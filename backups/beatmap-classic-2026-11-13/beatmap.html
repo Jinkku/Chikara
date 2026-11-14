@@ -1,0 +1,130 @@
+    <div class="infoboxcontainer" id="beatmap-page" data-set="{setid}" data-diff="{diffid}" data-dataurl="{dataurl}">
+        <div class="infoboxtitle"><p>beatmap info</p></div>
+
+        <div class="infobox column bm-hero" id="bm-hero">
+            <div class="bm-hero-bg" id="bm-hero-bg"></div>
+            <div class="bm-hero-content">
+                <span class="bm-status" id="bm-status"></span>
+                <h1 id="bm-title">Loading beatmap...</h1>
+                <p class="bm-sub" id="bm-title-unicode"></p>
+                <h2 id="bm-artist"></h2>
+                <p class="bm-sub" id="bm-mapper"></p>
+                <div class="bm-actions" id="bm-actions" hidden>
+                    <a id="bm-download" class="bm-button bm-primary" href="#" download>&#8595; Download</a>
+                    <button id="bm-preview" class="bm-button" type="button"><span id="bm-preview-icon">&#9654;</span> Preview</button>
+                    <button id="bm-fav" class="bm-button bm-fav" type="button" title="Add to your favourites"><span class="bm-heart">&#9825;</span> <span id="bm-fav-label">Favourite</span> <span class="bm-fav-count" id="bm-fav-count"></span></button>
+                    <button id="bm-copy" class="bm-button" type="button" title="Copy a link to this difficulty">&#128279; Copy link</button>
+                    <button id="bm-edit" class="bm-button" type="button" title="Change the title, artist, tags and difficulty names" hidden>&#9998; Edit info</button>
+                </div>
+                <div class="bm-preview-bar" id="bm-preview-bar"><div id="bm-preview-fill"></div></div>
+            </div>
+        </div>
+
+        <div class="infobox column verticalpadding bm-section bm-edit" id="bm-edit-section" hidden>
+            <form id="bm-edit-form" autocomplete="off" novalidate>
+                <div class="be-head">
+                    <div>
+                        <h3>Edit beatmap info</h3>
+                        <p class="be-note" id="bm-edit-note"></p>
+                    </div>
+                    <span class="be-owner" id="be-owner" hidden></span>
+                </div>
+
+                <section class="be-group">
+                    <h4>Song</h4>
+                    <div class="be-grid">
+                        <label class="be-field"><span>Title</span><input name="title" maxlength="200" required></label>
+                        <label class="be-field"><span>Title <em>original language</em></span><input name="title_unicode" maxlength="200" placeholder="Same as the title"></label>
+                        <label class="be-field"><span>Artist</span><input name="artist" maxlength="200" required></label>
+                        <label class="be-field"><span>Artist <em>original language</em></span><input name="artist_unicode" maxlength="200" placeholder="Same as the artist"></label>
+                    </div>
+                </section>
+
+                <section class="be-group">
+                    <h4>Credits</h4>
+                    <div class="be-grid">
+                        <label class="be-field" id="be-mapper-field"><span>Mapper</span><input name="mapper" maxlength="100" required>
+                            <small>Shown as the creator in the game and on this page.</small></label>
+                        <label class="be-field"><span>Source <em>optional</em></span><input name="source" maxlength="200" placeholder="Game, anime, album...">
+                            <small>Shown in the details and searchable.</small></label>
+                    </div>
+                </section>
+
+                <section class="be-group">
+                    <h4>Classification</h4>
+                    <div class="be-grid">
+                        <label class="be-field"><span>Genre</span><select name="genre"></select></label>
+                        <label class="be-field"><span>Language</span><select name="language"></select></label>
+                        <label class="be-field be-switch"><input type="checkbox" name="nsfw"><span class="be-knob" aria-hidden="true"></span>
+                            <span><b>Explicit content</b><small>Lyrics, art or video not suitable for everyone.</small></span></label>
+                    </div>
+                </section>
+
+                <section class="be-group" id="be-status-group" hidden>
+                    <h4>Status <em class="be-team">Qlute team</em></h4>
+                    <div class="be-segments" id="be-status" role="radiogroup" aria-label="Ranked status"></div>
+                </section>
+
+                <section class="be-group">
+                    <h4>Tags</h4>
+                    <label class="be-field"><span class="be-sr">Tags</span>
+                        <textarea name="tags" maxlength="1000" rows="2" placeholder="Words that help people find this map, separated by spaces"></textarea></label>
+                    <div class="be-chips" id="be-chips"></div>
+                </section>
+
+                <section class="be-group">
+                    <h4>Difficulties</h4>
+                    <div class="be-diffs" id="bm-edit-diffs"></div>
+                </section>
+
+                <div class="be-foot">
+                    <p class="be-status" id="bm-edit-status" role="status"></p>
+                    <button type="button" class="bm-button" id="bm-edit-cancel">Cancel</button>
+                    <button type="submit" class="bm-button bm-primary" id="bm-edit-save" disabled>Save changes</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="infobox column verticalpadding bm-section" id="bm-diff-section" hidden>
+            <div class="bm-diffs" id="bm-diffs" role="tablist" aria-label="Difficulties"></div>
+            <h3 class="bm-diff-name" id="bm-diff-name"></h3>
+            <div class="bm-stats" id="bm-stats"></div>
+        </div>
+
+        <div class="infobox column verticalpadding bm-section" id="bm-meta-section" hidden>
+            <div class="title">Details</div>
+            <dl class="bm-meta" id="bm-meta"></dl>
+            <div class="bm-tags-wrap" id="bm-tags-wrap" hidden>
+                <p class="bm-meta-label">Tags</p>
+                <div class="bm-tags" id="bm-tags"></div>
+            </div>
+        </div>
+
+        <div class="infobox column verticalpadding spacebottom bm-section" id="bm-board-section" hidden>
+            <div class="title" id="bm-board-title">Leaderboard</div>
+            <div id="bm-board"></div>
+        </div>
+
+        <div class="infobox column verticalpadding spacebottom bm-section" id="bm-comments-section" hidden>
+            <div class="title">Comments <span class="bm-dim" id="bm-comments-count"></span></div>
+            <form class="bm-comment-form" id="bm-comment-form" hidden>
+                <textarea id="bm-comment-text" maxlength="1000" rows="3" placeholder="Say something about this map..."></textarea>
+                <div class="bm-comment-foot">
+                    <span class="bm-dim" id="bm-comment-status"></span>
+                    <span class="bm-dim" id="bm-comment-left">1000</span>
+                    <button type="submit" class="bm-button bm-primary" id="bm-comment-send">Post comment</button>
+                </div>
+            </form>
+            <p class="bm-dim bm-comment-login" id="bm-comment-login" hidden><a href="/">Log in</a> to leave a comment.</p>
+            <div class="bm-comments" id="bm-comments"></div>
+            <button type="button" class="bm-button bm-comments-more" id="bm-comments-more" hidden>Show older comments</button>
+        </div>
+
+        <div class="infobox column verticalpadding spacebottom" id="bm-missing" hidden>
+            <span class="center bm-missing"><h1>o-o</h1><h3>This beatmap doesn't exist (or isn't on Qlute yet).</h3><p><a href="/beatmaps">Browse the beatmap listing</a></p></span>
+        </div>
+        <noscript><div class="infobox column verticalpadding">This page needs JavaScript to load the beatmap.</div></noscript>
+    </div>
+    <script src="/static/script/beatmappage.js?v=6"></script>
+    <script src="/static/script/beatmapedit.js?v=4"></script>
+    <script src="/static/script/beatmapsocial.js?v=1"></script>
