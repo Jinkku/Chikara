@@ -1,0 +1,19 @@
+.rl-section { gap: 10px; scroll-margin-top: 80px; }
+.rl-heading { margin: 0; font-size: 26px; }
+.rl-intro { margin: 0; font-size: 15px; color: #ffffffcc; line-height: 1.5; }
+.rl-toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.rl-toc a {
+    padding: 6px 12px; border-radius: 999px;
+    background: #f3baff2a; color: #fff; text-decoration: none; font-size: 14px;
+}
+.rl-toc a:hover, .rl-toc a:focus-visible { background: #f3baff55; }
+.rl-title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 20px; }
+.rl-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #f3baff40; font-size: 15px;
+}
+.rl-list { margin: 0; padding-left: 22px; font-size: 15px; color: #ffffffcc; line-height: 1.5; }
+.rl-list li { margin: 5px 0; }
+.rl-list b { color: #fff; }
+.rl-footnote { margin: 6px 0 0; font-size: 14px; color: #ffffff99; text-align: center; }

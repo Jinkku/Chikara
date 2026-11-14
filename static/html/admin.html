@@ -1,0 +1,20 @@
+    <div class="infoboxcontainer">
+        <div class="infoboxtitle"><p>admin panel</p></div>
+        <div class="infobox column verticalpadding catalog-controls">
+            <div class="catalog-tabs" id="admin-tabs">
+                <button data-tab="reports" class="catalog-tab">Reports <span id="open-count" class="adm-badge"></span></button>
+                <button data-tab="players" class="catalog-tab">Players</button>
+                <button data-tab="bans" class="catalog-tab">Bans</button>
+                <button data-tab="claims" class="catalog-tab">Map claims <span id="claim-count" class="adm-badge"></span></button>
+                <button data-tab="news" class="catalog-tab">News</button>
+                <button data-tab="team" class="catalog-tab">Team</button>
+                <button data-tab="notices" class="catalog-tab admin-only" hidden>Notices</button>
+                <button data-tab="borders" class="catalog-tab admin-only" hidden>Card borders</button>
+            </div>
+        </div>
+        <div class="infobox column verticalpadding spacebottom">
+            <div id="admin-view"></div>
+            <p id="admin-hint" class="catalog-hint">Loading... (Make sure javascript is enabled.)</p>
+        </div>
+    </div>
+    <script src="/static/script/admin.js?v=4"></script>
