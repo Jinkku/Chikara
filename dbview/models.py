@@ -22,13 +22,15 @@ class Score(models.Model):
     beatmapdiff = models.CharField(max_length=256, null=True, blank=True)
     mods = models.CharField(max_length=48, null=True, blank=True)
     maxpoints = models.FloatField(null=True, blank=True)
+    score = models.BigIntegerField(null=True, blank=True)  # competitive score (pp v3): 0..1,000,000 NoMod, x mod multiplier
     version = models.IntegerField(null=False, blank=False, default=2)
     speed_multi = models.FloatField(null=False, blank=False, default=1)
     replay_path = models.TextField(null=True, blank=True)
     ranked = models.IntegerField(null=False, blank=False, default=0)
     
     class Meta:
-        db_table = 'scores'  
+        db_table = 'scores'
+        indexes = [models.Index(fields=['beatmap_id', 'ranked', '-score'], name='scores_map_score_idx')]
 class User(models.Model):
     id = models.AutoField(primary_key=True)
     username = models.CharField(max_length=256, null=True, blank=True)
@@ -51,7 +53,9 @@ class User(models.Model):
     pfppath = models.TextField(null=False, blank=False, default=NoProfilePictureURL)
     restricted = models.BooleanField(null=False, blank=False, default=False)
     cardborder = models.TextField(null=True, blank=True)
-    
+    bio = models.TextField(null=True, blank=True)  # "About me" on the profile, set on the website's settings page
+    bannerpath = models.TextField(null=True, blank=True)  # profile banner, "/banners/<file>" under DataURL (usersettings.banner)
+
     class Meta:
         db_table = 'users'
 
@@ -67,7 +71,7 @@ class Beatmap(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     mapper = models.TextField(null=False, blank=True)
     beatmapid = models.IntegerField(null=False, blank=False, default=0)
-    beatmapsetid = models.IntegerField(null=False, blank=False, default=0)
+    beatmapsetid = models.IntegerField(null=False, blank=False, default=0, db_index=True)
     playcount = models.IntegerField(null=False, blank=False, default=0)
     pp = models.FloatField(null=True, blank=True)
     beatmapfile = models.TextField(null=False, blank=True)
@@ -78,10 +82,42 @@ class Beatmap(models.Model):
     backgroundpath = models.TextField(null=False, blank=True)
     previewpath = models.TextField(null=False, blank=True)
     chartfile = models.TextField(null=False, blank=True)
+    tags = models.TextField(null=True, blank=True)
+    source = models.TextField(null=True, blank=True)  # .osu [Metadata] Source / osu! API source
+    # Set-level details for the catalog filters (osu! ids, see Chikara/catalog.py). Copied from `beatmapsets` by
+    # grabnew.py for osu! sets, set by the uploader / team for submitted ones. Nullable so recheck.py's INSERTs,
+    # which don't name them, keep working; NULL = unknown (shown as Unspecified / no).
+    genre = models.IntegerField(null=True, blank=True)
+    language = models.IntegerField(null=True, blank=True)
+    nsfw = models.BooleanField(null=True, blank=True)  # explicit content
+    video = models.BooleanField(null=True, blank=True)
+    storyboard = models.BooleanField(null=True, blank=True)
 
-    
+
     class Meta:
-        db_table = 'beatmaps' 
+        db_table = 'beatmaps'
+class Beatmapset(models.Model):
+    """osu! API metadata per set, written by regen/grabnew.py when a set is downloaded."""
+    beatmapsetid = models.IntegerField(primary_key=True)
+    artist = models.TextField(null=False, blank=True)
+    artist_unicode = models.TextField(null=False, blank=True)
+    title = models.TextField(null=False, blank=True)
+    title_unicode = models.TextField(null=False, blank=True)
+    tags = models.TextField(null=False, blank=True)
+    status = models.IntegerField(null=False, default=0)  # raw osu! status: -2 graveyard .. 4 loved
+    ranked = models.IntegerField(null=False, default=0)  # qlute legend: 1 ranked, 2 special, 0 unranked
+    ranked_date = models.DateTimeField(null=True, blank=True)
+    source = models.TextField(null=True, blank=True)
+    genre = models.IntegerField(null=True, blank=True)  # osu! genre_id
+    language = models.IntegerField(null=True, blank=True)  # osu! language_id
+    nsfw = models.BooleanField(null=True, blank=True)
+    video = models.BooleanField(null=True, blank=True)
+    storyboard = models.BooleanField(null=True, blank=True)
+    last_updated = models.DateTimeField(null=True, blank=True)
+    fetched = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'beatmapsets'
 class Hashes(models.Model):
     ostype = models.TextField(null=True, blank=True)
     hash = models.TextField(null=True, blank=True)
