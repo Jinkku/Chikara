@@ -1,3 +1,5 @@
+import sys as _sys
+_sys.exit("This script uses the old pp formula. Run `python -m Chikara.recalc_ppv3` from /Storage/Chikara instead (pp v3).")
 import mysql.connector,os
 import ppv2calc
 import zipfile
@@ -57,8 +59,8 @@ for user in users:
         if score["replay_path"] != None and beatmap != None and os.path.isfile(storage_root + str(score["replay_path"])):
             print("found")
             mult=getmult(score["mods"], speed=score["speed_multi"])
-            info = ppv2calc.calculate_ppv2(storage_root + score["replay_path"], storage_root + beatmap["chartfile"])
-            pp += info.pp * per
+            info = ppv2calc.calculate_ppv2(storage_root + score["replay_path"], storage_root + beatmap["chartfile"], mods=score["mods"] or "", speed=score["speed_multi"] or 1)
+            pp += info.points * per
             per -= step
             if per < 0 or x > 30:
                 break

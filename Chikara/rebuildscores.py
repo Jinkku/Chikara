@@ -1,3 +1,5 @@
+import sys as _sys
+_sys.exit("This script uses the old pp formula. Run `python -m Chikara.recalc_ppv3` from /Storage/Chikara instead (pp v3).")
 import mysql.connector,os
 import ppv2calc
 import zipfile
@@ -49,9 +51,9 @@ for score in scores:
             
             print("found")
             mult=getmult(score["mods"], speed=score["speed_multi"])
-            info = ppv2calc.calculate_ppv2(storage_root + score["replay_path"], storage_root + co["chartfile"])
-            cursor.execute("UPDATE scores SET points = " + str(info.pp * mult) + " WHERE beatmap_id = " + str(co["beatmapid"]) + " AND id = " + str(score["id"]))
-            cursor.execute("UPDATE scores SET maxpoints = " + str(info.max_pp * mult) + " WHERE beatmap_id = " + str(co["beatmapid"]) + " AND id = " + str(score["id"]))
+            info = ppv2calc.calculate_ppv2(storage_root + score["replay_path"], storage_root + co["chartfile"], mods=score["mods"] or "", speed=score["speed_multi"] or 1)
+            cursor.execute("UPDATE scores SET points = " + str(info.points) + " WHERE beatmap_id = " + str(co["beatmapid"]) + " AND id = " + str(score["id"]))
+            cursor.execute("UPDATE scores SET maxpoints = " + str(info.max_points) + " WHERE beatmap_id = " + str(co["beatmapid"]) + " AND id = " + str(score["id"]))
         else:
             print("none")
             cursor.execute("UPDATE scores SET points = 0 WHERE beatmap_id = " + str(co["beatmapid"]) + " AND id = " + str(score["id"]))
