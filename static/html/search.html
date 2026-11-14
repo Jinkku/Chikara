@@ -1,0 +1,22 @@
+    <div class="infoboxcontainer">
+        <div class="infoboxtitle"><h1 class="page-title">search</h1></div>
+        <div class="infobox column verticalpadding catalog-controls">
+            <input id="site-search" class="catalog-search" type="search" placeholder="Search..." autocomplete="off">
+            <div class="catalog-tabs" id="search-tabs">
+                <button data-kind="users" class="catalog-tab">Users</button>
+                <button data-kind="players" class="catalog-tab">Online Players</button>
+                <button data-kind="scores" class="catalog-tab">Scores</button>
+            </div>
+            <div class="catalog-tabs search-options" id="score-options">
+                <button data-sort="best" class="catalog-tab">Best</button>
+                <button data-sort="recent" class="catalog-tab">Recent</button>
+                <label class="search-check"><input type="checkbox" id="score-ranked" checked> Ranked only</label>
+            </div>
+        </div>
+        <div class="infobox column verticalpadding spacebottom">
+            <div id="search-results"></div>
+            <p id="search-hint" class="catalog-hint">Loading... (Make sure javascript is enabled.)</p>
+            <div id="search-more"></div>
+        </div>
+    </div>
+    <script src="/static/script/sitesearch.js?v=3"></script>

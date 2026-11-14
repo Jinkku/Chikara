@@ -1,0 +1,162 @@
+#profile-page {
+    --pf-accent: #f3baff; --pf-tile: #ffffff10; --pf-tile-2: #ffffff1a; --pf-dim: #ffffff99;
+    --pf-perfect: #c08bff; --pf-great: #6ec1ff; --pf-meh: #ffd76a; --pf-miss: #ff7a7a;
+}
+#profile-page h1, #profile-page p { margin: 0; }
+.pf-section { gap: 12px; padding-top: 20px; padding-bottom: 20px; margin-top: 12px; }
+.pf-section .title { margin-bottom: 0; }
+.pf-dim { color: var(--pf-dim); font-size: 13px; }
+.pf-sec-head, .pf-hits-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pf-sec-title { font-weight: bold; }
+
+/* ---------- hero */
+.pf-hero {
+    position: relative; flex-wrap: wrap; align-items: center; gap: 22px;
+    padding-top: 28px; padding-bottom: 28px;
+    background:
+        radial-gradient(120% 140% at 0% 0%, #f3baff33 0%, transparent 55%),
+        linear-gradient(135deg, #3a2a45 0%, #00000085 70%);
+}
+.pf-avatar { position: relative; flex: none; }
+.pf-avatar img {
+    display: block; width: 120px; height: 120px; object-fit: cover; border-radius: 22px;
+    border: 3px solid #ffffff30; box-shadow: 0 10px 30px #00000070;
+}
+.pf-avatar-dot {
+    position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 50%;
+    background: #6ee7a0; border: 4px solid #2a2230;
+}
+.pf-ident { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.pf-name-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pf-name { font-size: 34px; line-height: 1.1; overflow-wrap: anywhere; }
+.pf-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 14px; color: var(--pf-dim); }
+.pf-presence { display: inline-flex; align-items: center; gap: 6px; }
+.pf-presence.on { color: #9ff0c0; }
+.pf-dot { width: 8px; height: 8px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 3px #6ee7a033; }
+.pf-rank-block {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    padding: 12px 18px; border-radius: 14px; background: #00000040; text-align: right;
+}
+.pf-rank-label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--pf-dim); }
+.pf-rank { font-size: 32px; font-weight: bold; line-height: 1.1; }
+.pf-pp { font-size: 15px; font-weight: bold; color: var(--pf-accent); }
+.pf-actions { flex-basis: 100%; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+#profile-page .pf-btn {
+    margin: 0; padding: 7px 16px; border-radius: 999px;
+    background: var(--pf-accent); color: #221E27; font-weight: bold;
+}
+#profile-page .pf-btn:hover { filter: brightness(1.08); border-radius: 999px; }
+#profile-page .pf-btn.on, #profile-page .pf-btn-quiet { background: #ffffff1c; color: #fff; font-weight: normal; }
+#profile-page .pf-btn.on:hover, #profile-page .pf-btn-quiet:hover { background: #ffffff30; filter: none; }
+
+/* ---------- stat tiles */
+.pf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.pf-tile { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px; background: var(--pf-tile); min-width: 0; }
+.pf-tile-label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--pf-dim); }
+.pf-tile-value { font-size: 22px; font-weight: bold; overflow-wrap: anywhere; }
+.pf-tile-sub { font-size: 12px; color: var(--pf-dim); }
+.pf-level-bar { display: block; height: 6px; border-radius: 3px; background: #ffffff1f; overflow: hidden; margin-top: 4px; }
+.pf-level-bar span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #c08bff, var(--pf-accent)); }
+
+/* ---------- hit distribution */
+.pf-hits { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.pf-hitbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: #ffffff14; gap: 2px; }
+.pf-hitbar span { min-width: 3px; }
+.pf-hit-perfect { background: var(--pf-perfect); }
+.pf-hit-great { background: var(--pf-great); }
+.pf-hit-meh { background: var(--pf-meh); }
+.pf-hit-miss { background: var(--pf-miss); }
+.pf-hit-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--pf-dim); }
+.pf-hit-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.pf-hit-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.pf-hit-legend b { color: #fff; }
+
+/* ---------- medals */
+.pf-medals { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.pf-medal {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px;
+    background: linear-gradient(135deg, #f3baff26, #ffffff0a); border: 1px solid #f3baff40;
+}
+.pf-medal > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pf-medal small { font-size: 12px; color: var(--pf-dim); }
+.pf-medal-icon {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 50%; background: var(--pf-accent); color: #221E27; font-size: 18px;
+}
+/* locked: dim the contents, not the tile, so the hover hint below stays fully opaque */
+.pf-medal.locked { background: var(--pf-tile); border-color: transparent; }
+.pf-medal.locked > span { opacity: .45; }
+.pf-medal.locked .pf-medal-icon { background: #ffffff20; color: #ffffffaa; }
+
+/* hover / focus hint: how to earn it (data-hint, views.py MEDAL_HINTS / EXTRA_MEDALS) */
+.pf-medal { position: relative; cursor: help; outline: none; transition: border-color .15s, transform .15s; }
+.pf-medal:hover, .pf-medal:focus { border-color: #f3baff99; transform: translateY(-1px); z-index: 5; }
+.pf-medal.locked:hover > span, .pf-medal.locked:focus > span { opacity: .75; }
+.pf-medal::after {
+    content: attr(data-hint);
+    position: absolute; left: 50%; bottom: calc(100% + 8px);
+    width: max-content; max-width: 240px;
+    padding: 7px 11px; border-radius: 8px;
+    background: #15121a; border: 1px solid #f3baff55; box-shadow: 0 6px 18px #00000080;
+    color: #fff; font-size: 12px; line-height: 1.4; text-align: center;
+    opacity: 0; transform: translate(-50%, 4px); pointer-events: none;
+    transition: opacity .15s, transform .15s;
+}
+.pf-medal::before {
+    content: ""; position: absolute; left: 50%; bottom: calc(100% + 3px);
+    width: 10px; height: 10px; background: #15121a;
+    border-right: 1px solid #f3baff55; border-bottom: 1px solid #f3baff55;
+    opacity: 0; transform: translate(-50%, 4px) rotate(45deg); pointer-events: none;
+    transition: opacity .15s, transform .15s;
+}
+.pf-medal:hover::after, .pf-medal:focus::after { opacity: 1; transform: translate(-50%, 0); }
+.pf-medal:hover::before, .pf-medal:focus::before { opacity: 1; transform: translate(-50%, 0) rotate(45deg); }
+
+/* ---------- scores */
+/* same outer width as an .infobox (64% + 15px padding each side), so the two columns line up with the boxes above and below */
+.pf-score-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: calc(64% + 30px); padding: 0; box-sizing: border-box; }
+.pf-score-cols .pf-scores { width: auto; box-sizing: border-box; min-width: 0; }
+.pf-scores { gap: 6px; }
+.pf-scores .score-card {
+    margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--pf-tile); gap: 10px;
+    transition: background 120ms;
+}
+.pf-scores a:hover .score-card { background: var(--pf-tile-2); }
+.pf-scores .score-card-left { min-width: 0; }
+.pf-scores .score-card .info { min-width: 0; }
+.pf-scores .score-card .info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-scores .score-card .info span:first-child { font-size: 14px; }
+.pf-scores .score-card .info span:last-child { color: var(--pf-dim); }
+.pf-scores .score-card-right { flex: none; align-items: center; gap: 4px; }
+.pf-scores .rank { border-radius: 8px; flex: none; }
+.pf-scores .pp { background: none; color: var(--pf-accent); padding: 4px 6px; }
+.pf-scores .mod { padding: 3px 7px; font-size: 12px; margin-left: 0; }
+.pf-scores .bar { justify-content: center; color: var(--pf-dim); }
+
+@media (max-width: 1100px) {
+    .pf-score-cols { width: calc(100% - 24px); padding: 0; }
+}
+@media (max-width: 900px) {
+    .pf-score-cols { grid-template-columns: 1fr; gap: 0; }
+}
+@media (max-width: 700px) {
+    .pf-hero { gap: 16px; }
+    .pf-avatar img { width: 88px; height: 88px; border-radius: 18px; }
+    .pf-name { font-size: 26px; }
+    .pf-rank-block { flex-basis: 100%; flex-direction: row; align-items: baseline; justify-content: space-between; }
+    .pf-rank { font-size: 24px; }
+    .pf-actions { justify-content: flex-start; }
+    .pf-score-cols { width: calc(100% - 16px); }
+}
+
+/* profile banner behind the hero (users.bannerpath, set in settings); no banner = the gradient above */
+.pf-hero.has-banner {
+    background:
+        linear-gradient(90deg, #1b1620eb 0%, #1b1620b3 45%, #1b162066 100%),
+        linear-gradient(0deg, #1b1620cc 0%, transparent 60%),
+        var(--banner) center / cover no-repeat;
+}
+.pf-hero.has-banner .pf-name, .pf-hero.has-banner .pf-rank { text-shadow: 0 2px 10px #000000b0; }
+@media (max-width: 700px) {
+    .pf-hero.has-banner { background: linear-gradient(0deg, #1b1620f2 10%, #1b162099 100%), var(--banner) center / cover no-repeat; }
+}

@@ -1,0 +1,100 @@
+#ranking-page { --rk-accent: #f3baff; --rk-tile: #ffffff10; --rk-dim: #ffffff99; --rk-gold: #ffd76a; --rk-silver: #d6dbe6; --rk-bronze: #e3a679; }
+.rk-box { gap: 14px; }
+.rk-sub { margin: 0; font-size: 14px; color: var(--rk-dim); }
+.rk-empty { padding: 40px 0; text-align: center; }
+
+/* podium */
+.rk-podium {
+    display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 14px;
+    padding: 6px 0 10px;
+}
+.rk-pod {
+    --c: var(--rk-accent);
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 26px 12px 18px; border-radius: 14px; text-align: center; min-width: 0;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c) 22%, transparent), #ffffff08);
+    border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+    transition: transform 150ms;
+}
+.rk-pod:hover, .rk-pod:focus-visible { transform: translateY(-3px); }
+.rk-pod-1 { --c: var(--rk-gold); order: 2; padding-top: 34px; padding-bottom: 26px; }
+.rk-pod-2 { --c: var(--rk-silver); order: 1; }
+.rk-pod-3 { --c: var(--rk-bronze); order: 3; }
+.rk-medal {
+    position: absolute; top: -12px; padding: 3px 12px; border-radius: 999px;
+    background: var(--c); color: #221E27; font-weight: bold; font-size: 14px;
+}
+.rk-pod-avatar { position: relative; display: block; }
+.rk-pod-avatar img {
+    display: block; width: 76px; height: 76px; border-radius: 50%; object-fit: cover;
+    border: 3px solid var(--c);
+}
+.rk-pod-1 .rk-pod-avatar img { width: 92px; height: 92px; }
+.rk-pod-name { font-size: 17px; font-weight: bold; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-pod-pp { font-size: 22px; font-weight: bold; color: var(--c); }
+.rk-pod-pp small { font-size: 13px; opacity: .8; }
+.rk-pod-meta { font-size: 12px; color: var(--rk-dim); }
+
+/* table */
+.rk-table { width: 100%; border-collapse: separate; border-spacing: 0 4px; font-size: 14px; }
+.rk-table th {
+    padding: 6px 10px; font-size: 12px; font-weight: normal; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--rk-dim); text-align: right; white-space: nowrap;
+}
+.rk-table td { padding: 8px 10px; background: var(--rk-tile); text-align: right; white-space: nowrap; }
+.rk-table td:first-child { border-radius: 10px 0 0 10px; }
+.rk-table td:last-child { border-radius: 0 10px 10px 0; }
+.rk-table tbody tr { transition: background 120ms; }
+.rk-table tbody tr:hover td { background: #ffffff1c; }
+.rk-table .rk-c-rank { text-align: left; width: 1%; color: var(--rk-dim); font-weight: bold; }
+.rk-table .rk-c-player { text-align: left; width: 40%; }
+.rk-c-player a { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; }
+.rk-name { overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+.rk-c-player a:hover .rk-name { color: var(--rk-accent); }
+.rk-avatar { position: relative; flex: none; display: block; }
+.rk-avatar img { display: block; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.rk-pp { font-weight: bold; color: var(--rk-accent); }
+.rk-acc { display: inline-flex; align-items: center; gap: 8px; }
+.rk-acc-bar { display: inline-block; width: 54px; height: 5px; border-radius: 3px; background: #ffffff1f; overflow: hidden; }
+.rk-acc-bar span { display: block; height: 100%; background: var(--rk-accent); }
+.rk-hit { color: var(--rk-dim); font-size: 13px; }
+.rk-miss { color: #ff9a9a; }
+.rk-me td { background: #f3baff26 !important; }
+.rk-pod.rk-me { box-shadow: 0 0 0 2px var(--rk-accent); }
+
+/* online dot */
+.rk-dot {
+    position: absolute; right: 0; bottom: 0; width: 10px; height: 10px; border-radius: 50%;
+    background: #6ee7a0; border: 2px solid #221E27;
+}
+.rk-pod-avatar .rk-dot { width: 14px; height: 14px; right: 4px; bottom: 4px; }
+
+/* pagination */
+.rk-pages { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; padding-top: 8px; }
+.rk-page {
+    min-width: 38px; padding: 8px 12px; border-radius: 10px; box-sizing: border-box;
+    background: var(--rk-tile); text-align: center; font-size: 14px; transition: background 120ms;
+}
+a.rk-page:hover, a.rk-page:focus-visible { background: #ffffff26; }
+.rk-page-cur { background: var(--rk-accent); color: #221E27; font-weight: bold; }
+.rk-gap { color: var(--rk-dim); padding: 0 2px; }
+
+@media (max-width: 700px) {
+    .rk-hide-sm { display: none; }
+    .rk-podium { grid-template-columns: 1fr; gap: 18px; }
+    .rk-pod-1, .rk-pod-2, .rk-pod-3 { order: 0; }
+    .rk-table .rk-c-player { width: auto; }
+    .rk-name { max-width: 40vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .rk-pod { transition: none; }
+    .rk-pod:hover { transform: none; }
+}
+
+/* podium card with the player's profile banner behind it; no banner = the tinted gradient above */
+.rk-pod.has-banner {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--c) 28%, #120f16b0) 0%, #120f16e6 75%),
+        var(--banner) center / cover no-repeat;
+}
+.rk-pod.has-banner .rk-pod-name, .rk-pod.has-banner .rk-pod-pp { text-shadow: 0 1px 6px #000000c0; }

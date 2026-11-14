@@ -1,12 +1,13 @@
     <div class="infoboxcontainer">
         <div  class="infoboxtitle">
-            <p>Welcome, {usertag}!</p>
+            <h1 class="page-title">Welcome, {usertag}!</h1>
         </div>
         <div class="infobox">
-            <div style="display: flex;width: 100%;height: 700px;">
-                <p>No news yet!</p>
+            <div class="home-news" style="display: flex;flex-direction: column;width: 100%;padding: 15px 0;">
+                <div class="title">Latest news</div>
+                {news}
             </div>
-            <div class="column" style="display: flex;width: 40%;padding: 15px 15px;right:0;">
+            <div class="column home-stats" style="display: flex;width: 40%;padding: 15px 15px;right:0;">
                 <p>There are {usercount} users registered!</p>
                 <p>There are {active} users online</p>
             </div>

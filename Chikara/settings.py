@@ -43,6 +43,9 @@ INSTALLED_APPS = [
     "channels",
     "chat",
     'dbview',
+    'online',
+    'moderation',
+    'submissions',
 ]
 
 ASGI_APPLICATION = "Chikara.asgi.application"
@@ -50,9 +53,26 @@ ASGI_APPLICATION = "Chikara.asgi.application"
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+        # capacity: multiplayer hosts receive live score/spectate packets from every player.
+        # socket_timeout: redis-py 8 defaults to 5 s, the same as channels_redis's 5 s BRPOP wait, so idle
+        # consumers hit "Timeout reading from 127.0.0.1:6379" and crash, dropping the player's websocket.
+        "CONFIG": {
+            # max_connections: redis-py 8 caps each pool at 100 connections by default, which a busy server
+            # (chat + multiplayer relays) goes past: sends then fail with "Too many connections".
+            "hosts": [{"host": "127.0.0.1", "port": 6379, "socket_timeout": 30, "socket_connect_timeout": 5,
+                       "max_connections": 2000}],
+            "capacity": 1500,
+        },
     }
 }
+# Local testing without Redis (single daphne process only): CHIKARA_INMEMORY_CHANNELS=1
+if os.environ.get("CHIKARA_INMEMORY_CHANNELS"):
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer", "CONFIG": {"capacity": 1500}}}
+
+# Online chat (online app): public channels everyone is in. Add new ones at the end; names are kept forever.
+ONLINE_CHAT_CHANNELS = ["#general", "#multiplayer", "#help"]
+# Only allow game builds listed in the hashes table to use online chat / multiplayer.
+ONLINE_REQUIRE_GAME_HASH = False
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -124,6 +144,8 @@ AUTH_PASSWORD_VALIDATORS = [
 storage_root = "/Storage/Chikara/"
 client_secret = ""
 client_id = ""
+osu_oauth_id = ""
+osu_oauth_secret = ""
 CONFIG_FILE = str(BASE_DIR) + "/config/config.conf"
 tmp = "/"
 #Before using this please set these up at /etc/Chikara/config.conf
@@ -135,6 +157,10 @@ if os.path.isfile(CONFIG_FILE):
                 storage_root = key[1]
             elif key[0] == "secretkey":
                 SECRET_KEY = key[1]
+            elif key[0] == "osu_client_id":  # osu! OAuth app for beatmap claims (osu.ppy.sh/home/account/edit)
+                osu_oauth_id = key[1].strip()
+            elif key[0] == "osu_client_secret":
+                osu_oauth_secret = key[1].strip()
 else:
     with open(CONFIG_FILE, "w") as f:
         f.write("""#Config file for Chikara (Qlute's backend processor.)
@@ -177,6 +203,8 @@ REPLAYS =  os.path.join(storage_root, 'replays')
 
 # Settings for the website.
 DataURL = "https://data.jinkku.moe"
+# The website's public address: canonical links, the sitemap and social previews point here.
+SiteURL = "https://qlute.jinkku.moe"
 AssetPath = DataURL + "/song_assets/"
 SongFilePath = DataURL + "/songs/"
 # Please put your path to the image for this to work.

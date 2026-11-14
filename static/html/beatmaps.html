@@ -1,0 +1,40 @@
+    <div class="infoboxcontainer" id="catalog">
+        <div class="infoboxtitle"><h1 class="page-title">beatmap listing</h1></div>
+
+        <div class="infobox column catalog-panel">
+            <div class="catalog-backdrop" id="catalog-backdrop" aria-hidden="true"></div>
+            <div class="catalog-searchrow">
+                <label class="catalog-searchbox">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+                    <input id="catalog-search" type="search" placeholder="Search titles, artists, mappers, tags, sources..." autocomplete="off" aria-label="Search beatmaps">
+                </label>
+                <button type="button" class="catalog-filter-toggle" id="catalog-filter-toggle" aria-expanded="true" aria-controls="catalog-filters" aria-label="Filters">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                    Filters <span class="cf-count" id="cf-count" hidden></span>
+                </button>
+            </div>
+
+            <div class="catalog-filters" id="catalog-filters">
+                <div class="cf-row"><span class="cf-label">Category</span><div class="cf-chips" id="cf-status" role="radiogroup" aria-label="Category"></div></div>
+                <div class="cf-row"><span class="cf-label">Genre</span><div class="cf-chips" id="cf-genre" role="radiogroup" aria-label="Genre"></div></div>
+                <div class="cf-row"><span class="cf-label">Language</span><div class="cf-chips" id="cf-language" role="radiogroup" aria-label="Language"></div></div>
+                <div class="cf-row"><span class="cf-label">Explicit</span><div class="cf-chips" id="cf-explicit" role="radiogroup" aria-label="Explicit content"></div></div>
+                <div class="cf-row"><span class="cf-label">Extra</span><div class="cf-chips" id="cf-extra" aria-label="Extra"></div></div>
+                <div class="cf-row" id="cf-played-row" hidden><span class="cf-label">Played</span><div class="cf-chips" id="cf-played" role="radiogroup" aria-label="Played"></div></div>
+                <button type="button" class="cf-reset" id="cf-reset" hidden>Clear filters</button>
+            </div>
+        </div>
+
+        <div class="infobox catalog-sortbar">
+            <span class="cf-label">Sort</span>
+            <div class="cs-options" id="cs-options" role="radiogroup" aria-label="Sort by"></div>
+        </div>
+
+        <div class="infobox column verticalpadding spacebottom">
+            <div id="catalog-grid" class="catalog-grid"></div>
+            <p id="catalog-hint" class="catalog-hint">Loading beatmaps... (Make sure javascript is enabled.)</p>
+            <div id="catalog-more"></div>
+        </div>
+    </div>
+    <script src="/static/script/beatmapcard.js?v=1"></script>
+    <script src="/static/script/beatmapcatalog.js?v=15"></script>

@@ -1,6 +1,6 @@
     <div class="infoboxcontainer">
         <div  class="infoboxtitle">
-            <p>user settings</p>
+            <h1 class="page-title">user settings</h1>
         </div>
         <span class="infobox column verticalpadding">
             <div class="usersettingsblock">
@@ -9,28 +9,65 @@
                 </div>
                 <div class="userSettings">
 
-                    <div class="account-edit-entry account-edit-entry--block js-account-edit-avatar">
-                        <div class="account-edit-entry__avatar">
-                            <div class="avatar avatar--full-rounded js-current-user-avatar" style="background-image: url(/static/img/profile/guest.png);"></div>
-
-                            <div class="account-edit-entry__drop-overlay">
-                                <span>
-                                drop here to upload
-                                </span>
+                    <div class="avatar-editor" id="avatar-editor">
+                        <button type="button" class="avatar-drop" id="avatar-drop" title="Click or drop an image here">
+                            <img id="avatar-preview" src="{avatar}" alt="Your avatar">
+                            <span class="avatar-hint">Drop an image here<br>or click to choose</span>
+                        </button>
+                        <div class="avatar-side">
+                            <div class="avatar-buttons">
+                                <button type="button" class="avatar-btn" id="avatarbutton">Upload image</button>
+                                <button type="button" class="avatar-btn subtle" id="avatarremove">Use default</button>
                             </div>
-
-                            <div class="account-edit-entry__overlay-spinner">
-                                <div class="la-ball-clip-rotate"></div>
-                            </div>
+                            <input type="file" id="avatarupload" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+                            <p class="avatar-status" id="avatar-status"></p>
+                            <p class="avatar-rules">PNG, JPEG, GIF or WebP. It's cropped to a square from the middle and shown at 256&times;256.</p>
+                            <p class="avatar-rules">Please ensure your avatar adheres to the visual content considerations.<br>This means it must be <strong>suitable for all ages</strong>, i.e. no nudity, offensive or suggestive content.</p>
                         </div>
-
-                        <p>
-                            <button id="avatarbutton">Upload image</button>
-                            <input class="js-account-edit-avatar__button" type="file" id="avatarupload" accept="image/*" name="avatar_file" data-url="https://osu.ppy.sh/home/account/avatar" hidden>
-                        </p>
-
-                        Please ensure your avatar adheres to the Visual content considerations.<br>This means it must be <strong>suitable for all ages</strong>. i.e. no nudity, offensive or suggestive content.
                     </div>
+                </div>
+            </div>
+
+            <div class="usersettingsblock">
+                <div class="userCatagory">
+                    <p>Profile banner</p>
+                </div>
+                <div class="userSettings">
+                    <button type="button" class="banner-drop" id="banner-drop" data-banner="{banner}" title="Click or drop an image here">
+                        <span class="banner-img" id="banner-preview"></span>
+                        <span class="banner-empty">No banner yet</span>
+                        <span class="banner-hint">Drop an image here or click to choose</span>
+                    </button>
+                    <div class="avatar-buttons">
+                        <button type="button" class="avatar-btn" id="bannerbutton">Upload banner</button>
+                        <button type="button" class="avatar-btn subtle" id="bannerremove">Remove</button>
+                    </div>
+                    <input type="file" id="bannerupload" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+                    <p class="avatar-status" id="banner-status"></p>
+                    <p class="avatar-rules">Shown behind your name at the top of your profile. PNG, JPEG, GIF or WebP; it's cropped from the middle to 1600&times;500, so wide images work best.</p>
+                    <p class="avatar-rules">Same rules as avatars: it must be <strong>suitable for all ages</strong>.</p>
+                </div>
+            </div>
+
+            <div class="usersettingsblock">
+                <div class="userCatagory">
+                    <p>Card border</p>
+                </div>
+                <div class="userSettings">
+                    <div class="border-preview-wrap">
+                        <div class="border-preview" id="border-preview">
+                            <div class="bp-card">
+                                <img class="bp-pfp" src="{avatar}" alt="">
+                                <span class="bp-name">{username}</span>
+                            </div>
+                            <img class="bp-border" id="bp-border" alt="" hidden>
+                        </div>
+                        <span class="avatar-rules">This is how your card looks in the game's top bar.</span>
+                    </div>
+                    <div class="border-grid" id="border-grid" data-current="{cardborder}" data-dataurl="{dataurl}">
+                        <p class="avatar-rules">Loading card borders...</p>
+                    </div>
+                    <p class="avatar-status" id="border-status"></p>
                 </div>
             </div>
 
@@ -39,7 +76,8 @@
                     <p>Biography</p>
                 </div>
                 <div class="userSettings">
-                    Bios
+                    <p class="avatar-rules">Your "About me" is edited on your profile, like on osu!: open it and press <b>Edit</b>. It supports BBCode formatting.</p>
+                    <div><a class="avatar-btn bio-link" href="{profileurl}#profile-bio">Edit my bio</a></div>
                 </div>
             </div>
 

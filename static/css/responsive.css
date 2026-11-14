@@ -1,0 +1,158 @@
+/* Shared layout + the phone / tablet layout for every page. One URL serves both: the same HTML,
+   with these rules switching the layout by screen width. Loaded after every page's own CSS so it wins. */
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overflow-x: clip; } /* nothing may push the page sideways on a phone (clip, unlike hidden, keeps the sticky header) */
+img, video { max-width: 100%; }
+
+.skip-link { position: absolute; left: -9999px; top: 8px; z-index: 2000; padding: 8px 12px; border-radius: 6px; background: #2a242f; color: #fff; }
+.skip-link:focus { left: 8px; }
+
+/* The page title box: was a <p>, now the page's <h1> - same look. */
+.page-title { font-size: 16px; font-weight: normal; margin: 10px 0; }
+.big-face { font-size: 2em; font-weight: bold; margin: 0.67em 0; }
+.dl-sub { font-size: 1.17em; }
+
+/* ---------------------------------------------------------------- header (sticky instead of the JS fixed switch) */
+.header { position: sticky; top: 0; z-index: 999; gap: 10px; }
+.header.scrolled { background-color: #2e2538f0; box-shadow: 0 2px 10px #00000055; }
+@supports (backdrop-filter: blur(8px)) {
+    .header.scrolled { background-color: #2e2538cc; backdrop-filter: blur(8px); }
+}
+.header-left { min-width: 0; }
+.header-logo { display: flex; flex: none; }
+.header-logo img { display: block; width: auto; }
+.site-nav { display: flex; align-items: center; }
+.nav-link {
+    margin-right: 10px;
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-size: 13.333px;
+    color: #fff;
+    transition: background-color 0.1s;
+}
+.nav-link:hover, .nav-link:focus-visible { background-color: #ffffff20; }
+.nav-link[aria-current="page"] { background-color: #ffffff14; }
+.header-support { display: flex; align-items: center; margin: 0 15px; padding: 4px; border-radius: 10px; transition: background-color 0.1s; }
+.header-support:hover { background-color: #ffffff20; }
+.header-support img { display: block; }
+.pfp { width: 40px; object-fit: cover; }
+#accountbutton:focus-visible { outline: 2px solid #f3baff; border-radius: 5px; }
+
+.nav-toggle { display: none; }
+
+/* footer links (were <button>s inside <a>s) */
+.icon-link { display: inline-flex; margin-right: 10px; padding: 5px 10px; border-radius: 10px; transition: background-color 0.1s; }
+.icon-link:hover { background-color: #ffffff20; }
+
+.table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ---------------------------------------------------------------- tablets / small laptops */
+@media (max-width: 1100px) {
+    .infoboxtitle, .infobox { box-sizing: border-box; width: calc(100% - 24px); }
+    .beatmapbox, .cardcontainer { width: 100%; box-sizing: border-box; }
+}
+
+/* ---------------------------------------------------------------- phones */
+@media (max-width: 760px) {
+    /* header: logo + menu button on the left, account on the right; the links drop down */
+    .header { padding: 8px 12px; }
+    .header-left img { height: 34px; margin-right: 8px; }
+    .nav-toggle {
+        display: inline-flex; flex-direction: column; justify-content: center; gap: 5px;
+        width: 42px; height: 42px; margin: 0; padding: 0 10px; border-radius: 10px; flex: none;
+    }
+    .nav-toggle span { display: block; height: 2px; border-radius: 2px; background: #fff; transition: transform 0.2s, opacity 0.2s; }
+    .nav-open .nav-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-open .nav-toggle span:nth-child(2) { opacity: 0; }
+    .nav-open .nav-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+    .site-nav {
+        display: none;
+        position: absolute; left: 0; right: 0; top: 100%;
+        flex-direction: column; align-items: stretch;
+        padding: 6px 10px 12px;
+        background: #2e2538;
+        box-shadow: 0 10px 20px #00000066;
+    }
+    .nav-open .site-nav { display: flex; }
+    .nav-open, .nav-open.scrolled { background-color: #2e2538; backdrop-filter: none; }
+    .nav-link { margin: 0; padding: 13px 14px; font-size: 17px; border-radius: 8px; }
+    .header-right h3 { display: none; }
+    .header-right button, .header-support { margin: 0 6px; }
+
+    /* account menu: full width under the header */
+    .modal-content { left: 8px; right: 8px; top: 64px; width: auto; max-height: calc(100vh - 80px); overflow-y: auto; box-sizing: border-box; }
+
+    /* the page boxes fill the screen */
+    .infoboxcontainer { padding: 8px 0; }
+    .infoboxtitle, .infobox { width: calc(100% - 16px); padding-left: 12px; padding-right: 12px; }
+    .infoboxtitle { margin-top: 12px; height: auto; min-height: 46px; }
+    h1 { font-size: 1.6em; }
+
+    /* guest home page: the hero stacks, the mascot goes */
+    .container-v { height: auto; }
+    .video-wrapper { min-height: 62vh; display: flex; }
+    .container-h { flex-direction: column; height: auto; }
+    .homebox { padding: 48px 18px; text-align: center; }
+    .homebox h1 { font-size: 26px; }
+    .homebox h2 { font-size: 18px; }
+    .homebox-art { display: none; }
+    .infosect { min-height: 0; padding: 18px 16px; }
+    .infosect ul { padding-left: 20px; }
+
+    /* logged-in home */
+    .infobox:has(.home-news) { flex-direction: column; }
+    .home-news { height: auto !important; min-height: 160px; }
+    .home-stats { width: auto !important; padding: 0 0 12px !important; }
+
+    /* download */
+    .dialogbox { height: auto; padding: 24px 4px; box-sizing: border-box; text-align: center; }
+    .dialogbox h1 { font-size: 22px; }
+    .button-wrapper .downloadbutton { width: 100%; box-sizing: border-box; }
+    .button-wrapper > a:has(.downloadbutton) { width: 100%; }
+
+    /* profile */
+    .namecard { flex-wrap: wrap; gap: 10px; align-items: center; }
+    .namecard h1 { font-size: 24px; overflow-wrap: anywhere; margin: 0; }
+    .statblock { flex-wrap: wrap; }
+    .importantinfo { flex: 1 1 40%; margin: 0 8px 0 0; }
+    .importantinfo h1 { margin-bottom: 12px !important; }
+    .statinfo { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; align-items: start; }
+    .statinfo .bar { margin: 4px 0; text-align: left; font-size: 14px; }
+    .medalbox { flex: 1 1 140px; }
+
+    /* score rows: let the badges drop under the title instead of squashing it */
+    .score-card { flex-wrap: wrap; gap: 8px; }
+    .score-card-left { min-width: 0; flex: 1 1 200px; }
+    .score-card .info { min-width: 0; }
+    .score-card .info span { overflow-wrap: anywhere; }
+    .score-card-right { flex-wrap: wrap; gap: 4px; margin-left: auto; }
+    .score-card-right .pp, .score-card-right .mod { margin-left: 0; }
+
+    /* ranking: the table scrolls sideways in its box */
+    .tablebar { font-size: 13px; }
+    .tablebar td, .tablebar th { padding-left: 8px; padding-right: 8px; }
+    .minibutton { padding: 10px 14px; margin: 6px 2px; }
+
+    /* settings */
+    .usersettingsblock { flex-direction: column; height: auto; }
+    .userCatagory { margin: 10px 0 0; padding: 0; width: auto; }
+    .userSettings { padding: 10px 0; box-sizing: border-box; }
+
+    /* beatmap page details: two small tiles a row */
+    .bm-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    /* footer */
+    footer .footerspacer { justify-content: center; flex-wrap: wrap; }
+    .icon-link { margin: 0 2px; padding: 5px 6px; }
+    .icon-link img { width: 40px; height: 40px; }
+}
+
+@media (max-width: 380px) {
+    .header-support { display: none; }
+    .statinfo { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-toggle span, .nav-link, .header { transition: none; }
+}

@@ -8,6 +8,12 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.onclick = function() {
             modal.style.display = "block";
         };
+        btn.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); modal.style.display = "block"; }
+        });
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") modal.style.display = "none";
+        });
     }
 
     window.onclick = function(event) {

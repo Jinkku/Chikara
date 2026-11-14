@@ -1,9 +1,14 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&display=swap');
 
-html, body {
+html {
     height: 100%;
+}
+html, body {
     margin: 0;
+}
+body {
+    min-height: 100%; /* not height: the sticky header needs a body as tall as the page */
 }
 body {
     margin: 0px;
@@ -253,7 +258,7 @@ button:hover {
 .infosect {
     display: flex;
     align-items: flex-start;
-    height: 50vh;
+    min-height: 50vh;
     flex-direction: column;
     padding: 20px 20px;
 }.warning-box {
