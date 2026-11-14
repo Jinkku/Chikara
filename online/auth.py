@@ -1,8 +1,9 @@
 """Websocket login for the game: same credentials the HTTP API uses (Username + Password headers,
-the password being the SHA-256 hash the game stores)."""
+the password being the SHA-256 hash the game stores; checked against the salted hash, Chikara/passwords.py)."""
 from channels.db import database_sync_to_async
 from django.conf import settings
 
+from Chikara import passwords
 from dbview.models import User, Hashes
 
 
@@ -18,8 +19,8 @@ def authenticate(scope):
     password = h.get("password", "").strip()
     if not username or username in ("None", "Guest") or not password:
         return None, "Log in to use online features."
-    user = User.objects.filter(username=username, password=password).first()
-    if user is None or user.password != password:
+    user = passwords.user_for(username, password)
+    if user is None:
         return None, "Your login is invalid. Please log in again."
     if user.restricted:
         # A timed ban may have just run out; that unrestricts the account.
@@ -40,8 +41,8 @@ def restricted_login(scope):
     but the account is restricted, else None."""
     h = scope_headers(scope)
     username, password = h.get("username", "").strip(), h.get("password", "").strip()
-    user = User.objects.filter(username=username, password=password).first() if username and password else None
-    if user is None or user.password != password or not user.restricted:
+    user = passwords.user_for(username, password)
+    if user is None or not user.restricted:
         return None
     from moderation.service import active_ban, ban_message
     ban = active_ban(user.username)

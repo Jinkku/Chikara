@@ -21,12 +21,8 @@ REPORTS_PER_HOUR = 10
 # ---------------------------------------------------------------- who is asking
 
 def _check(username, password):
-    if not username or username in ("None", "Guest") or not password:
-        return None
-    user = User.objects.filter(username=username, password=password).first()
-    if user is None or user.password != password:
-        return None
-    return user
+    from Chikara import passwords
+    return passwords.user_for(username, password)
 
 
 def request_user(request, write=False):

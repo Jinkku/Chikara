@@ -55,7 +55,8 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(data => {
             if (data.success) {
                 login_notice_text.textContent = 'Successful!';
-                window.location.href = '/'; // Redirect to homepage
+                // Accounts on the old password hash pick a new password first.
+                window.location.href = data.change_password ? '/changepassword' : '/';
                 //modal.style.display = "none";
                 //form.reset();
             } else {

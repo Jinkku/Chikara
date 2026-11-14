@@ -15,6 +15,7 @@ from dbview.models import *
 import json
 import Chikara.ppv2calc as ppv2calc
 from moderation import service as moderation
+from Chikara import passwords
 starttime=timezone.now().timestamp()
 perfbom=0.035
 pulseinflation = 1.2
@@ -876,17 +877,13 @@ def checklogin(usr,pwd="",signup=False,id=0):
             Q(username=usr) | Q(id=id)
         ).first()
     else:
-        result = User.objects.filter(
-            username=usr,
-            password=pwd
-        ).first()
+        result = passwords.user_for(usr, pwd)
     if result!=None and not signup:
         restricted = result.restricted
-        if restricted and result.password == pwd:
+        if restricted:
             moderation.active_ban(usr)  # ends expired timed bans
             restricted = User.objects.filter(id=result.id).values_list("restricted", flat=True).first()
-        p=str(result.password)
-        result = (pwd == p)
+        result = 1
     elif result != None and signup:
         result = 1
     else:
@@ -1149,13 +1146,13 @@ def api(request,command,value=None):
             try:
                 username = request.META.get('HTTP_USERNAME', '')
                 password = request.META.get('HTTP_PASSWORD', '')
-                accept=not checklogin(username, '',signup=True)[0]
+                accept=bool(password) and not checklogin(username, '',signup=True)[0]
                 
                 # Process the credentials (authentication logic here)
                 if accept:  
                     User.objects.create(
                     username=username,
-                    password=password
+                    password=passwords.make(password)  # the game sends SHA-256(password); stored salted
                     )
                     response = JsonResponse({"success": True}, status=200)
                 else:
@@ -1167,12 +1164,14 @@ def api(request,command,value=None):
             try:
                 username = request.POST.get("username")
                 password = request.POST.get("password")
-                password = hashlib.sha256(bytes(password,'utf-8')).hexdigest()
+                password = passwords.prehash(password)
                 accept=checklogin(username, password)[0]
                 
                 # Process the credentials (authentication logic here)
                 if accept:  # Example check
-                    response = JsonResponse({"success": True}, status=200)
+                    stored = User.objects.filter(username=username).values_list("password", flat=True).first()
+                    # Still on the old unsalted SHA-256: the website sends them to /changepassword.
+                    response = JsonResponse({"success": True, "change_password": passwords.is_legacy(stored)}, status=200)
                     response.set_cookie("username", username, max_age=31536000)
                     response.set_cookie("password", password, max_age=31536000)
                 else:
@@ -1552,7 +1551,10 @@ def api(request,command,value=None):
                 msg = moderation.ban_message(moderation.active_ban(usrpwd[0]))
             elif not game[1]:
                 msg = f"This version of {game[0]} is not supported.\nPlease update to the latest version to continue."
-            prompt={'success':ac,'notification':msg}
+            # Still on the old unsalted SHA-256: the game asks the player to change it on the website.
+            legacy = bool(ac) and passwords.is_legacy(
+                User.objects.filter(username=usrpwd[0]).values_list("password", flat=True).first())
+            prompt={'success':ac,'notification':msg,'change_password':legacy}
             return JsonResponse(prompt)
 
 
@@ -1605,6 +1607,10 @@ def header(request, customhead="", title="{sitetitle}", description=None, image=
         head = head.replace("{usertag}", escape(username)).replace("{pfppath}", getstat("pfp_path",username)["url"])
     else:
         head = head.replace("{usertag}", "Guest").replace("{pfppath}", NoProfilePictureURL)
+    if accept and not proc[1] and request.path != "/changepassword" and passwords.is_legacy(
+            User.objects.filter(username=username).values_list("password", flat=True).first()):
+        head += ('<div class="warning-box"><p>We\'ve upgraded how passwords are stored. '
+                 '<a href="/changepassword" style="color: inherit; text-decoration: underline;">Please change your password.</a></p></div>')
     if proc[1]:
         notice = moderation.ban_message(moderation.active_ban(username)).split("\n", 1)[-1]
         head += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/restricted.html").read().replace("{details}", escape(notice).replace("\n", "<br>"))

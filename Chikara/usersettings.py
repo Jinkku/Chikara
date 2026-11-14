@@ -214,3 +214,59 @@ def cardborder(request):
         return JsonResponse({"error": "That card border isn't available."}, status=404)
     User.objects.filter(id=user.id).update(cardborder="/" + border.image)
     return JsonResponse({"ok": True, "id": border.id})
+
+
+# ---------------------------------------------------------------- password: GET /changepassword, POST apiv2/password
+# Accounts still on the old unsalted SHA-256 are sent here right after logging in on the website (login.js).
+PASSWORD_MIN = 8
+PASSWORD_MAX = 256
+
+
+def change_password_page(request):
+    from Chikara import passwords
+    user = moderation.request_user(request)
+    if user is None:
+        # Usually a player coming from the game's "change your password" notice: show the site (with its login
+        # button); login.js sends old-hash accounts back here once they're in.
+        html = header(request, title="Qlute - change password", robots="noindex, nofollow")
+        html += '<div class="warning-box"><p>Log in to change your password.</p></div>'
+        html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
+        return HttpResponse(html, status=403)
+    legacy = passwords.is_legacy(user.password)
+    intro = ("We've upgraded how passwords are stored. Please choose a new password to keep your account secure."
+             if legacy else "Choose a new password for your account.")
+    html = header(request, title="Qlute - change password", robots="noindex, nofollow")
+    html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/changepassword.html").read() \
+        .replace("{intro}", escape(intro)) \
+        .replace("{currenthidden}", "hidden" if legacy else "")
+    html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
+    return HttpResponse(html)
+
+
+def password(request):
+    """POST apiv2/password {"current": "...", "new": "..."}: stores the new password salted and updates the login
+    cookie. "current" is only needed when the account is already on the salted hash (the old-hash prompt comes
+    straight after a login)."""
+    import json
+    from Chikara import passwords
+    if request.method != "POST":
+        return JsonResponse({"error": "Use POST."}, status=405)
+    user = moderation.request_user(request, write=True)
+    if user is None:
+        return JsonResponse({"error": "Log in first."}, status=401)
+    try:
+        body = json.loads(request.body or b"{}")
+        current, new = str(body.get("current") or ""), str(body.get("new") or "")
+    except (ValueError, AttributeError):
+        return JsonResponse({"error": "Couldn't read that."}, status=400)
+    if not passwords.is_legacy(user.password) and not passwords.verify(user.password, passwords.prehash(current)):
+        return JsonResponse({"error": "Your current password is wrong."}, status=403)
+    if not PASSWORD_MIN <= len(new) <= PASSWORD_MAX:
+        return JsonResponse({"error": f"Your new password needs {PASSWORD_MIN} to {PASSWORD_MAX} characters."}, status=400)
+    new_sha = passwords.prehash(new)
+    if passwords.verify(user.password, new_sha):
+        return JsonResponse({"error": "Pick a password different from your old one."}, status=400)
+    User.objects.filter(id=user.id).update(password=passwords.make(new_sha))
+    response = JsonResponse({"ok": True})
+    response.set_cookie("password", new_sha, max_age=31536000)
+    return response
