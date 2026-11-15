@@ -1,5 +1,5 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;700&display=swap');
+/* Comfortaa is self-hosted: static/fonts/comfortaa.css, linked + preloaded in header.html */
 
 html {
     height: 100%;
@@ -18,7 +18,7 @@ body {
 }
 *{
 margin: 0;
-font-family: Comfortaa;
+font-family: Comfortaa, system-ui, sans-serif;
 }
 
 h1, h2, h3, h4 , p{
