@@ -55,3 +55,25 @@
     .hb { margin-right: 2px; gap: 0; }
     .hb-panel { position: fixed; left: 8px; right: 8px; top: 64px; width: auto; }
 }
+
+/* live notification toasts (bottom right) */
+.hb-toasts {
+    position: fixed; right: 16px; bottom: 16px; z-index: 60;
+    display: flex; flex-direction: column; gap: 8px; width: min(340px, calc(100vw - 32px)); pointer-events: none;
+}
+.hb-toast {
+    display: flex; gap: 10px; align-items: center; padding: 12px; pointer-events: auto;
+    background: #2e2538; border: 1px solid #f3baff40; border-radius: 12px; box-shadow: 0 12px 30px #00000080;
+    color: #fff; font-size: 14px; line-height: 1.35; text-align: left;
+    animation: hb-toast-in 220ms ease-out both; transition: opacity 300ms, transform 300ms;
+}
+.hb-toast:hover { background: #3a3046; }
+.hb-toast:focus-visible { outline: 2px solid #f3baff; outline-offset: 2px; }
+.hb-toast.out { opacity: 0; transform: translateY(8px); }
+@keyframes hb-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+    .hb-toast { animation: none; transition: none; }
+}
+@media (max-width: 760px) {
+    .hb-toasts { right: 8px; left: 8px; bottom: 8px; width: auto; }
+}

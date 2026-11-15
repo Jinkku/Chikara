@@ -1,4 +1,5 @@
-// The bell in the header: unread badge + dropdown list. Uses apiv2/notifications...
+// The bell in the header: unread badge + dropdown list. Uses apiv2/notifications..., and listens on
+// ws/v1/notify/ so new notifications show up (badge + a short toast) without reloading or clicking.
 (function () {
     if (window.qluteNotificationsLoaded) return;
     window.qluteNotificationsLoaded = true;
@@ -45,6 +46,14 @@
         }
         window.qluteSetUnread = setBadge;  // the chat page updates it after reading DMs
 
+        function iconSvg(kind) {
+            return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[kind] || ICONS.comment}</svg>`;
+        }
+
+        function label(n) {
+            return n.count > 1 && n.kind === "dm" ? `${n.actor} sent you ${n.count} messages` : n.text;
+        }
+
         function render(items) {
             list.textContent = "";
             if (!items.length) {
@@ -56,10 +65,10 @@
                 li.className = "hb-item" + (n.read ? "" : " unread");
                 const a = document.createElement("a");
                 a.href = n.link || "#";
-                a.innerHTML = `<span class="hb-ico"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n.kind] || ICONS.comment}</svg></span>`;
+                a.innerHTML = `<span class="hb-ico">${iconSvg(n.kind)}</span>`;
                 const body = document.createElement("span");
                 body.className = "hb-body";
-                body.textContent = n.count > 1 && n.kind === "dm" ? `${n.actor} sent you ${n.count} messages` : n.text;
+                body.textContent = label(n);
                 const time = document.createElement("span");
                 time.className = "hb-time";
                 time.textContent = ago(n.created);
@@ -117,11 +126,84 @@
             load();
         });
 
+        // ---------------------------------------------------------------- toast
+
+        const toasts = document.createElement("div");
+        toasts.className = "hb-toasts";
+        toasts.setAttribute("aria-live", "polite");
+        document.body.appendChild(toasts);
+
+        function toast(n) {
+            // The chat page already shows the DM you're looking at.
+            if (n.kind === "dm" && location.pathname === "/chat" && document.hasFocus() &&
+                decodeURIComponent(location.hash) === "#dm=" + n.actor) return;
+            const old = [...toasts.children].find(t => t.dataset.id === String(n.id));
+            if (old) old.remove();
+            const a = document.createElement("a");
+            a.className = "hb-toast";
+            a.dataset.id = n.id;
+            a.href = n.link || "#";
+            a.innerHTML = `<span class="hb-ico">${iconSvg(n.kind)}</span>`;
+            const body = document.createElement("span");
+            body.className = "hb-body";
+            body.textContent = label(n);
+            a.appendChild(body);
+            a.addEventListener("click", ev => {
+                ev.preventDefault();
+                call("/read/" + n.id, true).catch(() => {}).finally(() => { location.href = a.href; });
+            });
+            toasts.prepend(a);
+            while (toasts.children.length > 3) toasts.lastChild.remove();
+            setTimeout(() => { a.classList.add("out"); setTimeout(() => a.remove(), 300); }, 7000);
+        }
+
+        // ---------------------------------------------------------------- live updates
+
+        let ws = null, retry = 0, pingTimer = null, pollTimer = null;
+
         async function poll() {
             if (document.hidden || !panel.hidden) return;
             try { setBadge((await call("/count", false)).unread); } catch (e) { /* offline: try again later */ }
         }
-        setInterval(poll, POLL_MS);
-        document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+
+        function startPolling() {
+            if (!pollTimer) pollTimer = setInterval(poll, POLL_MS);
+        }
+
+        function stopPolling() {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+
+        function listen() {
+            if (!("WebSocket" in window)) { startPolling(); return; }
+            ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/v1/notify/");
+            ws.onopen = () => {
+                retry = 0;
+                stopPolling();
+                clearInterval(pingTimer);
+                pingTimer = setInterval(() => { if (ws.readyState === 1) ws.send('{"op":"ping"}'); }, 25000);
+            };
+            ws.onmessage = ev => {
+                let d;
+                try { d = JSON.parse(ev.data); } catch (e) { return; }
+                if (typeof d.unread === "number") setBadge(d.unread);
+                if (d.op === "notification") {
+                    toast(d.notification);
+                    if (!panel.hidden) load();
+                } else if (d.op === "unread" && !panel.hidden) {
+                    load();
+                }
+            };
+            ws.onclose = ev => {
+                clearInterval(pingTimer);
+                startPolling();             // keep the badge roughly right while we're disconnected
+                if (ev.code === 4001) return; // logged out / not allowed: don't hammer the server
+                setTimeout(listen, Math.min(60000, 2000 * 2 ** retry++));
+            };
+        }
+
+        listen();
+        document.addEventListener("visibilitychange", () => { if (!document.hidden && pollTimer) poll(); });
     });
 })();

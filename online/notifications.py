@@ -7,6 +7,8 @@
   POST apiv2/notifications/read/dm/NAME -> {"ok": true} marks NAME's messages read (the chat page does this when you open the DM)
   POST apiv2/notifications/clear      -> {"ok": true}   deletes them all
 
+Open pages hear about changes right away over ws/v1/notify/ (online/notify_consumer.py).
+
 A notification: {"id", "kind" (friend / invite / dm / comment), "actor", "text", "link", "count", "read", "created" (unix)}.
 Same auth as apiv2/friends (game headers, or website cookies + "X-Chikara: 1" for POSTs).
 Nothing here may fail the action that caused it, so push() swallows its own errors.
@@ -27,21 +29,42 @@ STACKING = {"dm"}   # unread ones from the same person merge into one row
 
 
 def push(username, kind, actor, text, link=""):
-    """Adds a notification for `username` (never for yourself)."""
+    """Adds a notification for `username` (never for yourself) and tells their open pages."""
     try:
         if not username or username == actor:
             return
         now = timezone.now()
+        row = None
         if kind in STACKING:
             row = Notification.objects.filter(username=username, kind=kind, actor=actor, read=False).first()
             if row is not None:
                 row.count += 1
                 row.text, row.link, row.created = text, link, now
                 row.save(update_fields=["count", "text", "link", "created"])
-                return
-        Notification.objects.create(username=username, kind=kind, actor=actor, text=text[:300], link=link[:300], created=now)
+        if row is None:
+            row = Notification.objects.create(username=username, kind=kind, actor=actor, text=text[:300], link=link[:300], created=now)
+        _send(username, {"type": "notify.new", "unread": unread_count(username), "notification": _json(row)})
     except Exception as e:
         print(f"[notifications] couldn't notify {username}: {e}")
+
+
+def _send(username, event):
+    """Live update to the player's open pages. Never fails the caller over it."""
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        from .notify_consumer import notify_group
+        layer = get_channel_layer()
+        if layer is not None:
+            async_to_sync(layer.group_send)(notify_group(username), event)
+    except Exception as e:
+        print(f"[notifications] couldn't reach {username}'s pages: {e}")
+
+
+def _count_changed(username):
+    n = unread_count(username)
+    _send(username, {"type": "notify.unread", "unread": n})
+    return n
 
 
 def unread_count(username):
@@ -76,8 +99,8 @@ def api(request, action=""):
             mine.filter(kind="dm", actor=parts[2], read=False).update(read=True)
         else:
             return JsonResponse({"error": 1, "reason": "Unknown request."}, status=404)
-        return JsonResponse({"ok": True, "unread": unread_count(me.username)})
+        return JsonResponse({"ok": True, "unread": _count_changed(me.username)})
     if write and parts == ["clear"]:
         mine.delete()
-        return JsonResponse({"ok": True, "unread": 0})
+        return JsonResponse({"ok": True, "unread": _count_changed(me.username)})
     return JsonResponse({"error": 1, "reason": "Unknown request."}, status=404)
