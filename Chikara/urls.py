@@ -20,6 +20,7 @@ import Chikara.views as views
 import Chikara.usersettings as usersettings
 import moderation.views as moderation
 import online.friends as friends
+import online.notifications as notifications
 import submissions.views as submissions
 import online.beatmapsocial as beatmapsocial
 import submissions.claims as claims
@@ -29,6 +30,8 @@ urlpatterns = [
     path('apiv2/search', views.api, {'command': 'search'}),
     path('apiv2/mod/<path:action>', moderation.api),
     path('apiv2/submit/<path:action>', submissions.api),
+    path('apiv2/notifications', notifications.api),
+    path('apiv2/notifications/<path:action>', notifications.api),
     path('apiv2/friends', friends.api),
     path('apiv2/friends/<path:action>', friends.api),
     path('apiv2/favorites', beatmapsocial.api, {'kind': 'favorites'}),
@@ -48,6 +51,7 @@ urlpatterns = [
     path('changepassword', usersettings.change_password_page),
     path('search', views.search_page),
     path('friends', views.friends_page),
+    path('chat', views.chat_page),
     path('admin', views.admin_page),
     path('ranking', views.ranking),
     path('ranking/<path:command>', views.ranking),

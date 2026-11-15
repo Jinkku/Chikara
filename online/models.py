@@ -118,3 +118,23 @@ class BeatmapComment(models.Model):
 
     def __str__(self):
         return f"#{self.id} {self.username} on {self.beatmapsetid}"
+
+
+class Notification(models.Model):
+    """Something that happened to `username` (shown under the bell in the website header).
+    Messages from the same person stack into one unread row (`count`) instead of piling up."""
+    KINDS = ["friend", "invite", "dm", "comment"]
+    username = models.CharField(max_length=256)
+    kind = models.CharField(max_length=16)
+    actor = models.CharField(max_length=256, blank=True, default="")
+    text = models.CharField(max_length=300)
+    link = models.CharField(max_length=300, blank=True, default="")
+    count = models.IntegerField(default=1)
+    read = models.BooleanField(default=False)
+    created = models.DateTimeField(db_index=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["username", "read"], name="online_notif_user_read")]
+
+    def __str__(self):
+        return f"{self.username}: {self.text}"

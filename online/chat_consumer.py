@@ -239,6 +239,12 @@ def dm_json(key, user_id):
 
 
 @database_sync_to_async
+def notify(username, kind, actor, text, link="/chat"):
+    from .notifications import push
+    push(username, kind, actor, text, link)
+
+
+@database_sync_to_async
 def still_restricted(username):
     """Ends the ban if it ran out. Returns (restricted, ban message, expiry ms or None)."""
     from moderation.service import active_ban, ban_message
@@ -390,6 +396,8 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
             event = {"type": "chat.dm", "channel": channel, "author": self.username, "text": text, "ts": when}
             for uid in (dm.low_id, dm.high_id):
                 await self.channel_layer.group_send(user_group(uid), event)
+            await notify(dm.other(self.user_id), "dm", self.username, f"{self.username} sent you a message",
+                         "/chat#dm=" + self.username)
             return
         else:
             room_id = parse_room(channel)
@@ -421,6 +429,7 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
             return
         target_id = await user_id_of(target)
         await self.channel_layer.group_send(user_group(target_id), {"type": "chat.invite", **invite})
+        await notify(target, "invite", self.username, f'{self.username} invited you to the chat room "{invite["title"]}"')
         await self.notice(room_id, f"{self.username} invited {target}.")
 
     async def op_accept(self, c):

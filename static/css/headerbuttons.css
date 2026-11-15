@@ -1,0 +1,57 @@
+/* chat + notifications buttons beside the account card (logged in only) */
+.hb { display: flex; align-items: center; gap: 4px; margin-right: 8px; }
+.hb-notif { position: relative; }
+.header-right .hb-btn {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; margin: 0; padding: 0; border: 0; border-radius: 10px;
+    background: transparent; color: #fff; cursor: pointer; transition: background-color 0.1s;
+}
+.header-right .hb-btn:hover, .header-right .hb-btn[aria-expanded="true"] { background-color: #ffffff20; }
+.header-right .hb-btn:focus-visible { outline: 2px solid #f3baff; outline-offset: 1px; }
+.hb-btn svg { width: 22px; height: 22px; }
+.hb-badge {
+    position: absolute; top: 3px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+    border-radius: 9px; background: #f3baff; color: #221E27; font-size: 11px; font-weight: 700; line-height: 18px;
+    text-align: center; pointer-events: none;
+}
+.hb-badge[hidden] { display: none; }
+
+.hb-panel {
+    position: absolute; right: 0; top: calc(100% + 8px); z-index: 50;
+    width: 340px; max-height: min(70vh, 480px); display: flex; flex-direction: column;
+    background: #2e2538; border: 1px solid #ffffff1a; border-radius: 12px; box-shadow: 0 14px 34px #00000080;
+    text-align: left; overflow: hidden;
+}
+.hb-panel[hidden] { display: none; }
+.hb-panel-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 12px 14px; border-bottom: 1px solid #ffffff1a;
+}
+.hb-panel-actions { display: flex; gap: 4px; }
+.header-right .hb-panel-actions button {
+    margin: 0; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent;
+    color: #ffffffb3; font-size: 12px; cursor: pointer;
+}
+.header-right .hb-panel-actions button:hover { background: #ffffff1a; color: #fff; }
+.hb-list { list-style: none; margin: 0; padding: 4px; overflow-y: auto; }
+.hb-empty { padding: 24px 12px; text-align: center; color: #ffffff99; font-size: 14px; }
+.hb-item a {
+    display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-radius: 8px;
+    color: #ffffffcc; font-size: 14px; line-height: 1.35;
+}
+.hb-item a:hover, .hb-item a:focus-visible { background: #ffffff12; }
+.hb-item.unread a { color: #fff; background: #f3baff12; }
+.hb-item.unread a:hover { background: #f3baff20; }
+.hb-ico {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px; background: #ffffff12; color: #f3baff;
+}
+.hb-ico svg { width: 16px; height: 16px; }
+.hb-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.hb-time { display: block; margin-top: 2px; color: #ffffff80; font-size: 12px; }
+.hb-dot { flex: none; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: #f3baff; }
+
+@media (max-width: 760px) {
+    .hb { margin-right: 2px; gap: 0; }
+    .hb-panel { position: fixed; left: 8px; right: 8px; top: 64px; width: auto; }
+}

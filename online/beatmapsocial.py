@@ -181,7 +181,21 @@ def post_comment(me, setid, text, beatmapid=None):
         return None, "You've posted a lot of comments this hour. Try again later."
     if beatmapid is not None and not Beatmap.objects.filter(beatmapsetid=setid, beatmapid=beatmapid).exists():
         beatmapid = None
-    return BeatmapComment.objects.create(beatmapsetid=setid, beatmapid=beatmapid, username=me.username, text=text), None
+    comment = BeatmapComment.objects.create(beatmapsetid=setid, beatmapid=beatmapid, username=me.username, text=text)
+    _notify_owner(me.username, setid, text)
+    return comment, None
+
+
+def _notify_owner(author, setid, text):
+    """Tells whoever uploaded (or claimed) the set that it got a comment."""
+    from submissions.models import Submission
+    from .notifications import push
+    owner = Submission.objects.filter(beatmapsetid=setid).values_list("owner", flat=True).first()
+    if owner:
+        title = Beatmap.objects.filter(beatmapsetid=setid).values_list("title", flat=True).first() or f"set #{setid}"
+        snippet = " ".join(text.split())
+        snippet = snippet if len(snippet) <= 80 else snippet[:79] + "…"
+        push(owner, "comment", author, f'{author} commented on {title}: "{snippet}"', f"/beatmapset/{setid}#bm-comments-section")
 
 
 def _comments(request, parts, me, write):

@@ -15,6 +15,10 @@ fields. If something truly has to break, add `/ws/v2/...` next to `/ws/v1/...` a
 | `User-Agent` | `Qlute-<game hash>` (only checked when `ONLINE_REQUIRE_GAME_HASH = True`) |
 | `Features` | optional, comma-separated: what the client understands (`ban`, `dm`, `friends`, chat only). Old clients send nothing and get the old behaviour. |
 
+The website's chat page (`/chat`) connects to the same chat socket without those headers: a browser socket opened
+from one of the site's own pages (its `Origin` matches the site) is logged in with the site's `username` / `password`
+cookies and gets the `ban`, `dm` and `friends` features. Cookies from any other origin are ignored.
+
 A bad login gets `{"op":"error","fatal":true,"text":...}` and close code 4001. Clients should not retry automatically after that.
 All control messages are JSON text frames with an `"op"` field. Clients send `{"op":"ping"}` every ~20 s and get `{"op":"pong"}`.
 

@@ -1100,6 +1100,22 @@ def admin_page(request):
     return HttpResponse(html)
 
 
+def chat_page(request):
+    """Chat rooms on the website: the game's channels, private rooms and DMs (static/script/chat.js)."""
+    username = request.COOKIES.get('username')
+    login = checklogin(username, request.COOKIES.get('password', None))
+    html = header(request, customhead='<link rel="stylesheet" href="/static/css/chat.css?v=1">', title="Qlute - chat", robots=NOINDEX)
+    if not login[0]:
+        html += '<div class="ct-login"><h1>Chat</h1><p>Log in to chat with other players.</p></div>'
+    elif login[1]:
+        html += '<div class="ct-login"><h1>Chat</h1><p>Restricted accounts can\'t use chat.</p></div>'
+    else:
+        html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/chat.html").read().replace("{usertag}", escape(username))
+        html += '<script src="/static/script/chat.js?v=1" defer></script>'
+    html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
+    return HttpResponse(html)
+
+
 def friends_page(request):
     """Your friends list: online first, with their status. Add people from their profile page."""
     from online.friends import friends_json
@@ -1604,6 +1620,39 @@ def json_ld(data):
     return f'<script type="application/ld+json">{text}</script>'
 
 
+HEADER_BUTTONS = """<link rel="stylesheet" href="/static/css/headerbuttons.css?v=1">
+<script src="/static/script/notifications.js?v=1" defer></script>
+<div class="hb">
+    <a class="hb-btn" href="/chat" aria-label="Chat rooms" title="Chat rooms">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/></svg>
+    </a>
+    <div class="hb-notif">
+        <button type="button" class="hb-btn" id="notif-button" aria-label="Notifications" title="Notifications" aria-expanded="false" aria-controls="notif-panel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <span class="hb-badge" id="notif-badge"{badge_hidden}>{unread}</span>
+        </button>
+        <div class="hb-panel" id="notif-panel" hidden>
+            <div class="hb-panel-head">
+                <strong>Notifications</strong>
+                <span class="hb-panel-actions">
+                    <button type="button" id="notif-readall">Mark all read</button>
+                    <button type="button" id="notif-clear">Clear</button>
+                </span>
+            </div>
+            <ul class="hb-list" id="notif-list"><li class="hb-empty">Loading…</li></ul>
+        </div>
+    </div>
+</div>"""
+
+
+def header_buttons(username):
+    """Chat + notifications buttons beside the account card (logged-in, unrestricted players only)."""
+    from online.notifications import unread_count
+    unread = unread_count(username)
+    return (HEADER_BUTTONS.replace("{unread}", "99+" if unread > 99 else str(unread))
+            .replace("{badge_hidden}", "" if unread else " hidden"))
+
+
 def header(request, customhead="", title="{sitetitle}", description=None, image=None, robots=None,
            canonical=None, jsonld="", ogtype="website"):
     """The page head + site header. description / image / canonical feed the search + social preview tags;
@@ -1625,6 +1674,7 @@ def header(request, customhead="", title="{sitetitle}", description=None, image=
         notice = moderation.ban_message(moderation.active_ban(username)).split("\n", 1)[-1]
         head += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/restricted.html").read().replace("{details}", escape(notice).replace("\n", "<br>"))
     staff = moderation.staff_of(username) if accept and not proc[1] else None
+    head = head.replace("{headerbuttons}", header_buttons(username) if accept and not proc[1] else "")
     head = head.replace("{adminbutton}", '<a href="/admin"><button class="login-btn">Admin Panel</button></a>' if staff else "")
     head = head.replace("{description}", escape(description or SITE_DESCRIPTION))
     head = head.replace("{canonical}", escape(canonical or SiteURL + urllib.parse.quote(request.path)))

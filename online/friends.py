@@ -60,6 +60,10 @@ def add_friend(me, name):
     mutual = is_friend(target.username, me.username)
     if created:
         notify(target.id, {"type": "chat.friend", "user": me.username, "added": True, "mutual": mutual})
+        from .notifications import push
+        push(target.username, "friend", me.username,
+             f"{me.username} added you as a friend" + (" back! You're mutual friends now." if mutual else "."),
+             f"/user/{me.username}")
     return mutual, None
 
 
