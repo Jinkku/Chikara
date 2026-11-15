@@ -921,6 +921,16 @@ def online_players(limit=200):
     return User.objects.filter(stattime__gte=since, restricted=False).exclude(username=None).order_by('ranking', 'username')[:limit]
 
 
+def registered_count():
+    """Number of accounts, cached for a minute so busy home pages don't run COUNT(*) on every request."""
+    from django.core.cache import cache
+    n = cache.get("registered_count")
+    if n is None:
+        n = User.objects.count()
+        cache.set("registered_count", n, 60)
+    return n
+
+
 def online_count():
     since = int(timezone.now().timestamp()) - ONLINE_SECONDS
     return User.objects.filter(stattime__gte=since, restricted=False).count()
@@ -2197,9 +2207,9 @@ def base(request, uri,command=""):
             "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
             "sameAs": ["https://github.com/Jinkku/Qlute", "https://jinkku.itch.io/qlute", "https://www.youtube.com/@qlutegame"],
         }])
-        html = header(request, customhead='<link rel="stylesheet" href="/static/css/home.css?v=2">', title="Qlute - A free rhythm game inspired by osu!mania", canonical=SiteURL + "/", jsonld=structured) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/home.html").read().replace("{usercount}",format(User.objects.count(),",")).replace("{active}",format(online_count(),","))
+        html = header(request, customhead='<link rel="stylesheet" href="/static/css/home.css?v=2">', title="Qlute - A free rhythm game inspired by osu!mania", canonical=SiteURL + "/", jsonld=structured) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/home.html").read().replace("{usercount}",format(registered_count(),",")).replace("{active}",format(online_count(),","))
     elif uri == "":
-        html = header(request, customhead='<link rel="stylesheet" href="/static/css/news.css?v=1">', title="Qlute - home page", canonical=SiteURL + "/") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/homes.html").read().replace("{news}", __import__("moderation.news", fromlist=["x"]).latest_html()).replace("{usertag}",escape(request.COOKIES.get('username', None))).replace("{usercount}",str(format(User.objects.last().id,","))).replace("{active}",format(online_count(),","))
+        html = header(request, customhead='<link rel="stylesheet" href="/static/css/news.css?v=1">', title="Qlute - home page", canonical=SiteURL + "/") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/homes.html").read().replace("{news}", __import__("moderation.news", fromlist=["x"]).latest_html()).replace("{usertag}",escape(request.COOKIES.get('username', None))).replace("{usercount}",format(registered_count(),",")).replace("{active}",format(online_count(),","))
     elif uri.strip("/") == "beatmaps":
         html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=17">', title="Qlute - beatmap listing",
                       canonical=SiteURL + "/beatmaps",
