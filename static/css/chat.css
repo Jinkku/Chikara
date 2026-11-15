@@ -1,13 +1,19 @@
 /* website chat page (/chat) */
-.ct {
+/* Same frame as the other pages: .infoboxtitle bar on top of an .infobox (styles.css). */
+.ct-titlebar { gap: 12px; }
+.ct-titlebar h1 { margin: 0; font-size: 1em; font-weight: 400; }
+.ct-status { margin-left: auto; font-size: 13px; color: #6ee7a0; }
+.ct-status.bad { color: #ffb36b; }
+.ct-login p { margin: 0; color: #ffffffb3; }
+
+.infobox.ct {
     --ct-accent: #f3baff;
-    --ct-panel: #2a242f;
-    --ct-panel-2: #3a3342;
-    --ct-line: #ffffff1a;
-    --ct-dim: #ffffffa6;
-    display: flex; width: calc(100% - 24px); max-width: 1200px; margin: 16px auto 32px; box-sizing: border-box;
-    height: calc(100vh - 120px); min-height: 480px;
-    background: var(--ct-panel); border: 1px solid var(--ct-line); border-radius: 14px; overflow: hidden;
+    --ct-panel-2: #ffffff14;
+    --ct-line: #ffffff14;
+    --ct-dim: #ffffff99;
+    padding: 0; box-sizing: border-box;
+    width: calc(64% + 30px);   /* the title bar is 64% plus its 15px side padding */
+    height: calc(100vh - 230px); min-height: 460px; overflow: hidden;
     text-align: left;
 }
 .ct h1, .ct h2, .ct p { margin: 0; }
@@ -15,12 +21,8 @@
 .ct button { font: inherit; }
 
 /* ---------------------------------------------------------------- sidebar */
-.ct-side { flex: none; width: 260px; display: flex; flex-direction: column; border-right: 1px solid var(--ct-line); background: #00000026; }
-.ct-side-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 16px 16px 10px; }
-.ct-side-head h1 { font-size: 20px; }
-.ct-status { font-size: 12px; color: #6ee7a0; }
-.ct-status.bad { color: #ffb36b; }
-.ct-scroll { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+.ct-side { flex: none; width: 250px; display: flex; flex-direction: column; border-right: 1px solid var(--ct-line); background: #0000002e; }
+.ct-scroll { flex: 1; overflow-y: auto; padding: 4px 8px 12px; }
 .ct-group { margin-top: 12px; }
 .ct-group h2 { padding: 0 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ct-dim); }
 .ct-group-head { display: flex; align-items: center; justify-content: space-between; padding-right: 4px; }
@@ -61,7 +63,7 @@
     flex: none; margin: 0; padding: 7px 12px; border: 0; border-radius: 8px;
     background: var(--ct-panel-2); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
 }
-.ct .ct-inline button:hover, .ct .ct-btn:hover { background: #4a4154; }
+.ct .ct-inline button:hover, .ct .ct-btn:hover { background: #ffffff24; }
 .ct .ct-btn.primary { background: var(--ct-accent); color: #221E27; }
 .ct .ct-btn.primary:hover { background: #f7cfff; }
 
@@ -119,13 +121,14 @@
 .ct .ct-send:disabled { opacity: .4; cursor: default; }
 .ct-send svg { width: 20px; height: 20px; }
 
-.ct-login { max-width: 480px; margin: 60px auto; padding: 32px 24px; text-align: center; background: #2a242f; border-radius: 14px; }
-.ct-login h1 { margin: 0 0 10px; font-size: 22px; }
-.ct-login p { margin: 0; color: #ffffffb3; }
+
+@media (max-width: 1100px) {
+    .infobox.ct { width: calc(100% - 24px); }
+}
 
 /* ---------------------------------------------------------------- phones: list or conversation, one at a time */
 @media (max-width: 760px) {
-    .ct { width: 100%; margin: 0; border-radius: 0; border-left: 0; border-right: 0; height: calc(100dvh - 58px); min-height: 0; }
+    .infobox.ct { width: calc(100% - 16px); height: calc(100dvh - 150px); min-height: 380px; }
     .ct-side { width: 100%; border-right: 0; }
     .ct-main { display: none; }
     .ct.ct-show-main .ct-side { display: none; }

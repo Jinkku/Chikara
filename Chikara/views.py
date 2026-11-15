@@ -1104,11 +1104,13 @@ def chat_page(request):
     """Chat rooms on the website: the game's channels, private rooms and DMs (static/script/chat.js)."""
     username = request.COOKIES.get('username')
     login = checklogin(username, request.COOKIES.get('password', None))
-    html = header(request, customhead='<link rel="stylesheet" href="/static/css/chat.css?v=2">', title="Qlute - chat", robots=NOINDEX)
+    html = header(request, customhead='<link rel="stylesheet" href="/static/css/chat.css?v=3">', title="Qlute - chat", robots=NOINDEX)
     if not login[0]:
-        html += '<div class="ct-login"><h1>Chat</h1><p>Log in to chat with other players.</p></div>'
+        html += ('<div class="infoboxcontainer"><div class="infoboxtitle ct-titlebar"><h1>chat</h1></div>'
+                 '<div class="infobox verticalpadding ct-login"><p>Log in to chat with other players.</p></div></div>')
     elif login[1]:
-        html += '<div class="ct-login"><h1>Chat</h1><p>Restricted accounts can\'t use chat.</p></div>'
+        html += ('<div class="infoboxcontainer"><div class="infoboxtitle ct-titlebar"><h1>chat</h1></div>'
+                 '<div class="infobox verticalpadding ct-login"><p>Restricted accounts can\'t use chat.</p></div></div>')
     else:
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/chat.html").read().replace("{usertag}", escape(username))
         html += '<script src="/static/script/chat.js?v=1" defer></script>'
