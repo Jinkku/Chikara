@@ -205,6 +205,8 @@ REPLAYS =  os.path.join(storage_root, 'replays')
 DataURL = "https://data.jinkku.moe"
 # The website's public address: canonical links, the sitemap and social previews point here.
 SiteURL = "https://qlute.jinkku.moe"
+# Where "become a supporter" links go (donations there are turned into supporter time from the admin panel).
+SUPPORT_URL = "https://buymeacoffee.com/jinkkuproductions"
 AssetPath = DataURL + "/song_assets/"
 SongFilePath = DataURL + "/songs/"
 # Please put your path to the image for this to work.

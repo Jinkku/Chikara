@@ -79,7 +79,7 @@
         view.innerHTML = "";
         hint.style.display = "";
         hint.textContent = "Loading...";
-        const views = { news: showNews, claims: showClaims, reports: showReports, players: showPlayers, user: showUser, bans: showBans, team: showTeam, notices: showNotices, borders: showBorders };
+        const views = { supporters: showSupporters, news: showNews, claims: showClaims, reports: showReports, players: showPlayers, user: showUser, bans: showBans, team: showTeam, notices: showNotices, borders: showBorders };
         (views[tab] || showReports)(arg || "", mine).catch(err => {
             if (mine === render) hint.textContent = err.message;
         });
@@ -392,10 +392,13 @@
                 <span>Sent ${u.reports_sent} report${u.reports_sent === 1 ? "" : "s"}</span>
             </div>
             <div id="action"></div>
+            <div class="adm-section">Supporter</div>
+            <div id="support"></div>
             <div class="adm-section">Bans (${u.bans.length})</div>
             <div class="adm-list" id="bans"></div>
             <div class="adm-section">Reports about them (${u.reports_against.length})</div>
             <div class="adm-list" id="reports"></div>`;
+        supportBox(view.querySelector("#support"), u.username, u.supporter, u.can_grant_support, () => route());
         const action = view.querySelector("#action");
         if (u.restricted) {
             const b = active[0];
@@ -561,6 +564,87 @@
     async function teamEdit(action, data, card) {
         try { await api("staff/" + action, data); route(); }
         catch (err) { card.querySelector(".adm-msg").textContent = err.message; }
+    }
+
+    // ---------------------------------------------------------------- supporters (perks: profile banner + badge)
+    function supportStatus(s) {
+        if (!s) return `<span class="adm-pill">not a supporter</span>`;
+        if (!s.active) return `<span class="adm-pill red">ended</span> <span class="adm-meta">${when(s.expires)}</span>`;
+        return `<span class="adm-pill purple">&#9829; supporter</span> <span class="adm-meta">${s.forever ? "forever" : "ends " + when(s.expires) + " (" + esc(s.time_left) + " left)"}</span>`;
+    }
+
+    // Status + grant / extend / remove for one player. Admins only can change it.
+    function supportBox(box, username, s, canEdit, changed) {
+        box.innerHTML = `
+            <div class="adm-card">
+                <div class="adm-head"><span class="who">${userLink(username)} ${supportStatus(s)}</span>
+                    ${s ? `<span class="adm-meta">last changed ${when(s.updated)}${s.granted_by ? " by " + esc(s.granted_by) : ""}</span>` : ""}</div>
+                ${s && s.note ? `<div class="adm-meta">Note: ${esc(s.note)}</div>` : ""}
+                ${canEdit ? `
+                <div class="adm-form">
+                    <label>${s && s.active ? "Add more time" : "Make them a supporter"} (time stacks on what they have left)</label>
+                    <div class="adm-row">
+                        <select class="sp-months">
+                            <option value="1">1 month</option><option value="3">3 months</option><option value="6">6 months</option>
+                            <option value="12">1 year</option><option value="0">Forever</option>
+                        </select>
+                        <input type="text" class="sp-note" maxlength="300" placeholder="Note, e.g. BMC donation 14 Nov ($5)">
+                        <button class="adm-btn good sp-grant">${s && s.active ? "Extend" : "Grant"}</button>
+                        ${s ? `<button class="adm-btn danger sp-revoke">Remove</button>` : ""}
+                    </div>
+                    <p class="adm-msg"></p>
+                </div>` : `<p class="adm-meta">Only admins can grant supporter time.</p>`}
+            </div>`;
+        if (!canEdit) return;
+        const msg = box.querySelector(".adm-msg");
+        box.querySelector(".sp-grant").onclick = async e => {
+            e.target.disabled = true; msg.textContent = "Saving...";
+            try {
+                await api("supporters/grant", { username, months: Number(box.querySelector(".sp-months").value), note: box.querySelector(".sp-note").value });
+                changed();
+            } catch (err) { msg.textContent = err.message; e.target.disabled = false; }
+        };
+        const revoke = box.querySelector(".sp-revoke");
+        if (revoke) revoke.onclick = async e => {
+            if (!confirm(`Remove ${username}'s supporter status? Their banner will be hidden (the image is kept).`)) return;
+            e.target.disabled = true;
+            try { await api("supporters/revoke", { username }); changed(); }
+            catch (err) { msg.textContent = err.message; e.target.disabled = false; }
+        };
+    }
+
+    async function showSupporters(_, mine) {
+        const data = await api("supporters");
+        if (!current(mine)) return;
+        const active = data.results.filter(s => s.active).length;
+        view.innerHTML = `
+            <p class="adm-meta" style="margin-top:0">Supporters get a profile banner and a &#9829; Supporter badge (the team gets banners too).
+                When someone donates on <a href="${esc(data.support_url)}" target="_blank" rel="noopener">your support page</a>,
+                grant them time here; it ends on its own. ${active} active supporter${active === 1 ? "" : "s"}.</p>
+            <div id="add"></div>
+            <div class="adm-list" id="list"></div>`;
+        if (data.can_edit) {
+            const add = view.querySelector("#add");
+            add.innerHTML = `
+                <div class="adm-form">
+                    <b>Add a supporter</b>
+                    <div class="adm-row">
+                        <input type="text" id="sp-name" placeholder="Username" maxlength="256">
+                        <button class="adm-btn good" id="sp-find">Open</button>
+                    </div>
+                    <p class="adm-meta">Opens their player page, where you pick how long.</p>
+                </div>`;
+            const go = () => { const n = add.querySelector("#sp-name").value.trim(); if (n) location.hash = "user=" + encodeURIComponent(n); };
+            add.querySelector("#sp-find").onclick = go;
+            add.querySelector("#sp-name").onkeydown = e => { if (e.key === "Enter") go(); };
+        }
+        const list = view.querySelector("#list");
+        data.results.forEach(s => {
+            const card = document.createElement("div");
+            supportBox(card, s.username, s, data.can_edit, () => route());
+            list.appendChild(card.firstElementChild);
+        });
+        done(data.results.length ? "" : "No supporters yet.");
     }
 
     // ---------------------------------------------------------------- notices (game home screen banners)

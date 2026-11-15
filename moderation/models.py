@@ -112,3 +112,21 @@ class NewsPost(models.Model):
 
     def __str__(self):
         return f"#{self.id} {self.title}"
+
+
+class Supporter(models.Model):
+    """Someone who supports Qlute (granted by an admin, e.g. after a donation). Perks: a profile banner and the
+    supporter badge. `expires` None = forever. The Qlute team gets the perks too, without a row here."""
+    username = models.CharField(max_length=255, unique=True)
+    expires = models.DateTimeField(null=True, blank=True)
+    granted_by = models.CharField(max_length=256, blank=True, default="")
+    granted = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    note = models.CharField(max_length=300, blank=True, default="")
+
+    def active(self, now=None):
+        from django.utils import timezone
+        return self.expires is None or self.expires > (now or timezone.now())
+
+    def __str__(self):
+        return f"{self.username} (until {self.expires or 'forever'})"

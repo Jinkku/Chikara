@@ -163,3 +163,5 @@ text-align: center; } /* Gold */
 .bio-save { background: #7e4ba8; }
 .bio-save:disabled { opacity: .5; cursor: default; }
 @media (max-width: 760px) { .profile-bio-head .profile-action { position: static; margin-left: 10px; } }
+.team-badge.supporter { background: linear-gradient(120deg, #ff7ab8, #b98cff); color: #2a1730; }
+.team-badge + .team-badge { margin-left: 6px; }

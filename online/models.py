@@ -123,7 +123,7 @@ class BeatmapComment(models.Model):
 class Notification(models.Model):
     """Something that happened to `username` (shown under the bell in the website header).
     Messages from the same person stack into one unread row (`count`) instead of piling up."""
-    KINDS = ["friend", "invite", "dm", "comment"]
+    KINDS = ["friend", "invite", "dm", "comment", "supporter"]
     username = models.CharField(max_length=256)
     kind = models.CharField(max_length=16)
     actor = models.CharField(max_length=256, blank=True, default="")

@@ -166,3 +166,72 @@ def file_report(reporter, target, category, details, context, source):
         return existing, False
     return Report.objects.create(reporter=reporter, target=target, category=category, details=details,
                                  context=context, source=source), True
+
+
+# ---------------------------------------------------------------- supporters
+
+SUPPORTER_CACHE_SECONDS = 60
+MAX_SUPPORT_MONTHS = 120
+
+
+def _supporter_sets():
+    """(supporters, team): the usernames with active supporter time, and the Qlute team (who get the perks too).
+    Cached for a minute: banners are checked for every player in friend lists, rankings and the game API."""
+    from django.core.cache import cache
+    from django.db.models import Q
+    from .models import Supporter
+    sets = cache.get("supporter_sets")
+    if sets is None:
+        now = timezone.now()
+        supporters = set(Supporter.objects.filter(Q(expires__isnull=True) | Q(expires__gt=now)).values_list("username", flat=True))
+        team = set(StaffMember.objects.values_list("username", flat=True))
+        sets = (supporters, team)
+        cache.set("supporter_sets", sets, SUPPORTER_CACHE_SECONDS)
+    return sets
+
+
+def supporters_changed():
+    from django.core.cache import cache
+    cache.delete("supporter_sets")
+
+
+def is_supporter(username):
+    """Has an active supporter grant (shows the badge)."""
+    return bool(username) and username in _supporter_sets()[0]
+
+
+def has_supporter_perks(username):
+    """Supporters and the Qlute team: can upload and show a profile banner."""
+    supporters, team = _supporter_sets()
+    return bool(username) and (username in supporters or username in team)
+
+
+def grant_support(username, months, by, note=""):
+    """Adds `months` of supporter time (stacking on time they still have), or forever when months is None."""
+    from .models import Supporter
+    now = timezone.now()
+    row = Supporter.objects.filter(username=username).first()
+    if months is None:
+        expires = None
+    else:
+        start = row.expires if row and row.expires and row.expires > now else now
+        expires = start + timedelta(days=round(30.44 * months))
+    if row is not None and row.expires is None and row.active(now) and months is not None:
+        expires = None  # forever stays forever
+    first = row is None or not row.active(now)
+    row, _ = Supporter.objects.update_or_create(username=username, defaults={
+        "expires": expires, "granted_by": by, "note": note[:300]})
+    supporters_changed()
+    from online.notifications import push
+    if first:
+        push(username, "supporter", by, "You're a Qlute supporter now! Thank you so much <3 "
+             "You can upload a profile banner in your settings.", "/settings")
+    else:
+        push(username, "supporter", by, "Your supporter time was extended. Thank you <3", "/settings")
+    return row
+
+
+def revoke_support(username):
+    from .models import Supporter
+    Supporter.objects.filter(username=username).delete()
+    supporters_changed()

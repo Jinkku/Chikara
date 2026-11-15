@@ -9,10 +9,11 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils import timezone
 
+from Chikara.settings import SUPPORT_URL
 from dbview.models import Score, User
 from submissions import claims
 from . import content, news, service
-from .models import Ban, CardBorder, Notice, Report, StaffMember
+from .models import Ban, CardBorder, Notice, Report, StaffMember, Supporter
 
 PAGE = 50
 MAX_REASON = 500
@@ -113,6 +114,8 @@ def api(request, action):
         ("staff", True): staff_edit_view,
         ("notices", False): notices_view,
         ("notices", True): notices_edit_view,
+        ("supporters", False): supporters_view,
+        ("supporters", True): supporters_edit_view,
         ("borders", False): borders_view,
         ("borders", True): borders_edit_view,
         ("claims", False): claims.claims_view,
@@ -252,6 +255,8 @@ def user_view(request, me, staff, args):
         "reports_against": [report_json(r) for r in Report.objects.filter(target=u.username).order_by("-created")[:50]],
         "reports_sent": Report.objects.filter(reporter=u.username).count(),
         "can_ban": can_ban(me, staff, u.username) is None,
+        "supporter": supporter_json(Supporter.objects.filter(username=u.username).first()),
+        "can_grant_support": staff.role == StaffMember.ROLE_ADMIN,
     })
     return JsonResponse(data)
 
@@ -345,6 +350,47 @@ def staff_edit_view(request, me, staff, args):
     role = data.get("role") if data.get("role") in dict(StaffMember.ROLES) else StaffMember.ROLE_MOD
     StaffMember.objects.update_or_create(username=u.username, defaults={"role": role, "added_by": me.username})
     return JsonResponse({"ok": True})
+
+
+# ---------------------------------------------------------------- supporters (admins grant time, e.g. after a donation)
+
+def supporter_json(s):
+    if s is None:
+        return None
+    return {"username": s.username, "active": s.active(), "forever": s.expires is None, "expires": ts(s.expires),
+            "time_left": service.time_left(s.expires) if s.expires and s.active() else "",
+            "granted_by": s.granted_by, "granted": ts(s.granted), "updated": ts(s.updated), "note": s.note}
+
+
+def supporters_view(request, me, staff, args):
+    rows = list(Supporter.objects.order_by("-updated")[:500])
+    rows.sort(key=lambda s: (not s.active(), s.username.lower()))
+    return JsonResponse({"results": [supporter_json(s) for s in rows], "support_url": SUPPORT_URL,
+                         "can_edit": staff.role == StaffMember.ROLE_ADMIN})
+
+
+def supporters_edit_view(request, me, staff, args):
+    # POST mod/supporters/grant {username, months (0 = forever), note}   or   mod/supporters/revoke {username}
+    if staff.role != StaffMember.ROLE_ADMIN:
+        return fail("Only admins can grant or remove supporter time.", 403)
+    if len(args) != 1 or args[0] not in ("grant", "revoke"):
+        return fail("Unknown action.", 404)
+    data = body(request)
+    target = text(data, "username", 256)
+    u = User.objects.filter(username=target).first() if target else None
+    if u is None:
+        return fail(f"There's no player called {target}.", 404)
+    if args[0] == "revoke":
+        service.revoke_support(u.username)
+        return JsonResponse({"ok": True})
+    try:
+        months = int(data.get("months") or 0)
+    except (TypeError, ValueError):
+        return fail("months must be a whole number (0 = forever).")
+    if months < 0 or months > service.MAX_SUPPORT_MONTHS:
+        return fail("That length isn't allowed.")
+    row = service.grant_support(u.username, months or None, me.username, text(data, "note", 300))
+    return JsonResponse({"ok": True, "supporter": supporter_json(row)})
 
 
 # ---------------------------------------------------------------- admins: notices + card borders

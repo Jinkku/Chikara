@@ -8,7 +8,7 @@ from django.shortcuts import HttpResponse
 from django.utils.html import escape
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from Chikara.settings import DataURL, NoProfilePictureURL, storage_root
+from Chikara.settings import DataURL, NoProfilePictureURL, SUPPORT_URL, storage_root
 from Chikara.views import BASE_DIR, STATIC_ROOT, _banner_url as banner_url, _pfp_url, checklogin, header
 from dbview.models import User
 from moderation import service as moderation
@@ -20,10 +20,12 @@ def usersettings(request):
     if checklogin(username, request.COOKIES.get('password'))[0]:
         user = User.objects.filter(username=username).first()
         html = header(request, title="Qlute - User settings", robots="noindex, nofollow", customhead="""
-    <link rel="stylesheet" href="/static/css/usersettings.css?v=5">
-    <script src="/static/script/usersettings.js?v=5"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read() \
+    <link rel="stylesheet" href="/static/css/usersettings.css?v=6">
+    <script src="/static/script/usersettings.js?v=6"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read() \
             .replace("{avatar}", escape(_pfp_url(user.pfppath if user else None))) \
             .replace("{banner}", escape(banner_url(user.bannerpath if user else None))) \
+            .replace("{bannerperk}", banner_perk_html(user)) \
+            .replace("{bannerlocked}", "" if user and moderation.has_supporter_perks(user.username) else "1") \
             .replace("{username}", escape(username)) \
             .replace("{cardborder}", escape((user.cardborder or "") if user else "")) \
             .replace("{profileurl}", "/user/" + escape(urllib.parse.quote(username))) \
@@ -31,6 +33,22 @@ def usersettings(request):
         return HttpResponse(html)
     else:
         return HttpResponseForbidden("Please login...",)
+
+
+def banner_perk_html(user):
+    """The line above the banner picker: a thank-you for supporters, the way to unlock it for everyone else."""
+    from moderation.models import Supporter
+    if user is None:
+        return ""
+    if moderation.has_supporter_perks(user.username):
+        row = Supporter.objects.filter(username=user.username).first()
+        if row is not None and row.active():
+            until = "forever" if row.expires is None else "until " + row.expires.strftime("%-d %B %Y")
+            return f'<p class="banner-perk on">&#9829; Supporter perk &middot; thank you for supporting Qlute! (supporter {until})</p>'
+        return '<p class="banner-perk on">&#9829; Supporter perk (included for the Qlute team)</p>'
+    saved = " Your banner is saved and comes back as soon as you're a supporter again." if user.bannerpath else ""
+    return (f'<p class="banner-perk">&#9829; Profile banners are a supporter perk.{saved} '
+            f'<a href="{escape(SUPPORT_URL)}" target="_blank" rel="noopener">Become a supporter</a></p>')
 
 
 # ---------------------------------------------------------------- avatar upload: POST apiv2/avatar
@@ -129,6 +147,8 @@ def banner(request):
         return JsonResponse({"error": "Log in first."}, status=401)
     if user.restricted:
         return JsonResponse({"error": "Restricted accounts can't change their banner."}, status=403)
+    if request.POST.get("remove") != "1" and not moderation.has_supporter_perks(user.username):
+        return JsonResponse({"error": "Profile banners are a supporter perk. Thank you for considering it <3"}, status=403)
 
     if request.POST.get("remove") == "1":
         _delete_banner(user.id, user.bannerpath)

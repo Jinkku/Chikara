@@ -949,6 +949,14 @@ def _banner_url(path):
     return path if path.startswith("http") else DataURL + path
 
 
+def shown_banner(u):
+    """The banner to show for player `u`: banners are a supporter perk (the Qlute team gets it too), and hidden
+    while restricted. The file is kept either way, so it comes back when they support again."""
+    if u is None or u.restricted or not u.bannerpath or not moderation.has_supporter_perks(u.username):
+        return ""
+    return _banner_url(u.bannerpath)
+
+
 def banner_style(url):
     """class + style attribute text for a card that shows a banner behind it (CSS: .has-banner, --banner)."""
     return f' style="--banner:url(&quot;{escape(url)}&quot;)"' if url else ""
@@ -966,7 +974,7 @@ def _player_json(u):
         "rank": u.ranking or 0,
         "points": u.ranked_points or 0,
         "pfp": _pfp_url(u.pfppath),
-        "banner": "" if u.restricted else _banner_url(u.bannerpath),
+        "banner": shown_banner(u),
     }
 
 
@@ -1627,7 +1635,7 @@ ADMIN_MENU_ITEM = ('<a class="am-item" href="/admin"><svg viewBox="0 0 24 24" ar
 
 
 HEADER_BUTTONS = """<link rel="stylesheet" href="/static/css/headerbuttons.css?v=2">
-<script src="/static/script/notifications.js?v=2" defer></script>
+<script src="/static/script/notifications.js?v=3" defer></script>
 <div class="hb">
     <a class="hb-btn" href="/chat" aria-label="Chat rooms" title="Chat rooms">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/></svg>
@@ -1680,7 +1688,7 @@ def header(request, customhead="", title="{sitetitle}", description=None, image=
         notice = moderation.ban_message(moderation.active_ban(username)).split("\n", 1)[-1]
         head += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/restricted.html").read().replace("{details}", escape(notice).replace("\n", "<br>"))
     # Your profile banner behind the account card + the top of its menu (hidden while restricted, like the profile).
-    banner = _banner_url(User.objects.filter(username=username).values_list("bannerpath", flat=True).first()) \
+    banner = shown_banner(User.objects.filter(username=username).only("username", "bannerpath", "restricted").first()) \
         if accept and not proc[1] else ""
     head = head.replace("{cardbanner}", (" data-banner" + banner_style(banner)) if banner else "")
     staff = moderation.staff_of(username) if accept and not proc[1] else None
@@ -1730,10 +1738,12 @@ TEAM_TITLES = {"mod": "Team Moderator", "admin": "Dev"}
 
 
 def team_badge(username):
+    """Badges beside a player's name: their Qlute team role, and the supporter heart."""
     staff = moderation.staff_of(username)
-    if staff is None:
-        return ""
-    return f'<span class="team-badge {escape(staff.role)}">{TEAM_TITLES.get(staff.role, "Qlute Team")}</span>'
+    html = f'<span class="team-badge {escape(staff.role)}">{TEAM_TITLES.get(staff.role, "Qlute Team")}</span>' if staff else ""
+    if moderation.is_supporter(username):
+        html += '<span class="team-badge supporter" title="Supports Qlute <3">&#9829; Supporter</span>'
+    return html
 
 
 def user_classic(request, user):
@@ -1998,7 +2008,7 @@ def user(request, user):
 
     # ---- hero
     pfp = escape(getstat("pfp_path", user)["url"])
-    hero_banner = "" if usr.restricted else _banner_url(usr.bannerpath)
+    hero_banner = shown_banner(usr)
     html += f'<section class="infobox pf-hero{" has-banner" if hero_banner else ""}"{banner_style(hero_banner)}>'
     html += (f'<div class="pf-avatar"><img src="{pfp}" id="userpfp" alt="{name}\'s avatar" width="120" height="120">'
              f'{"<span class=pf-avatar-dot title=online></span>" if online else ""}</div>')
@@ -2133,7 +2143,7 @@ def ranking(request, command=""):
                 "perfect": u.max or 0, "great": u.great or 0, "meh": u.meh or 0, "miss": u.bad or 0,
                 "online": u.stattime is not None and now - u.stattime <= ONLINE_SECONDS,
                 "pfp": escape(_pfp_url(u.pfppath)), "href": "/user/" + escape(u.username or ""),
-                "banner": "" if u.restricted else _banner_url(u.bannerpath),
+                "banner": shown_banner(u),
                 "me": me is not None and urllib.parse.unquote(me) == urllib.parse.unquote(u.username or "")}
 
     html = f"<p class='rk-sub'>{total:,} ranked players &middot; ranked by performance points</p>"

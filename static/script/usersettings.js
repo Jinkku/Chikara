@@ -151,8 +151,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!res.ok) throw new Error(data.error || "The server said " + res.status + ".");
     return data;
   }
+  // Banners are a supporter perk: locked pickers explain that instead of uploading.
+  const bLocked = bDrop.dataset.locked === "1";
+  if (bLocked) {
+    bDrop.classList.add("locked");
+    bUpload.textContent = "Become a supporter";
+    bDrop.querySelector(".banner-hint").textContent = "Profile banners are a supporter perk";
+  }
+  const supportLink = document.querySelector(".banner-perk a");
+  function lockedClick() {
+    if (supportLink) window.open(supportLink.href, "_blank", "noopener");
+  }
   async function uploadBanner(file) {
     if (bBusy || !file) return;
+    if (bLocked) return bannerState(false, "Profile banners are a supporter perk.", true);
     if (!file.type.startsWith("image/")) return bannerState(false, "Please choose an image file.", true);
     if (file.size > 30 * 1024 * 1024) return bannerState(false, "That image is too big (30 MB max before resizing).", true);
     bannerState(true, "Uploading...");
@@ -169,8 +181,8 @@ document.addEventListener("DOMContentLoaded", () => {
     bInput.value = "";
   }
   showBanner(bDrop.dataset.banner);
-  bUpload.addEventListener("click", () => bInput.click());
-  bDrop.addEventListener("click", () => bInput.click());
+  bUpload.addEventListener("click", () => bLocked ? lockedClick() : bInput.click());
+  bDrop.addEventListener("click", () => bLocked ? lockedClick() : bInput.click());
   bInput.addEventListener("change", () => uploadBanner(bInput.files[0]));
   ["dragenter", "dragover"].forEach(t => bDrop.addEventListener(t, e => { e.preventDefault(); bDrop.classList.add("over"); }));
   ["dragleave", "drop"].forEach(t => bDrop.addEventListener(t, e => { e.preventDefault(); bDrop.classList.remove("over"); }));

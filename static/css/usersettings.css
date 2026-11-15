@@ -95,3 +95,10 @@
 .banner-drop:hover .banner-hint, .banner-drop.over .banner-hint { opacity: 1; }
 .banner-drop:not(.has) .banner-hint { background: none; }
 .banner-drop:not(.has):hover .banner-empty { opacity: 0; }
+
+/* banners are a supporter perk */
+.banner-perk { margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; background: #ffffff0d; color: #ffffffcc; font-size: 14px; line-height: 1.45; }
+.banner-perk.on { background: #f3baff17; color: #f7d6ff; }
+.banner-perk a { color: #f3baff; font-weight: 700; text-decoration: underline; }
+.banner-drop.locked .banner-img { filter: grayscale(.7) brightness(.6); }
+.banner-drop.locked .banner-hint { opacity: 1; background: #000000b0; }
