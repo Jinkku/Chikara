@@ -37,7 +37,7 @@ class User(models.Model):
     email_address = models.CharField(max_length=256, null=True, blank=True)
     password = models.CharField(max_length=128, null=True, blank=True)  # salted hash of SHA-256(password), Chikara/passwords.py; old rows: bare SHA-256 hex
     created = models.DateTimeField(auto_now_add=True)
-    stattime = models.IntegerField(null=True, blank=True)
+    stattime = models.IntegerField(null=True, blank=True, db_index=True)
     playtime = models.IntegerField(null=True, blank=True)
     status = models.CharField(max_length=255, null=True, blank=True)
     ranked_score = models.IntegerField(null=True, blank=True)
