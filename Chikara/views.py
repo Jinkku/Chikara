@@ -1104,7 +1104,7 @@ def chat_page(request):
     """Chat rooms on the website: the game's channels, private rooms and DMs (static/script/chat.js)."""
     username = request.COOKIES.get('username')
     login = checklogin(username, request.COOKIES.get('password', None))
-    html = header(request, customhead='<link rel="stylesheet" href="/static/css/chat.css?v=1">', title="Qlute - chat", robots=NOINDEX)
+    html = header(request, customhead='<link rel="stylesheet" href="/static/css/chat.css?v=2">', title="Qlute - chat", robots=NOINDEX)
     if not login[0]:
         html += '<div class="ct-login"><h1>Chat</h1><p>Log in to chat with other players.</p></div>'
     elif login[1]:
