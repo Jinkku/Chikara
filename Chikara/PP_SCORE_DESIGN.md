@@ -59,7 +59,7 @@ Calibration: Hommarju - Slluuddggee (ShibePlanet) [Slliimmee] rates 5.34★, and
 
 ## Map level (1–100)
 
-`level = 1 + 99 · ((ssPP − 5) / 1495)^0.8`, floored. Lv 1 is up to 5pp and Lv 100 is 1,500pp or more. Lv 7 ≈ 50–60pp, Lv 10 ≈ 80–90pp, Lv 50 ≈ 630pp. It uses the map's NoMod SS pp (`level_from_pp` / `LevelFromPp`) and is stored in `beatmaps.Level`. In song select, mods change the pp the level is computed from, so it stays within 1–100.
+`level = 1 + 99 · ((ssPP − 5) / 1495)^0.8`, truncated, with no clamping (the game's `LevelFromPp`, mirrored exactly by `level_from_pp`). Below 5pp a map is Lv 0 (the game's C# gives NaN there, which .NET turns into 0), exactly 5pp is Lv 1, 1,500pp is Lv 100 and harder maps keep going (2,000pp ≈ Lv 125). Stored levels were recomputed by migration `dbview/0011_recompute_levels`. Lv 7 ≈ 50–60pp, Lv 10 ≈ 80–90pp, Lv 50 ≈ 630pp. It uses the map's NoMod SS pp (`level_from_pp` / `LevelFromPp`) and is stored in `beatmaps.Level`. In song select, mods change the pp the level is computed from, so it stays within 1–100.
 
 ## Integrity
 

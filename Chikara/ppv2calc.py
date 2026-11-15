@@ -228,20 +228,21 @@ def max_performance(stars: float, note_count: int, mods: str = "") -> float:
     return PP_SCALE * max(stars - 0.15, 0.05) ** PP_STAR_POWER * length_bonus * pp_mod_factor(mods)
 
 
-LEVEL_MIN_PP = 5.0       # Lv 1 = 0..5 pp
-LEVEL_MAX_PP = 1500.0    # Lv 100 = 1500 pp and up
+LEVEL_MIN_PP = 5.0       # Lv 1 at exactly 5 pp, Lv 0 below
+LEVEL_MAX_PP = 1500.0    # Lv 100 at 1500 pp (and higher above it)
 LEVEL_CURVE = 0.8        # < 1: levels rise faster at low pp (Lv 7 = 50-60pp, Lv 50 = ~630pp)
 
 
 def level_from_pp(pp: float) -> int:
-    """Map level 1..100 from its NoMod SS pp: Lv 1 <= 5pp, Lv 100 >= 1500pp,
-    level = 1 + 99 * ((pp - 5) / 1495) ^ 0.8 in between (floored, 2..99)."""
-    if pp is None or not pp > LEVEL_MIN_PP:
-        return 1
-    if pp >= LEVEL_MAX_PP:
-        return 100
+    """Map level from its NoMod SS pp. Exact mirror of the game's PerformanceCalculator.LevelFromPp:
+    (int)(1 + 99 * ((pp - 5) / 1495) ^ 0.8), truncated, no clamping (maps over 1500pp go past Lv 100).
+    Below 5pp the power of a negative number is NaN in C#, which .NET (9+) converts to 0: those maps are Lv 0."""
+    if pp is None or pp != pp:
+        return 0
     x = (pp - LEVEL_MIN_PP) / (LEVEL_MAX_PP - LEVEL_MIN_PP)
-    return max(2, min(99, math.floor(1.0 + 99.0 * x ** LEVEL_CURVE)))
+    if x < 0:
+        return 0
+    return int(1.0 + 99.0 * x ** LEVEL_CURVE)
 
 
 def performance(max_pp: float, note_count: int, perfect: int, great: int, meh: int, bad: int) -> float:
