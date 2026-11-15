@@ -89,6 +89,9 @@ def api(request, action=""):
         order = SupportOrder.objects.filter(id=int(parts[1]), buyer=me.username).first()
         if order is None:
             return _fail("That order doesn't exist.", 404)
+        if order.status == SupportOrder.STATUS_PENDING:
+            sync_orders([order])
+            order.refresh_from_db()
         return JsonResponse(order_json(order))
     return _fail("Unknown request.", 404)
 
@@ -162,7 +165,7 @@ def checkout(request, me):
     if reply.get("order_id"):
         SupportOrder.objects.filter(id=order.id).update(xsolla_order_id=int(reply["order_id"]))
     page = PAYSTATION_SANDBOX if S.XSOLLA_SANDBOX else PAYSTATION
-    return JsonResponse({"ok": True, "order": order.id, "url": page.format(token=reply["token"])})
+    return JsonResponse({"ok": True, "order": order.id, "url": page.format(token=reply["token"]), "sandbox": S.XSOLLA_SANDBOX})
 
 
 # ---------------------------------------------------------------- Xsolla webhook: POST apiv2/xsolla
@@ -183,7 +186,7 @@ def _months_in(items):
     """Supporter months in an order's items: one supporter item is one month (other SKUs: ignored)."""
     total = 0
     for item in items or []:
-        if str(item.get("sku") or "") == S.SUPPORTER_ITEM_SKU:
+        if str(item.get("sku") or "").lower() == S.SUPPORTER_ITEM_SKU.lower():
             try:
                 total += max(1, int(item.get("quantity") or 1))
             except (TypeError, ValueError):
@@ -226,26 +229,37 @@ def webhook(request):
 def _order_paid(data):
     order_info = data.get("order") or {}
     sandbox = order_info.get("mode") == "sandbox" or bool((data.get("billing") or {}).get("transaction", {}).get("dry_run"))
+    mark_paid(order_info.get("id"), data.get("items"), sandbox,
+              f'{order_info.get("amount", "")} {order_info.get("currency", "")}'.strip(),
+              (data.get("user") or {}).get("external_id"))
+    return HttpResponse(status=204)
+
+
+def _order_canceled(data):
+    mark_canceled((data.get("order") or {}).get("id"))
+    return HttpResponse(status=204)
+
+
+def mark_paid(xid, items, sandbox, amount, buyer_id):
+    """An Xsolla order was paid (webhook or our own check): grant the time, once per order."""
     if sandbox and not S.XSOLLA_SANDBOX:
-        log.warning("ignoring sandbox order_paid %s while sandbox mode is off", order_info.get("id"))
-        return HttpResponse(status=204)
-    months = _months_in(data.get("items"))
-    if not months:
-        return HttpResponse(status=204)  # not a supporter tag
-    amount = f'{order_info.get("amount", "")} {order_info.get("currency", "")}'.strip()
-    xid = order_info.get("id")
+        log.warning("ignoring sandbox order %s while sandbox mode is off", xid)
+        return
+    months = _months_in(items)
+    if not months or not xid:
+        return  # not a supporter tag
     with transaction.atomic():
-        order = SupportOrder.objects.select_for_update().filter(xsolla_order_id=xid).first() if xid else None
+        order = SupportOrder.objects.select_for_update().filter(xsolla_order_id=xid).first()
         if order is None:
             # Bought outside our checkout (e.g. an Xsolla web shop): it's for the paying account.
-            buyer = _user_by_id((data.get("user") or {}).get("external_id"))
+            buyer = _user_by_id(buyer_id)
             if buyer is None:
-                log.error("order_paid %s for unknown user %s", xid, data.get("user"))
-                return HttpResponse(status=204)
-            order = SupportOrder.objects.create(buyer=buyer.username, recipient=buyer.username, sku="", months=months,
-                                                xsolla_order_id=xid, sandbox=sandbox)
+                log.error("paid order %s for unknown user %s", xid, buyer_id)
+                return
+            order = SupportOrder.objects.create(buyer=buyer.username, recipient=buyer.username, sku=S.SUPPORTER_ITEM_SKU,
+                                                months=months, xsolla_order_id=xid, sandbox=sandbox)
         if order.status != SupportOrder.STATUS_PENDING:
-            return HttpResponse(status=204)  # a retry: already handled
+            return  # already handled (webhook retry, or the webhook and our check both saw it)
         order.status, order.paid_at, order.months, order.amount = SupportOrder.STATUS_PAID, timezone.now(), months, amount
         order.save(update_fields=["status", "paid_at", "months", "amount"])
         plural = "month" if months == 1 else "months"
@@ -254,21 +268,61 @@ def _order_paid(data):
         else:
             message = f"Thank you for supporting Qlute! <3 You got {months} {plural} of supporter. You can upload a profile banner in your settings."
         service.grant_support(order.recipient, months, "xsolla", note=f"Xsolla order {xid}"[:300], message=message)
-    return HttpResponse(status=204)
 
 
-def _order_canceled(data):
-    xid = (data.get("order") or {}).get("id")
+def mark_canceled(xid):
+    """An Xsolla order was canceled / refunded: take the time back if it was granted."""
+    if not xid:
+        return
     with transaction.atomic():
-        order = SupportOrder.objects.select_for_update().filter(xsolla_order_id=xid).first() if xid else None
+        order = SupportOrder.objects.select_for_update().filter(xsolla_order_id=xid).first()
         if order is None or order.status == SupportOrder.STATUS_CANCELED:
-            return HttpResponse(status=204)
+            return
         was_paid = order.status == SupportOrder.STATUS_PAID
         order.status, order.canceled_at = SupportOrder.STATUS_CANCELED, timezone.now()
         order.save(update_fields=["status", "canceled_at"])
         if was_paid:
             service.take_support(order.recipient, order.months)
-    return HttpResponse(status=204)
+
+
+# ---------------------------------------------------------------- asking Xsolla directly (when no webhook came)
+
+SEARCH_URL = "https://store.xsolla.com/api/v3/project/{project}/admin/order/search"
+SYNC_EVERY = 5         # seconds between checks of the same order
+SEARCH_LIMIT = 100     # recent orders fetched per check
+
+
+def sync_orders(orders):
+    """Looks our pending orders up in Xsolla's order list and settles the ones that were paid or canceled.
+    Webhooks are the main signal; this catches payments whose webhook never arrived (not set up, blocked...)."""
+    from django.core.cache import cache
+    wanted = {}
+    for o in orders:
+        if o.status == SupportOrder.STATUS_PENDING and o.xsolla_order_id and cache.add(f"xsolla-sync-{o.id}", 1, SYNC_EVERY):
+            wanted[int(o.xsolla_order_id)] = o
+    if not wanted or not configured():
+        return
+    auth = base64.b64encode(f"{S.XSOLLA_PROJECT_ID}:{S.XSOLLA_API_KEY}".encode()).decode()
+    try:
+        res = requests.post(SEARCH_URL.format(project=S.XSOLLA_PROJECT_ID), json={"limit": SEARCH_LIMIT},
+                            headers={"Authorization": "Basic " + auth, "Content-Type": "application/json"}, timeout=10)
+        found = res.json().get("orders") or [] if res.ok else []
+        if not res.ok:
+            log.error("xsolla order search failed (%s): %s", res.status_code, res.text[:300])
+    except (requests.RequestException, ValueError) as e:
+        log.error("xsolla order search failed: %s", e)
+        return
+    for x in found:
+        xid = x.get("order_id")
+        if xid not in wanted:
+            continue
+        status = x.get("status")
+        if status in ("paid", "done"):
+            price = (x.get("price") or {})
+            mark_paid(xid, x.get("items"), x.get("mode") == "sandbox",
+                      f'{price.get("amount", "")} {price.get("currency", "")}'.strip(), (x.get("user") or {}).get("id"))
+        elif status in ("canceled", "refunded", "expired"):
+            mark_canceled(xid)
 
 
 # ---------------------------------------------------------------- the /support page
@@ -345,6 +399,6 @@ def support_page(request):
         {buy}
     </section>
 </div>
-<script src="/static/script/support.js?v=2" defer></script>'''
+<script src="/static/script/support.js?v=3" defer></script>'''
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
     return HttpResponse(html)

@@ -366,6 +366,9 @@ def supporters_view(request, me, staff, args):
     rows = list(Supporter.objects.order_by("-updated")[:500])
     rows.sort(key=lambda s: (not s.active(), s.username.lower()))
     from . import payments
+    # Settle recent checkouts whose webhook never came (paid or canceled on Xsolla's side).
+    payments.sync_orders(SupportOrder.objects.filter(status=SupportOrder.STATUS_PENDING,
+                                                     created__gt=timezone.now() - timezone.timedelta(days=2))[:50])
     orders = [{"id": o.id, "buyer": o.buyer, "recipient": o.recipient, "months": o.months, "status": o.status,
                "amount": o.amount, "sandbox": o.sandbox, "xsolla_order": o.xsolla_order_id or 0,
                "created": ts(o.created), "paid_at": ts(o.paid_at)}

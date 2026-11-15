@@ -226,7 +226,7 @@ SUPPORT_URL = "/support"
 # Supporter tags sold through Xsolla, like osu!: one virtual item in your Xsolla Publisher Account
 # (Items catalog) is one month of supporter, and a plan buys that many of it. Xsolla's price is what's
 # charged; SUPPORTER_MONTH_PRICE is only what the support page shows, so keep it in sync.
-SUPPORTER_ITEM_SKU = "qluteclan"      # "#QluteClan"
+SUPPORTER_ITEM_SKU = "QluteSupporter"
 SUPPORTER_MONTH_PRICE = 2.50          # USD
 SUPPORTER_PLANS = [1, 2, 4, 6, 12]    # months offered on /support
 AssetPath = DataURL + "/song_assets/"
