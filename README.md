@@ -3,6 +3,8 @@
 > [!NOTE]
 > Older versions of Qlute before or at 2024.11.10 will experience problems connecting to the server as those are depreciated.
 
+📖 **Full server manual (setup, configuration, features, API, operations): [docs/MANUAL.md](docs/MANUAL.md)**
+
 ## Installation
 
 Tested on Debian, Ubuntu 22.04
