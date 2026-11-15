@@ -1679,6 +1679,10 @@ def header(request, customhead="", title="{sitetitle}", description=None, image=
     if proc[1]:
         notice = moderation.ban_message(moderation.active_ban(username)).split("\n", 1)[-1]
         head += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/restricted.html").read().replace("{details}", escape(notice).replace("\n", "<br>"))
+    # Your profile banner behind the account card + the top of its menu (hidden while restricted, like the profile).
+    banner = _banner_url(User.objects.filter(username=username).values_list("bannerpath", flat=True).first()) \
+        if accept and not proc[1] else ""
+    head = head.replace("{cardbanner}", (" data-banner" + banner_style(banner)) if banner else "")
     staff = moderation.staff_of(username) if accept and not proc[1] else None
     head = head.replace("{headerbuttons}", header_buttons(username) if accept and not proc[1] else "")
     head = head.replace("{adminbutton}", ADMIN_MENU_ITEM if staff else "")

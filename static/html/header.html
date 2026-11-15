@@ -23,7 +23,7 @@
     <link rel="preload" href="/static/fonts/comfortaa-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/static/fonts/comfortaa.css?v=1">
     <link rel="stylesheet" href="/static/css/styles.css?v=3">
-    <link rel="stylesheet" href="/static/css/accountprompt.css?v=4">
+    <link rel="stylesheet" href="/static/css/accountprompt.css?v=5">
     <link rel="stylesheet" href="/static/css/card.css?v=7">
     <link rel="stylesheet" href="/static/css/downloadbuttons.css">
     <script src="/static/script/login.js?v=5" defer></script>
@@ -31,7 +31,7 @@
     {jsonld}
     {head}
     <link rel="stylesheet" href="/static/css/responsive.css?v=1">
-    <link rel="stylesheet" href="/static/css/header.css?v=2">
+    <link rel="stylesheet" href="/static/css/header.css?v=3">
 </head>
 <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -57,7 +57,7 @@
             </a>
             {headerbuttons}
             <a id="accountbutton" style="cursor: pointer;" role="button" tabindex="0" aria-label="Account">
-                <div class="actualbutton">
+                <div class="actualbutton"{cardbanner}>
                     <h3>{usertag}</h3>
                     <img class="pfp" src="{pfppath}" id="userpfp" alt="" width="40" height="40">
                 </div>
@@ -86,7 +86,7 @@
                 <a class="am-secondary" href="/download">Download Qlute</a>
             </div>
             <div id="controlpanel" class="am-panel">
-                <a class="am-me" href="/user/{usertag}">
+                <a class="am-me" href="/user/{usertag}"{cardbanner}>
                     <img class="am-avatar" src="{pfppath}" alt="" width="48" height="48">
                     <span class="am-me-text">
                         <span class="am-hello">Welcome back,</span>

@@ -96,3 +96,17 @@
     .header .header-support:hover img { animation: none; }
     .header .header-logo:hover { transform: none; }
 }
+
+/* your profile banner behind the account card (set in header(): data-banner + --banner) */
+.header .actualbutton[data-banner] {
+    background:
+        linear-gradient(90deg, #241c2de6 0%, #241c2db3 55%, #241c2d4d 100%),
+        var(--banner) center / cover no-repeat;
+    border-color: #ffffff26;
+}
+.header .actualbutton[data-banner]:hover {
+    background:
+        linear-gradient(90deg, #241c2dcc 0%, #241c2d99 55%, #241c2d33 100%),
+        var(--banner) center / cover no-repeat;
+}
+.header .actualbutton[data-banner] h3 { text-shadow: 0 1px 3px #000000b3; }

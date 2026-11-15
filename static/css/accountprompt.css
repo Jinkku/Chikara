@@ -186,3 +186,17 @@ input[type="password"] {
     transform: translateZ(0);
     width: 128px;
 }
+/* your profile banner behind the top of the menu */
+.am .am-me[data-banner] {
+    min-height: 92px; align-items: flex-end; padding: 12px;
+    background:
+        linear-gradient(180deg, #2f253933 0%, #2f2539b3 60%, #2f2539f2 100%),
+        var(--banner) center / cover no-repeat;
+}
+.am .am-me[data-banner]:hover {
+    background:
+        linear-gradient(180deg, #2f253900 0%, #2f253999 60%, #2f2539e6 100%),
+        var(--banner) center / cover no-repeat;
+}
+.am .am-me[data-banner] .am-me-text { text-shadow: 0 1px 4px #000000cc; }
+.am .am-me[data-banner] .am-hello { color: #ffffffcc; }
