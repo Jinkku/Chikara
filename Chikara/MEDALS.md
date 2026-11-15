@@ -5,7 +5,7 @@ gets a medal the moment they qualify (and loses it if they stop qualifying, e.g.
 
 - **Code:** `Chikara/views.py`: `medals` (the original 16), `EXTRA_MEDALS` (the 18 added later),
   `getmedals()`, `_extra_medal_checks()` and `_medal_clears()`.
-- **Where they show up:** the profile page (`views.user()`, "Medals · N / 34 earned"), the classic profile, the public
+- **Where they show up:** the profile page (`views.user()`, "Medals · N / 47 earned"), the classic profile, the public
   profile JSON (`public_profile()`, `"medals"`), and the game's `listmedal/<username>` API
   (`[{"title", "desc", "achieved"}]`).
 - **Hover hints:** on the profile, hovering a medal (or tapping it on a phone) shows how to earn it, prefixed with
@@ -47,7 +47,7 @@ The awarding rules are the `medco == N` checks in `getmedals()`. Stats come from
 | 4 | Welcome back Veteran | Glad to see you back | **Not obtainable.** No rule | Coming soon™. Pack your bags, veteran |
 | 5 | D-Ranker | Unrhythmic | More than **1,000 misses** in total | Miss over 1,000 notes in total. A badge of honour, honestly |
 | 6 | S-Ranker | Like to show off. huh? | More than **1,000 Perfect hits** in total | Land over 1,000 Perfect hits in total |
-| 7 | Donator | Thanks for Supporting the Game! | **Not obtainable.** `donator` is always 0 | Coming soon™. Thank-you gifts are on their way |
+| 7 | Supporter | Thanks for supporting Qlute! 💖 | An active supporter grant (`moderation.service.is_supporter`); checked right after `grant_support()` too. Was "Donator" (never obtainable) | Become a Qlute supporter (the Support page). Thank you <3 |
 | 8 | Sniper | First Comes, First Serve! | **Not obtainable.** No rule | Coming soon™. Keep your sights steady |
 | 9 | BreakThrough | Unstoppable | **Not obtainable.** No rule | Coming soon™. The wall hasn't been built yet |
 | 10 | Top 100 | You are the chosen one | Global rank **100 or better** | Break into the global top 100 |
@@ -57,7 +57,7 @@ The awarding rules are the `medco == N` checks in `getmedals()`. Stats come from
 | 14 | Making the game better | You are making the community better! | On the Qlute team (`moderation.StaffMember`), `TEAM_MEDAL` | Join the Qlute team and help build the game |
 | 15 | Team Moderator | Keeping Qlute fun and fair for everyone | Team member with the `mod` role, `MOD_MEDAL` | Become a Qlute moderator and keep the peace |
 
-## Added medals (`EXTRA_MEDALS`, index 16-33)
+## Added medals (`EXTRA_MEDALS`, index 16-46)
 
 Each entry is `(title, description, how to earn, rule key)`. The description is the flavour text (shown on the tile and
 sent to the game); "how to earn" is the profile's hover hint. The rule for each key is in `_extra_medal_checks()`.
@@ -82,6 +82,28 @@ sent to the game); "how to earn" is the profile's hover hint. The rule for each 
 | 31 | Collector | Gotta favourite 'em all | Favourite 10 beatmap sets | `fav10` | `online.FavoriteBeatmap` |
 | 32 | Social Butterfly | The more the merrier! 🦋 | Have 5 mutual friends (you've both added each other) | `friends5` | `online.Friend` |
 | 33 | Critic | Everyone's a critic... and so are you | Post 10 comments on beatmaps | `comments10` | `online.BeatmapComment` |
+| 34 | Oops | Did you even press anything? | Submit a play where every single note was a miss | `allmiss` | `Score` rows (any map, any mods) |
+| 35 | So Close | One. Single. Miss. | Clear a ranked map with exactly one miss and 95%+ accuracy (no HT, NF or slowdowns) | `onemiss` | clean clears* |
+| 36 | Speed Demon | Gotta go fast 💨 | Clear a ranked Lv 20+ difficulty with DT at 1.5x or faster, 70%+ accuracy | `speed15` | clean clears* + `Score.speed_multi` |
+| 37 | Slowpoke | Taking it nice and slow 🐢 | Submit a play at 0.75x speed or slower | `slow` | `Score.speed_multi` |
+| 38 | Big Leagues | Now we're talking | Reach 500 pp | `pp500` | `User.ranked_points` |
+| 39 | Perfectionist | Ten out of ten, every time | SS 10 different ranked maps (no HT, NF or slowdowns) | `ss10` | clean clears* |
+| 40 | Dedicated | Qlute is your second home | Submit 5,000 plays | `plays5000` | `Score` rows |
+| 41 | Cheat Code | 30 lives? In this economy? | Type the Konami code (↑↑↓↓←→←→ B A) anywhere in the game | `client:konami` | game-reported† |
+| 42 | Rage Quit | The keyboard had it coming | Quit a map from the pause menu after missing 20+ notes | `client:ragequit` | game-reported† |
+| 43 | Pause Addict | Hold on, let me get a drink | Pause 10 times in one play | `client:pauses` | game-reported† |
+| 44 | Night Owl | Sleep is for the weak 🦉 | Finish a play between 2 and 5 am (the player's own clock) | `client:nightowl` | game-reported† |
+| 45 | Silent Disco | Who needs music anyway? | Finish a play with the game's music volume all the way down | `client:muted` | game-reported† |
+| 46 | Doki Doki | Listening to Qlute's heartbeat 💓 | Keep the mouse on the main menu logo for 64 heartbeats | `client:heartbeat` | game-reported† |
+
+### †Game-reported medals (`CLIENT_MEDALS`)
+
+Silly things only the game can see. The game sends `POST apiv2/medals/claim/<name>` (logged in) when it notices one;
+the server records the unlock and replies with the medal, which the game pops up straight away. Earned = the
+`online.MedalUnlock` row exists. Only names in `CLIENT_MEDALS` are accepted, and they're just for fun: nothing stops a
+modified client from claiming them, so never hang anything that matters on them. The profile hover hints for these are
+deliberately a bit cryptic. Game side: `Qlute/Script/Medals/MedalPopup.cs` (`Claim`, the Konami code), `PauseMenu.cs`,
+`IntroPending.cs` and `ApiOperator.SS()`.
 
 ### \*Clean clears (`_medal_clears()`)
 
@@ -110,5 +132,8 @@ Ranked-only also stops anyone from uploading an easy joke map and SS-ing it for 
 3. Restart daphne (`sudo systemctl restart daphne`). `views.py` is only reloaded on restart. Players who already
    qualify get the new medal's popup on their next check.
 4. Update this file.
+
+Adding a game-reported medal: use rule key `"client:<name>"` (it lands in `CLIENT_MEDALS` by itself), then call
+`MedalPopup.Claim("<name>")` from the game when it happens.
 
 Cost: all 34 medals take about 35 ms per player (measured on the live database in Nov 2026).

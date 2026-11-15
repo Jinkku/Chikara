@@ -231,6 +231,8 @@ def grant_support(username, months, by, note="", message=None):
              "You can upload a profile banner in your settings.", "/settings")
     else:
         push(username, "supporter", by, "Your supporter time was extended. Thank you <3", "/settings")
+    from online.medals import check
+    check(username)  # the "Supporter" medal
     return row
 
 

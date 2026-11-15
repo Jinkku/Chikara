@@ -11,11 +11,15 @@ The first check for a player (MedalBaseline) records what they already had as se
 
   GET apiv2/medals/new   -> {"medals": [medal]}   unlocks the game hasn't shown yet (oldest first), now marked shown
   GET apiv2/medals       -> {"medals": [medal + "achieved" bool]}   every medal, for the logged-in player
+  POST apiv2/medals/claim/NAME -> {"medals": [medal]}   a secret medal the game noticed you earning (Konami code,
+                                  rage quit...). NAME must be in Chikara/views.py CLIENT_MEDALS; the medal comes back
+                                  (already marked shown) the first time, [] after that
 A medal: {"id" (index), "title", "desc", "hint" (how to earn it), "achieved_at" (unix, 0 = not earned)}.
 Auth is the same as apiv2/friends: the game's Username + Password headers, or the website's login cookies.
 Score submissions (apiv2/ss) also check and send the new ones in their reply's "medals".
 """
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 
 from moderation import service as moderation
@@ -93,6 +97,27 @@ def take_unseen(username):
     return out
 
 
+def claim(username, name):
+    """Records a medal the game reports (CLIENT_MEDALS). Returns [medal] the first time, [] after.
+    None if `name` isn't one of them."""
+    from Chikara import views
+    index = views.CLIENT_MEDALS.get(name)
+    if index is None:
+        return None
+    sync(username)  # a player's very first check stays silent; this one isn't part of it
+    from dbview.models import User
+    if User.objects.filter(username=username, restricted=True).exists():
+        return []
+    title, desc, hint, _key = views.EXTRA_MEDALS[index - len(views.medals)]
+    row, created = MedalUnlock.objects.get_or_create(
+        username=username, medal=index, defaults={"title": title, "achieved": timezone.now(), "seen": True})
+    if not created:
+        return []
+    from .notifications import push
+    push(username, "medal", "Qlute", f"Medal unlocked: {title}! {desc}", f"/user/{username}#medals")
+    return [medal_json(index, title, desc, hint, row.achieved)]
+
+
 def take_unseen_safe(username):
     try:
         return take_unseen(username)
@@ -101,8 +126,17 @@ def take_unseen_safe(username):
         return []
 
 
+@csrf_exempt
 def api(request, action=""):
     parts = [p for p in action.strip("/").split("/") if p]
+    if request.method == "POST" and len(parts) == 2 and parts[0] == "claim":
+        me = moderation.request_user(request, write=True)
+        if me is None:
+            return JsonResponse({"error": 1, "reason": "Log in first."}, status=401)
+        got = claim(me.username, parts[1])
+        if got is None:
+            return JsonResponse({"error": 1, "reason": "No such medal."}, status=404)
+        return JsonResponse({"medals": got})
     if request.method != "GET":
         return JsonResponse({"error": 1, "reason": "Unknown request."}, status=404)
     me = moderation.request_user(request)

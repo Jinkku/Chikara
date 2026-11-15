@@ -28,7 +28,7 @@ allowspoof=0
 restrictionnotice = "Your profile is restricted\nYou can't submit scores or interact with the community until it's lifted."
 gradecolour=(81, 149, 194),(114, 123, 179),(105, 173, 99),(113, 85, 173),(173, 136, 61),(168, 70, 50),(20,20,20)
 modsaliasab='AT','DT','HT','SL','BT','RND','NF' # Mods Alias
-medals=("The End","You've made it"),("Baby Steps","Welcome to the Game"),(">~<","Impressive"),('Psycho','Dang you can read that?!'),('Welcome back Veteran','Glad to see you back'),('D-Ranker','Unrhythmic'),('S-Ranker','Like to show off. huh?'),('Donator','Thanks for Supporting the Game!'),('Sniper','First Comes, First Serve!'),('BreakThrough','Unstoppable'),('Top 100','You are the chosen one'),('Top 50','Almost There'),('Top 10','Grab some Popcorn 🍿'),('Top 1,000','Still a Virgin at this game are you?'),("Making the game better", "You are making the community better!"),("Team Moderator", "Keeping Qlute fun and fair for everyone") # Medals
+medals=("The End","You've made it"),("Baby Steps","Welcome to the Game"),(">~<","Impressive"),('Psycho','Dang you can read that?!'),('Welcome back Veteran','Glad to see you back'),('D-Ranker','Unrhythmic'),('S-Ranker','Like to show off. huh?'),('Supporter','Thanks for supporting Qlute! 💖'),('Sniper','First Comes, First Serve!'),('BreakThrough','Unstoppable'),('Top 100','You are the chosen one'),('Top 50','Almost There'),('Top 10','Grab some Popcorn 🍿'),('Top 1,000','Still a Virgin at this game are you?'),("Making the game better", "You are making the community better!"),("Team Moderator", "Keeping Qlute fun and fair for everyone") # Medals
 # How to earn each original medal: the profile's hover hint (their descriptions are flavour text). Keep in step with
 # getmedals() and MEDALS.md.
 MEDAL_HINTS = {
@@ -39,7 +39,7 @@ MEDAL_HINTS = {
     "Welcome back Veteran": "Coming soon\u2122. Pack your bags, veteran",
     "D-Ranker": "Miss over 1,000 notes in total. A badge of honour, honestly",
     "S-Ranker": "Land over 1,000 Perfect hits in total",
-    "Donator": "Coming soon\u2122. Thank-you gifts are on their way",
+    "Supporter": "Become a Qlute supporter (the Support page). Thank you <3",
     "Sniper": "Coming soon\u2122. Keep your sights steady",
     "BreakThrough": "Coming soon\u2122. The wall hasn't been built yet",
     "Top 100": "Break into the global top 100",
@@ -70,7 +70,25 @@ EXTRA_MEDALS = (
     ("Collector", "Gotta favourite 'em all", "Favourite 10 beatmap sets", "fav10"),
     ("Social Butterfly", "The more the merrier! \U0001F98B", "Have 5 mutual friends (you've both added each other)", "friends5"),
     ("Critic", "Everyone's a critic... and so are you", "Post 10 comments on beatmaps", "comments10"),
+    # 34-40: more play-based medals
+    ("Oops", "Did you even press anything?", "Submit a play where every single note was a miss", "allmiss"),
+    ("So Close", "One. Single. Miss.", "Clear a ranked map with exactly one miss and 95%+ accuracy (no HT, NF or slowdowns)", "onemiss"),
+    ("Speed Demon", "Gotta go fast \U0001F4A8", "Clear a ranked Lv 20+ difficulty with DT at 1.5x or faster, 70%+ accuracy", "speed15"),
+    ("Slowpoke", "Taking it nice and slow \U0001F422", "Submit a play at 0.75x speed or slower", "slow"),
+    ("Big Leagues", "Now we're talking", "Reach 500 pp", "pp500"),
+    ("Perfectionist", "Ten out of ten, every time", "SS 10 different ranked maps, every hit Perfect (no HT, NF or slowdowns)", "ss10"),
+    ("Dedicated", "Qlute is your second home", "Submit 5,000 plays", "plays5000"),
+    # 41-46: secret medals the game reports itself (POST apiv2/medals/claim/<name>, online/medals.py CLIENT_MEDALS)
+    ("Cheat Code", "30 lives? In this economy?", "Some codes never get old... \u2191\u2191\u2193\u2193", "client:konami"),
+    ("Rage Quit", "The keyboard had it coming", "Quit a map from the pause menu after missing 20+ notes", "client:ragequit"),
+    ("Pause Addict", "Hold on, let me get a drink", "Pause 10 times in one play", "client:pauses"),
+    ("Night Owl", "Sleep is for the weak \U0001F989", "Finish a play between 2 and 5 in the morning", "client:nightowl"),
+    ("Silent Disco", "Who needs music anyway?", "Finish a play with the game's volume all the way down", "client:muted"),
+    ("Doki Doki", "Listening to Qlute's heartbeat \U0001F493", "Hover the logo on the main menu and just... listen for a while", "client:heartbeat"),
 )
+# Medals the game reports itself: {claim name: medal index}. Earned = the unlock row exists (online.MedalUnlock).
+CLIENT_MEDALS = {key.split(":", 1)[1]: len(medals) + i for i, (_t, _d, _h, key) in enumerate(EXTRA_MEDALS)
+                 if key.startswith("client:")}
 leveltemp=0.0000005 # Level multiplier
 # pp v3 ranking (see PP_SCORE_DESIGN.md)
 PP_WEIGHT = 0.95        # n-th best play counts 0.95^n
@@ -388,7 +406,7 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
             "level": getstat('level', useris),
             "pfp_path": getstat('pfp_path', useris)["url"],
             "cardborder": getstat('cardborder', useris)["url"],
-            "donator": False,
+            "donator": moderation.is_supporter(useris),
             "restricted": getstat('restricted', useris),
         }
         
@@ -468,7 +486,7 @@ def getmedals(user):
             show=1
         elif medco==6 and max>1000:
             show=1
-        elif medco==7 and donator:
+        elif medco==7 and moderation.is_supporter(user):
             show=1
         elif medco==13 and rank and rank<=1000:
             show=1
@@ -506,6 +524,13 @@ def _medal_clears(plays):
         if total and (mx + great / 2 + meh / 3) / total * 100 >= MEDAL_MIN_ACCURACY:
             out.append(sc)
     return out
+
+
+def _accuracy(sc):
+    """The site's accuracy of one play, in percent."""
+    mx, great, meh, bad = sc.max or 0, sc.great or 0, sc.meh or 0, sc.bad or 0
+    total = mx + great + meh + bad
+    return (mx + great / 2 + meh / 3) / total * 100 if total else 0
 
 
 def _extra_medal_checks(user):
@@ -547,7 +572,19 @@ def _extra_medal_checks(user):
         "fav10": lambda: FavoriteBeatmap.objects.filter(username=user).count() >= 10,
         "friends5": lambda: Friend.objects.filter(username__in=following, friend=user).count() >= 5,
         "comments10": lambda: BeatmapComment.objects.filter(username=user).count() >= 10,
+        "allmiss": lambda: plays.filter(bad__gt=0, max=0, great=0, meh=0).exists(),
+        "onemiss": lambda: any(c.bad == 1 and _accuracy(c) >= 95 for c in clears),
+        "speed15": lambda: any("DT" in (c.mods or "").upper() and (c.speed_multi or 1) >= 1.5
+                               and (levels.get(c.beatmap_id) or 0) >= 20 for c in clears),
+        "slow": lambda: plays.filter(speed_multi__lte=0.75).exists(),
+        "pp500": lambda: pp >= 500,
+        "ss10": lambda: len({c.beatmap_id for c in clears if c.max and not (c.great or c.meh or c.bad)}) >= 10,
+        "plays5000": lambda: play_count >= 5000,
     }
+    from online.models import MedalUnlock
+    claimed = set(MedalUnlock.objects.filter(username=user, medal__in=CLIENT_MEDALS.values()).values_list("medal", flat=True))
+    for name, index in CLIENT_MEDALS.items():
+        checks["client:" + name] = (lambda i=index: i in claimed)
     out = {}
     for key, check in checks.items():
         try:
