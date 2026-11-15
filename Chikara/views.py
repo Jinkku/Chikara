@@ -1622,6 +1622,10 @@ def json_ld(data):
     return f'<script type="application/ld+json">{text}</script>'
 
 
+ADMIN_MENU_ITEM = ('<a class="am-item" href="/admin"><svg viewBox="0 0 24 24" aria-hidden="true">'
+                   '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>Admin panel</a>')
+
+
 HEADER_BUTTONS = """<link rel="stylesheet" href="/static/css/headerbuttons.css?v=2">
 <script src="/static/script/notifications.js?v=2" defer></script>
 <div class="hb">
@@ -1677,7 +1681,7 @@ def header(request, customhead="", title="{sitetitle}", description=None, image=
         head += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/restricted.html").read().replace("{details}", escape(notice).replace("\n", "<br>"))
     staff = moderation.staff_of(username) if accept and not proc[1] else None
     head = head.replace("{headerbuttons}", header_buttons(username) if accept and not proc[1] else "")
-    head = head.replace("{adminbutton}", '<a href="/admin"><button class="login-btn">Admin Panel</button></a>' if staff else "")
+    head = head.replace("{adminbutton}", ADMIN_MENU_ITEM if staff else "")
     head = head.replace("{description}", escape(description or SITE_DESCRIPTION))
     head = head.replace("{canonical}", escape(canonical or SiteURL + urllib.parse.quote(request.path)))
     head = head.replace("{ogimage}", escape(image or SITE_IMAGE))
