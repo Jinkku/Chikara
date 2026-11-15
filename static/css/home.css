@@ -46,6 +46,10 @@
 .hm-tagline { font-size: 17px; color: var(--hm-dim); }
 
 .hm-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.hm-stats { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 4px 0 0; padding: 0; list-style: none; color: var(--hm-dim); font-size: 15px; }
+.hm-stats li { display: inline-flex; align-items: center; gap: 6px; }
+.hm-stats strong { color: #fff; font-variant-numeric: tabular-nums; }
+.hm-dot { width: 8px; height: 8px; border-radius: 50%; background: #6ee7a0; box-shadow: 0 0 0 3px #6ee7a033; }
 .hm-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 10px;
     padding: 14px 24px; border-radius: 12px; font-weight: 700; font-size: 16px;
@@ -141,6 +145,7 @@
     .hm-hero-text { align-items: center; }
     .hm-pill { align-self: center; }
     .hm-ctas { justify-content: center; }
+    .hm-stats { justify-content: center; }
     .hm-hero-art { width: 100%; max-width: 420px; order: -1; }
     .hm-chloe { width: 150%; margin: -14% -25% -12%; }
     .hm-hero-shade { background: linear-gradient(180deg, #1a1620b3 0%, #1a1620e6 60%, #221E27 100%); }
