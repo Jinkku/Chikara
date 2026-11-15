@@ -54,8 +54,11 @@ def add_friend(me, name):
         return False, "Restricted accounts can't add friends."
     if target.restricted:
         return False, f"{target.username} can't be added right now."
-    if Friend.objects.filter(username=me.username).count() >= MAX_FRIENDS:
-        return False, f"You can have at most {MAX_FRIENDS} friends."
+    from moderation.service import SUPPORTER_LIMITS, limit_for
+    limit = limit_for(me.username, "friends")
+    if Friend.objects.filter(username=me.username).count() >= limit:
+        more = "" if limit > MAX_FRIENDS else f" (supporters can have {SUPPORTER_LIMITS['friends'][1]})"
+        return False, f"You can have at most {limit} friends{more}."
     _, created = Friend.objects.get_or_create(username=me.username, friend=target.username)
     mutual = is_friend(target.username, me.username)
     if created:

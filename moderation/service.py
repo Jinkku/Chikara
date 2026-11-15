@@ -249,3 +249,49 @@ def revoke_support(username):
     from .models import Supporter
     Supporter.objects.filter(username=username).delete()
     supporters_changed()
+
+
+# ---------------------------------------------------------------- supporter perks besides the banner
+
+# Higher limits for supporters (and the team): (everyone, supporters).
+SUPPORTER_LIMITS = {
+    "friends": (500, 1000),
+    "private_rooms": (20, 50),
+    "favorites": (2000, 5000),
+    "bio": (3000, 6000),
+}
+
+
+def limit_for(username, what):
+    base, more = SUPPORTER_LIMITS[what]
+    return more if has_supporter_perks(username) else base
+
+
+def supporter_heart(username):
+    """A small pink heart after a supporter's name in lists (ranking, friends...)."""
+    if not is_supporter(username):
+        return ""
+    return '<span class="sup-heart" title="Qlute supporter" aria-label="Qlute supporter">&#9829;</span>'
+
+
+def _supporter_border_paths():
+    """users.cardborder values ("/" + image) of the supporter-only card borders (cached like the supporter sets)."""
+    from django.core.cache import cache
+    from .models import CardBorder
+    paths = cache.get("supporter_border_paths")
+    if paths is None:
+        paths = {"/" + p for p in CardBorder.objects.filter(supporter_only=True).values_list("image", flat=True)}
+        cache.set("supporter_border_paths", paths, SUPPORTER_CACHE_SECONDS)
+    return paths
+
+
+def borders_changed():
+    from django.core.cache import cache
+    cache.delete("supporter_border_paths")
+
+
+def border_shown(username, path):
+    """A player's card border, or None when it's a supporter-only one and they don't have the perks (any more)."""
+    if path and path in _supporter_border_paths() and not has_supporter_perks(username):
+        return None
+    return path

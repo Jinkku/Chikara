@@ -73,7 +73,7 @@
             <a href="/user/${encodeURIComponent(c.username)}"><img class="bm-comment-pfp" src="${esc(c.pfp)}" alt="" loading="lazy"></a>
             <div class="bm-comment-body">
                 <div class="bm-comment-head">
-                    <a href="/user/${encodeURIComponent(c.username)}"><b>${esc(c.username)}</b></a>
+                    <a href="/user/${encodeURIComponent(c.username)}"><b>${esc(c.username)}</b>${c.supporter ? '<span class="sup-heart" title="Qlute supporter">&#9829;</span>' : ""}</a>
                     <span class="bm-dim" title="${esc(new Date(c.created * 1000).toLocaleString())}">${esc(ago(c.created))}</span>
                     ${c.can_delete ? '<button type="button" class="bm-comment-delete" title="Delete this comment">Delete</button>' : ""}
                 </div>

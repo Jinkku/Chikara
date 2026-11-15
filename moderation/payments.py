@@ -329,13 +329,19 @@ def sync_orders(orders):
 
 PERKS = [
     ("banner", "Profile banner", "Put any image behind your name on your profile, the friends list, the ranking podium and your header card."),
-    ("heart", "Supporter badge", "A pink heart badge next to your name, so everyone knows you keep Qlute going."),
+    ("heart", "Supporter badge", "A pink heart badge on your profile and a heart after your name in the ranking, friends lists and beatmap comments."),
+    ("chat", "Pink name in chat", "Your name shows up pink with a heart in chat, so everyone knows who keeps Qlute going."),
+    ("border", "Supporter card borders", "Wear the card borders made just for supporters."),
+    ("up", "Higher limits", "Up to 1000 friends, 50 private chat rooms, 5000 favourite beatmaps and a 6000-character bio."),
     ("server", "Keep Qlute free", "Every tag pays for servers and development. Qlute stays free and open source for everyone."),
 ]
 ICONS = {
     "banner": '<path d="M3 5h18v14H3zM3 15l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/>',
     "heart": '<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 12 5.6 5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/>',
     "server": '<path d="M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01"/>',
+    "chat": '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/>',
+    "border": '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h6M7 14h4"/>',
+    "up": '<path d="M12 19V5M5 12l7-7 7 7"/>',
 }
 
 

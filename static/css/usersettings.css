@@ -102,3 +102,10 @@
 .banner-perk a { color: #f3baff; font-weight: 700; text-decoration: underline; }
 .banner-drop.locked .banner-img { filter: grayscale(.7) brightness(.6); }
 .banner-drop.locked .banner-hint { opacity: 1; background: #000000b0; }
+
+/* supporter-only card borders */
+.border-option.supporter-only span .sup-heart { margin: 0; }
+.border-option.locked { opacity: .55; }
+.border-option.locked img { filter: grayscale(.6); }
+.border-option.locked:hover { opacity: .8; }
+.avatar-status a { color: #f3baff; text-decoration: underline; }

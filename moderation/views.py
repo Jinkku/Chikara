@@ -522,5 +522,8 @@ def borders_edit_view(request, me, staff, args):
         b.name = name
     if "active" in data:
         b.active = str(data.get("active")).lower() in ("1", "true")
+    if "supporter_only" in data:
+        b.supporter_only = str(data.get("supporter_only")).lower() in ("1", "true")
     b.save()
+    service.borders_changed()
     return JsonResponse({"ok": True, "border": content.border_json(b, content.border_users(b))})

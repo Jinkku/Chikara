@@ -102,7 +102,7 @@ def game_notices():
 # ---------------------------------------------------------------- card borders
 
 def border_json(b, users=None):
-    j = {"id": b.id, "name": b.name, "url": url_of(b.image), "active": b.active}
+    j = {"id": b.id, "name": b.name, "url": url_of(b.image), "active": b.active, "supporter_only": b.supporter_only}
     if users is not None:
         j["users"] = users
     return j

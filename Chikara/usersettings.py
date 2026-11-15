@@ -20,11 +20,12 @@ def usersettings(request):
     if checklogin(username, request.COOKIES.get('password'))[0]:
         user = User.objects.filter(username=username).first()
         html = header(request, title="Qlute - User settings", robots="noindex, nofollow", customhead="""
-    <link rel="stylesheet" href="/static/css/usersettings.css?v=6">
-    <script src="/static/script/usersettings.js?v=6"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read() \
+    <link rel="stylesheet" href="/static/css/usersettings.css?v=7">
+    <script src="/static/script/usersettings.js?v=7"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read() \
             .replace("{avatar}", escape(_pfp_url(user.pfppath if user else None))) \
             .replace("{banner}", escape(banner_url(user.bannerpath if user else None))) \
             .replace("{bannerperk}", banner_perk_html(user)) \
+            .replace("{borderperks}", "1" if user and moderation.has_supporter_perks(user.username) else "") \
             .replace("{bannerlocked}", "" if user and moderation.has_supporter_perks(user.username) else "1") \
             .replace("{username}", escape(username)) \
             .replace("{cardborder}", escape((user.cardborder or "") if user else "")) \
@@ -207,8 +208,10 @@ def bio(request, action=""):
         text = clean_text(json.loads(request.body or b"{}").get("text"))
     except (ValueError, AttributeError):
         return JsonResponse({"error": "Couldn't read that."}, status=400)
-    if len(text) > BIO_MAX:
-        return JsonResponse({"error": f"Your bio can be at most {BIO_MAX} characters."}, status=400)
+    limit = moderation.limit_for(user.username, "bio")
+    if len(text) > limit:
+        more = "" if limit > BIO_MAX else f" (supporters get {moderation.SUPPORTER_LIMITS['bio'][1]})"
+        return JsonResponse({"error": f"Your bio can be at most {limit} characters{more}."}, status=400)
     User.objects.filter(id=user.id).update(bio=text or None)
     return JsonResponse({"ok": True, "bio": text, "html": to_html(text)})
 
@@ -232,6 +235,8 @@ def cardborder(request):
     border = CardBorder.objects.filter(id=border_id, active=True).first()
     if border is None:
         return JsonResponse({"error": "That card border isn't available."}, status=404)
+    if border.supporter_only and not moderation.has_supporter_perks(user.username):
+        return JsonResponse({"error": "That card border is a supporter perk <3"}, status=403)
     User.objects.filter(id=user.id).update(cardborder="/" + border.image)
     return JsonResponse({"ok": True, "id": border.id})
 

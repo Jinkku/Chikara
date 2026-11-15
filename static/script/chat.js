@@ -73,7 +73,7 @@
             if (d.channel === state.active) renderMessages();
         },
         msg(d) {
-            push(d.channel, { author: d.author, text: d.text, ts: d.ts });
+            push(d.channel, { author: d.author, text: d.text, ts: d.ts, supporter: !!d.supporter });
             if (d.channel !== state.active || document.hidden) {
                 if (d.author !== me) state.unread.set(d.channel, (state.unread.get(d.channel) || 0) + 1);
                 renderLists();
@@ -306,8 +306,12 @@
             const row = el("div", "ct-msg" + (grouped ? " grouped" : "") + (line.author === me ? " mine" : ""));
             if (!grouped) {
                 const head = el("div", "ct-msg-head");
-                const a = el("a", "ct-author", line.author);
+                const a = el("a", "ct-author" + (line.supporter ? " sup" : ""), line.author);
                 a.href = "/user/" + encodeURIComponent(line.author);
+                if (line.supporter) {
+                    a.title = "Qlute supporter";
+                    a.appendChild(el("span", "ct-sup-heart", "\u2665"));
+                }
                 const t = el("time", "ct-time", fmtTime(line.ts));
                 t.dateTime = new Date(line.ts).toISOString();
                 head.append(a, t);

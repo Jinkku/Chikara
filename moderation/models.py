@@ -86,6 +86,7 @@ class CardBorder(models.Model):
     name = models.CharField(max_length=64)
     image = models.CharField(max_length=255)  # relative to the storage folder, e.g. "cardborders/x.png"
     active = models.BooleanField(default=True)  # inactive: hidden from the picker, people using it keep it
+    supporter_only = models.BooleanField(default=False)  # a supporter perk: hidden on players without supporter perks
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.CharField(max_length=256, blank=True, default="")
 

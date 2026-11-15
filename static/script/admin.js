@@ -769,10 +769,11 @@
             card.innerHTML = `
                 <img class="adm-border" src="${esc(b.url)}" alt="">
                 <input type="text" class="n" maxlength="64" value="${esc(b.name)}">
-                <span class="adm-meta">${b.active ? "Offered in settings" : "Hidden from settings"} &middot; used by ${b.users} player${b.users === 1 ? "" : "s"}</span>
+                <span class="adm-meta">${b.supporter_only ? `<span class="adm-pill purple">&#9829; supporter-only</span> ` : ""}${b.active ? "Offered in settings" : "Hidden from settings"} &middot; used by ${b.users} player${b.users === 1 ? "" : "s"}</span>
                 <div class="adm-actions">
                     <button class="adm-btn good" data-a="save">Save name</button>
                     <button class="adm-btn" data-a="toggle">${b.active ? "Hide" : "Offer"}</button>
+                    <button class="adm-btn" data-a="supporter">${b.supporter_only ? "Make it free for everyone" : "Make it supporter-only"}</button>
                     <button class="adm-btn danger" data-a="delete">Delete</button>
                 </div>
                 <p class="adm-msg"></p>`;
@@ -784,6 +785,7 @@
                 try {
                     if (a === "save") await api(`borders/${b.id}/edit`, { name: card.querySelector(".n").value.trim() });
                     else if (a === "toggle") await api(`borders/${b.id}/edit`, { active: !b.active });
+                    else if (a === "supporter") await api(`borders/${b.id}/edit`, { supporter_only: !b.supporter_only });
                     else await api(`borders/${b.id}/delete`, {});
                     route();
                 } catch (err) { msg.textContent = err.message; btn.disabled = false; }

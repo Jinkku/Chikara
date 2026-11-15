@@ -112,8 +112,10 @@ def _favorites(request, parts, me, write):
         if parts[0] == "add":
             if me.restricted:
                 return _error("Restricted accounts can't favourite beatmaps.", 403)
-            if FavoriteBeatmap.objects.filter(username=me.username).count() >= MAX_FAVORITES:
-                return _error(f"You can have at most {MAX_FAVORITES} favourites.")
+            limit = moderation.limit_for(me.username, "favorites")
+            if FavoriteBeatmap.objects.filter(username=me.username).count() >= limit:
+                more = "" if limit > MAX_FAVORITES else f" (supporters can have {moderation.SUPPORTER_LIMITS['favorites'][1]})"
+                return _error(f"You can have at most {limit} favourites{more}.")
             FavoriteBeatmap.objects.get_or_create(username=me.username, beatmapsetid=setid)
         else:
             FavoriteBeatmap.objects.filter(username=me.username, beatmapsetid=setid).delete()
@@ -137,6 +139,7 @@ def comment_json(c, me=None, pictures=None):
         "created": int(c.created.timestamp()),
         "beatmapid": c.beatmapid,
         "can_delete": bool(me) and (me.username == c.username or moderation.is_staff(me.username)),
+        "supporter": moderation.is_supporter(c.username),
     }
 
 

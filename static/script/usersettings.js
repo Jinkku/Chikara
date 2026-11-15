@@ -206,6 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const borderImg = document.getElementById("bp-border");
   const borderStatus = document.getElementById("border-status");
   const current = grid.dataset.current; // users.cardborder, e.g. "/cardborders/x.png"
+  const hasPerks = grid.dataset.perks === "1"; // supporter-only borders are a supporter perk
 
   function previewBorder(url) {
     borderImg.hidden = !url;
@@ -229,6 +230,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function choose(b) {
     if (b.classList.contains("selected")) return;
+    if (b.classList.contains("locked")) {
+      borderStatus.className = "avatar-status error";
+      borderStatus.innerHTML = 'That border is a supporter perk. <a href="/support">Become a supporter</a> &lt;3';
+      return;
+    }
     borderStatus.className = "avatar-status";
     borderStatus.textContent = "Saving...";
     try {
@@ -255,6 +261,14 @@ document.addEventListener("DOMContentLoaded", () => {
     let found = !current;
     for (const border of data.results) {
       const b = option(border.id, border.name, border.url);
+      if (border.supporter_only) {
+        b.classList.add("supporter-only");
+        b.querySelector("span").insertAdjacentHTML("afterbegin", '<i class="sup-heart" title="Supporter perk">&#9829;</i> ');
+        if (!hasPerks) {
+          b.classList.add("locked");
+          b.title = "Supporter perk: become a supporter to use this border";
+        }
+      }
       if (current && border.url.endsWith(current)) { b.classList.add("selected"); found = true; }
       grid.appendChild(b);
     }

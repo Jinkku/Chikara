@@ -29,7 +29,8 @@ MAX_TITLE = 40
 HISTORY = 50
 ONLINE_WINDOW = timedelta(seconds=90)   # clients ping every 30 s
 RATE_COUNT, RATE_WINDOW = 8, 5.0         # at most 8 actions per 5 s
-MAX_PRIVATE_ROOMS = 20
+MAX_PRIVATE_ROOMS = 20   # for everyone; supporters get more (moderation.service.SUPPORTER_LIMITS)
+SUPPORTER_ROOMS = 50
 MAX_DMS_LISTED = 30
 PRESENCE_GROUP = "chat.presence"
 RECONNECT_CODE = 4002   # "your account changed (banned / unbanned): connect again"
@@ -64,8 +65,15 @@ def user_id_of(username):
 
 @database_sync_to_async
 def history(room_key):
+    from moderation.service import is_supporter
     rows = list(Message.objects.filter(room=room_key).order_by("-created_at")[:HISTORY])
-    return [{"author": m.author, "text": m.body, "ts": ts(m.created_at)} for m in reversed(rows)]
+    return [{"author": m.author, "text": m.body, "ts": ts(m.created_at), "supporter": is_supporter(m.author)} for m in reversed(rows)]
+
+
+@database_sync_to_async
+def supporter(username):
+    from moderation.service import is_supporter
+    return is_supporter(username)
 
 
 @database_sync_to_async
@@ -103,7 +111,8 @@ def is_member(room_id, username):
 
 @database_sync_to_async
 def create_room(owner, title):
-    if PrivateChatMember.objects.filter(username=owner).count() >= MAX_PRIVATE_ROOMS:
+    from moderation.service import limit_for
+    if PrivateChatMember.objects.filter(username=owner).count() >= limit_for(owner, "private_rooms"):
         return None
     with transaction.atomic():
         room = PrivateChatRoom.objects.create(owner=owner, title=title)
@@ -393,7 +402,8 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
                 await self.error(why_not)
                 return
             when = await save_message(channel, self.username, text)
-            event = {"type": "chat.dm", "channel": channel, "author": self.username, "text": text, "ts": when}
+            event = {"type": "chat.dm", "channel": channel, "author": self.username, "text": text, "ts": when,
+                     "supporter": await supporter(self.username)}
             for uid in (dm.low_id, dm.high_id):
                 await self.channel_layer.group_send(user_group(uid), event)
             await notify(dm.other(self.user_id), "dm", self.username, f"{self.username} sent you a message",
@@ -406,14 +416,15 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
                 return
             group = room_group(room_id)
         when = await save_message(channel, self.username, text)
-        await self.channel_layer.group_send(group, {"type": "chat.msg", "channel": channel,
-                                                    "author": self.username, "text": text, "ts": when})
+        await self.channel_layer.group_send(group, {"type": "chat.msg", "channel": channel, "author": self.username,
+                                                    "text": text, "ts": when, "supporter": await supporter(self.username)})
 
     async def op_create(self, c):
         title = clean(c.get("title"), MAX_TITLE, f"{self.username}'s room")
         room_id = await create_room(self.username, title)
         if room_id is None:
-            await self.error(f"You can be in at most {MAX_PRIVATE_ROOMS} private rooms.")
+            await self.error("You're in as many private rooms as you can be. Leave one first"
+                             f" (supporters can be in {SUPPORTER_ROOMS}).")
             return
         await self.channel_layer.group_send(user_group(self.user_id), {"type": "chat.joined", "room": room_id})
 
@@ -481,7 +492,8 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
     # ---------------------------------------------------------------- group events
 
     async def chat_msg(self, e):
-        await self.send_json({"op": "msg", "channel": e["channel"], "author": e["author"], "text": e["text"], "ts": e["ts"]})
+        await self.send_json({"op": "msg", "channel": e["channel"], "author": e["author"], "text": e["text"], "ts": e["ts"],
+                              "supporter": e.get("supporter", False)})
 
     async def chat_notice(self, e):
         await self.send_json({"op": "notice", "channel": e["channel"], "text": e["text"]})
@@ -540,7 +552,8 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
             # A new conversation for this session: the room (with its history, which has this message) instead.
             await self.show_dm(e["channel"], focus=False)
             return
-        await self.send_json({"op": "msg", "channel": e["channel"], "author": e["author"], "text": e["text"], "ts": e["ts"]})
+        await self.send_json({"op": "msg", "channel": e["channel"], "author": e["author"], "text": e["text"], "ts": e["ts"],
+                              "supporter": e.get("supporter", False)})
 
     async def chat_dm_room(self, e):
         if "dm" not in self.features or self.restricted:

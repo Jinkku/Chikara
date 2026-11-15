@@ -165,3 +165,5 @@ text-align: center; } /* Gold */
 @media (max-width: 760px) { .profile-bio-head .profile-action { position: static; margin-left: 10px; } }
 .team-badge.supporter { background: linear-gradient(120deg, #ff7ab8, #b98cff); color: #2a1730; }
 .team-badge + .team-badge { margin-left: 6px; }
+/* the supporter heart after a name in lists (ranking, friends, comments) */
+.sup-heart { margin-left: 4px; color: #ff7ab8; font-style: normal; font-size: .9em; text-shadow: 0 0 6px #ff7ab866; }

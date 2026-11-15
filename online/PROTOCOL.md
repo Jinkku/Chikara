@@ -44,8 +44,8 @@ Server → client
 | op | fields |
 |---|---|
 | `welcome` | `v`, `user`, `channels: [{id,title}]`, `rooms: [{id,title,owner,members}]`, `invites: [{room,title,from}]`, `online: [names]` |
-| `history` | `channel`, `lines: [{author,text,ts}]` (last 50, oldest first) |
-| `msg` | `channel`, `author`, `text`, `ts` (unix ms); your own messages come back too |
+| `history` | `channel`, `lines: [{author,text,ts,supporter}]` (last 50, oldest first) |
+| `msg` | `channel`, `author`, `text`, `ts` (unix ms), `supporter` (bool: the author is a Qlute supporter, show their name specially); your own messages come back too |
 | `notice` | `channel`, `text` (joined / left / invited lines) |
 | `room` | `room: {id,title,owner,members}` (you joined it, or its members changed); DMs add `dm: true, with: <other player>`, and `focus: true` when you just opened it |
 | `left` | `room` |

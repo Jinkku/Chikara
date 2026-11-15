@@ -344,7 +344,7 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
         t = {"url" : str(t)}
     elif command == 'cardborder':
         user = User.objects.get(username=useris)
-        t = user.cardborder if user else None
+        t = moderation.border_shown(user.username, user.cardborder) if user else None
         if user.restricted:
             t = CheaterCardBorder
         elif t == None:
@@ -975,6 +975,7 @@ def _player_json(u):
         "points": u.ranked_points or 0,
         "pfp": _pfp_url(u.pfppath),
         "banner": shown_banner(u),
+        "supporter": moderation.is_supporter(u.username),
     }
 
 
@@ -1026,7 +1027,8 @@ def public_profile(name):
         "judgements": {"max": u.max or 0, "great": u.great or 0, "meh": u.meh or 0, "bad": u.bad or 0},
         "joined": int(u.created.timestamp()) if u.created else 0,
         "bio": u.bio or "",
-        "cardborder": CheaterCardBorder if u.restricted else (_pfp_url(u.cardborder) if u.cardborder else None),
+        "cardborder": CheaterCardBorder if u.restricted else (
+            _pfp_url(moderation.border_shown(u.username, u.cardborder)) if moderation.border_shown(u.username, u.cardborder) else None),
         "medals": [{"title": t, "desc": d, "achieved": bool(g), "hint": MEDAL_HINTS.get(t) or extra_hints.get(t) or d}
                    for t, d, g in getmedals(u.username)],
         "best": [_score_json(sc) for sc in Score.objects.filter(username=u.username, ranked=1).order_by('-points')[:10]],
@@ -1112,7 +1114,7 @@ def chat_page(request):
     """Chat rooms on the website: the game's channels, private rooms and DMs (static/script/chat.js)."""
     username = request.COOKIES.get('username')
     login = checklogin(username, request.COOKIES.get('password', None))
-    html = header(request, customhead='<link rel="stylesheet" href="/static/css/chat.css?v=3">', title="Qlute - chat", robots=NOINDEX)
+    html = header(request, customhead='<link rel="stylesheet" href="/static/css/chat.css?v=4">', title="Qlute - chat", robots=NOINDEX)
     if not login[0]:
         html += ('<div class="infoboxcontainer"><div class="infoboxtitle ct-titlebar"><h1>chat</h1></div>'
                  '<div class="infobox verticalpadding ct-login"><p>Log in to chat with other players.</p></div></div>')
@@ -1121,7 +1123,7 @@ def chat_page(request):
                  '<div class="infobox verticalpadding ct-login"><p>Restricted accounts can\'t use chat.</p></div></div>')
     else:
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/chat.html").read().replace("{usertag}", escape(username))
-        html += '<script src="/static/script/chat.js?v=1" defer></script>'
+        html += '<script src="/static/script/chat.js?v=2" defer></script>'
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
     return HttpResponse(html)
 
@@ -1155,7 +1157,7 @@ def friends_page(request):
             html += (f'<div class="friend-row{" has-banner" if f.get("banner") else ""}" data-name="{name}"{banner_style(f.get("banner"))}>'
                      f'<a class="friend-main" href="/user/{urllib.parse.quote(f["username"])}">'
                      f'<img class="friend-pfp" src="{escape(f["pfp"])}" alt="">'
-                     f'<span class="friend-info"><span class="friend-name">{name}{mutual}</span>'
+                     f'<span class="friend-info"><span class="friend-name">{name}{moderation.supporter_heart(f["username"])}{mutual}</span>'
                      f'<span class="friend-status"><i class="dot{" on" if f["online"] else ""}"></i>{status}</span></span></a>'
                      f'<span class="friend-rank">{rank}</span>'
                      f'<button class="profile-action friend-remove" data-target="{name}" title="Remove from your friends">Remove</button></div>')
@@ -1875,7 +1877,7 @@ def user_classic(request, user):
             owner = viewerlogin[0] and not viewerlogin[1] and viewer == usr.username
             if usr.bio or owner:
                 from Chikara.bbcode import to_html
-                from Chikara.usersettings import BIO_MAX
+                BIO_MAX = moderation.limit_for(usr.username, "bio")
                 shown = to_html(usr.bio) if usr.bio else '<p class="profile-bio-empty">You haven\'t written anything about yourself yet.</p>'
                 html += '<div class="infobox column spacetop spacebottom profile-bio" id="profile-bio">'
                 html += '<div class="profile-bio-head"><div class="title">About me</div>'
@@ -2051,7 +2053,7 @@ def user(request, user):
     # ---- about me (ids kept for bioeditor.js)
     if usr.bio or owner:
         from Chikara.bbcode import to_html
-        from Chikara.usersettings import BIO_MAX
+        BIO_MAX = moderation.limit_for(usr.username, "bio")
         shown = to_html(usr.bio) if usr.bio else '<p class="profile-bio-empty">You haven\'t written anything about yourself yet.</p>'
         html += '<section class="infobox column pf-section profile-bio" id="profile-bio">'
         html += '<div class="profile-bio-head"><div class="title">About me</div>'
@@ -2118,7 +2120,7 @@ def user(request, user):
 
 
 def _rank_name(u):
-    return escape(urllib.parse.unquote(u.username or ""))
+    return escape(urllib.parse.unquote(u.username or "")) + moderation.supporter_heart(u.username)
 
 
 def ranking(request, command=""):
