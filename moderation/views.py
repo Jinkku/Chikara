@@ -13,7 +13,7 @@ from Chikara.settings import SUPPORT_URL
 from dbview.models import Score, User
 from submissions import claims
 from . import content, news, service
-from .models import Ban, CardBorder, Notice, Report, StaffMember, Supporter
+from .models import Ban, CardBorder, Notice, Report, StaffMember, SupportOrder, Supporter
 
 PAGE = 50
 MAX_REASON = 500
@@ -365,8 +365,15 @@ def supporter_json(s):
 def supporters_view(request, me, staff, args):
     rows = list(Supporter.objects.order_by("-updated")[:500])
     rows.sort(key=lambda s: (not s.active(), s.username.lower()))
+    from . import payments
+    orders = [{"id": o.id, "buyer": o.buyer, "recipient": o.recipient, "months": o.months, "status": o.status,
+               "amount": o.amount, "sandbox": o.sandbox, "xsolla_order": o.xsolla_order_id or 0,
+               "created": ts(o.created), "paid_at": ts(o.paid_at)}
+              for o in SupportOrder.objects.exclude(status=SupportOrder.STATUS_PENDING, created__lt=timezone.now() - timezone.timedelta(days=2))
+                                           .order_by("-created")[:50]]
     return JsonResponse({"results": [supporter_json(s) for s in rows], "support_url": SUPPORT_URL,
-                         "can_edit": staff.role == StaffMember.ROLE_ADMIN})
+                         "can_edit": staff.role == StaffMember.ROLE_ADMIN, "orders": orders,
+                         "payments_ready": payments.configured()})
 
 
 def supporters_edit_view(request, me, staff, args):

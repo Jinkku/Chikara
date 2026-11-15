@@ -130,3 +130,23 @@ class Supporter(models.Model):
 
     def __str__(self):
         return f"{self.username} (until {self.expires or 'forever'})"
+
+
+class SupportOrder(models.Model):
+    """A supporter tag checkout through Xsolla (moderation/payments.py). Made when the buyer presses Buy;
+    Xsolla's order_paid webhook marks it paid and grants the time, order_canceled takes it back."""
+    STATUS_PENDING, STATUS_PAID, STATUS_CANCELED = "pending", "paid", "canceled"
+    buyer = models.CharField(max_length=255, db_index=True)
+    recipient = models.CharField(max_length=255, db_index=True)   # == buyer unless it's a gift
+    sku = models.CharField(max_length=64)
+    months = models.IntegerField()
+    xsolla_order_id = models.BigIntegerField(null=True, blank=True, unique=True)
+    status = models.CharField(max_length=16, default=STATUS_PENDING, db_index=True)
+    sandbox = models.BooleanField(default=False)
+    amount = models.CharField(max_length=32, blank=True, default="")    # what Xsolla says was paid, e.g. "4.00 USD"
+    created = models.DateTimeField(auto_now_add=True, db_index=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    canceled_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"#{self.id} {self.buyer} -> {self.recipient} {self.months}m ({self.status})"

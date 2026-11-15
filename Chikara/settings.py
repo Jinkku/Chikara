@@ -146,13 +146,21 @@ client_secret = ""
 client_id = ""
 osu_oauth_id = ""
 osu_oauth_secret = ""
+# Xsolla (supporter purchases, moderation/payments.py). Set in config/config.conf, which is not in git:
+#   xsolla_project_id=   xsolla_api_key=   xsolla_webhook_secret=   xsolla_sandbox=true|false
+XSOLLA_PROJECT_ID = ""
+XSOLLA_API_KEY = ""
+XSOLLA_WEBHOOK_SECRET = ""
+XSOLLA_SANDBOX = True
 CONFIG_FILE = str(BASE_DIR) + "/config/config.conf"
 tmp = "/"
 #Before using this please set these up at /etc/Chikara/config.conf
 if os.path.isfile(CONFIG_FILE):
     for cfg in open(CONFIG_FILE).read().split("\n"):
         if not cfg.startswith("#"):
-            key = cfg.split("=")
+            key = cfg.split("=", 1)  # values (API keys) may contain "="
+            if len(key) < 2:
+                continue
             if key[0] == "storagepath":
                 storage_root = key[1]
             elif key[0] == "secretkey":
@@ -161,6 +169,14 @@ if os.path.isfile(CONFIG_FILE):
                 osu_oauth_id = key[1].strip()
             elif key[0] == "osu_client_secret":
                 osu_oauth_secret = key[1].strip()
+            elif key[0] == "xsolla_project_id":
+                XSOLLA_PROJECT_ID = key[1].strip()
+            elif key[0] == "xsolla_api_key":
+                XSOLLA_API_KEY = key[1].strip()
+            elif key[0] == "xsolla_webhook_secret":
+                XSOLLA_WEBHOOK_SECRET = key[1].strip()
+            elif key[0] == "xsolla_sandbox":
+                XSOLLA_SANDBOX = key[1].strip().lower() not in ("false", "0", "no", "off")
 else:
     with open(CONFIG_FILE, "w") as f:
         f.write("""#Config file for Chikara (Qlute's backend processor.)
@@ -205,8 +221,18 @@ REPLAYS =  os.path.join(storage_root, 'replays')
 DataURL = "https://data.jinkku.moe"
 # The website's public address: canonical links, the sitemap and social previews point here.
 SiteURL = "https://qlute.jinkku.moe"
-# Where "become a supporter" links go (donations there are turned into supporter time from the admin panel).
-SUPPORT_URL = "https://buymeacoffee.com/jinkkuproductions"
+# Where "become a supporter" links go: the supporter page (moderation/payments.py).
+SUPPORT_URL = "/support"
+# Supporter tags sold through Xsolla. Each plan is a virtual item in your Xsolla Publisher Account
+# (Store > Virtual items) with this exact SKU; Xsolla's price is what's charged, `price` here is only what
+# the support page shows, so keep them in sync.
+SUPPORTER_PLANS = [
+    {"sku": "supporter-1m", "months": 1, "price": "$4"},
+    {"sku": "supporter-2m", "months": 2, "price": "$8"},
+    {"sku": "supporter-4m", "months": 4, "price": "$14"},
+    {"sku": "supporter-6m", "months": 6, "price": "$20"},
+    {"sku": "supporter-12m", "months": 12, "price": "$36"},
+]
 AssetPath = DataURL + "/song_assets/"
 SongFilePath = DataURL + "/songs/"
 # Please put your path to the image for this to work.

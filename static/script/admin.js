@@ -619,10 +619,28 @@
         const active = data.results.filter(s => s.active).length;
         view.innerHTML = `
             <p class="adm-meta" style="margin-top:0">Supporters get a profile banner and a &#9829; Supporter badge (the team gets banners too).
-                When someone donates on <a href="${esc(data.support_url)}" target="_blank" rel="noopener">your support page</a>,
-                grant them time here; it ends on its own. ${active} active supporter${active === 1 ? "" : "s"}.</p>
+                Players buy supporter tags on <a href="${esc(data.support_url)}" target="_blank" rel="noopener">the supporter page</a> through Xsolla,
+                which grants the time on its own${data.payments_ready ? "" : " (<b>payments aren't set up yet: add the Xsolla keys to config/config.conf</b>)"}.
+                You can also grant time by hand here. ${active} active supporter${active === 1 ? "" : "s"}.</p>
             <div id="add"></div>
-            <div class="adm-list" id="list"></div>`;
+            <div class="adm-list" id="list"></div>
+            <div class="adm-section">Recent purchases</div>
+            <div class="adm-list" id="orders"></div>`;
+        const orders = view.querySelector("#orders");
+        if (!data.orders.length) orders.innerHTML = `<p class="adm-meta">No purchases yet.</p>`;
+        data.orders.forEach(o => {
+            const card = document.createElement("div");
+            card.className = "adm-card" + (o.status === "paid" ? "" : " closed");
+            const pill = { paid: "green", canceled: "red", pending: "yellow" }[o.status] || "";
+            card.innerHTML = `
+                <div class="adm-head">
+                    <span class="who">#${o.id} ${userLink(o.buyer)}${o.recipient !== o.buyer ? ` &rarr; ${userLink(o.recipient)} (gift)` : ""}
+                        <span class="adm-pill ${pill}">${esc(o.status)}</span>${o.sandbox ? ` <span class="adm-pill">test</span>` : ""}</span>
+                    <span class="adm-meta">${o.months} month${o.months === 1 ? "" : "s"}${o.amount ? " &middot; " + esc(o.amount) : ""}</span>
+                </div>
+                <div class="adm-meta">started ${when(o.created)}${o.paid_at ? " &middot; paid " + when(o.paid_at) : ""}${o.xsolla_order ? " &middot; Xsolla order " + o.xsolla_order : ""}</div>`;
+            orders.appendChild(card);
+        });
         if (data.can_edit) {
             const add = view.querySelector("#add");
             add.innerHTML = `

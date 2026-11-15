@@ -206,8 +206,9 @@ def has_supporter_perks(username):
     return bool(username) and (username in supporters or username in team)
 
 
-def grant_support(username, months, by, note=""):
-    """Adds `months` of supporter time (stacking on time they still have), or forever when months is None."""
+def grant_support(username, months, by, note="", message=None):
+    """Adds `months` of supporter time (stacking on time they still have), or forever when months is None.
+    `message` replaces the thank-you notification text."""
     from .models import Supporter
     now = timezone.now()
     row = Supporter.objects.filter(username=username).first()
@@ -223,12 +224,25 @@ def grant_support(username, months, by, note=""):
         "expires": expires, "granted_by": by, "note": note[:300]})
     supporters_changed()
     from online.notifications import push
-    if first:
+    if message:
+        push(username, "supporter", by, message, "/settings")
+    elif first:
         push(username, "supporter", by, "You're a Qlute supporter now! Thank you so much <3 "
              "You can upload a profile banner in your settings.", "/settings")
     else:
         push(username, "supporter", by, "Your supporter time was extended. Thank you <3", "/settings")
     return row
+
+
+def take_support(username, months):
+    """Removes `months` of supporter time again (a canceled / refunded purchase). Forever grants are left alone."""
+    from .models import Supporter
+    row = Supporter.objects.filter(username=username).first()
+    if row is None or row.expires is None:
+        return
+    row.expires -= timedelta(days=round(30.44 * months))
+    row.save(update_fields=["expires", "updated"])
+    supporters_changed()
 
 
 def revoke_support(username):
