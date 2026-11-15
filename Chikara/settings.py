@@ -223,16 +223,12 @@ DataURL = "https://data.jinkku.moe"
 SiteURL = "https://qlute.jinkku.moe"
 # Where "become a supporter" links go: the supporter page (moderation/payments.py).
 SUPPORT_URL = "/support"
-# Supporter tags sold through Xsolla. Each plan is a virtual item in your Xsolla Publisher Account
-# (Store > Virtual items) with this exact SKU; Xsolla's price is what's charged, `price` here is only what
-# the support page shows, so keep them in sync.
-SUPPORTER_PLANS = [
-    {"sku": "supporter-1m", "months": 1, "price": "$4"},
-    {"sku": "supporter-2m", "months": 2, "price": "$8"},
-    {"sku": "supporter-4m", "months": 4, "price": "$14"},
-    {"sku": "supporter-6m", "months": 6, "price": "$20"},
-    {"sku": "supporter-12m", "months": 12, "price": "$36"},
-]
+# Supporter tags sold through Xsolla, like osu!: one virtual item in your Xsolla Publisher Account
+# (Items catalog) is one month of supporter, and a plan buys that many of it. Xsolla's price is what's
+# charged; SUPPORTER_MONTH_PRICE is only what the support page shows, so keep it in sync.
+SUPPORTER_ITEM_SKU = "qluteclan"      # "#QluteClan"
+SUPPORTER_MONTH_PRICE = 2.50          # USD
+SUPPORTER_PLANS = [1, 2, 4, 6, 12]    # months offered on /support
 AssetPath = DataURL + "/song_assets/"
 SongFilePath = DataURL + "/songs/"
 # Please put your path to the image for this to work.

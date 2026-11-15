@@ -2,8 +2,9 @@
 
 Flow:
   1. /support: the player picks a plan (settings.SUPPORTER_PLANS), optionally as a gift, and presses Buy.
-  2. POST apiv2/support/checkout {sku, gift}: we save a SupportOrder, ask Xsolla's Catalog API for a payment
-     token for that item (the buyer is user.id = their Qlute user id) and answer with the Pay Station URL.
+  2. POST apiv2/support/checkout {plan (months), gift}: we save a SupportOrder, ask Xsolla's Catalog API for a
+     payment token for `months` x the supporter item (settings.SUPPORTER_ITEM_SKU, one item = one month; the buyer
+     is user.id = their Qlute user id) and answer with the Pay Station URL.
   3. The player pays on Xsolla's page and comes back to /support?order=ID, which polls
      GET apiv2/support/order/ID until the order is paid.
   4. Xsolla calls POST apiv2/xsolla (the webhook URL set in Publisher Account), signed with
@@ -50,7 +51,13 @@ def configured():
 
 
 def plans():
-    return {p["sku"]: p for p in S.SUPPORTER_PLANS}
+    """{"4": {"months": 4, "price": "$10"}, ...}: the lengths offered on /support."""
+    return {str(m): {"months": m, "price": price_label(m)} for m in S.SUPPORTER_PLANS}
+
+
+def price_label(months):
+    total = S.SUPPORTER_MONTH_PRICE * months
+    return f"${total:.0f}" if total == int(total) else f"${total:.2f}"
 
 
 def _fail(text, status=400):
@@ -59,7 +66,8 @@ def _fail(text, status=400):
 
 def _client_ip(request):
     """The buyer's IPv4 (Xsolla picks the currency from it; it doesn't take IPv6)."""
-    ip = request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or ""
+    # Cloudflare sits in front of the site: nginx's X-Real-IP is Cloudflare's address, CF-Connecting-IP the buyer's.
+    ip = request.META.get("HTTP_CF_CONNECTING_IP") or request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or ""
     try:
         return ip if ipaddress.ip_address(ip).version == 4 else ""
     except ValueError:
@@ -99,7 +107,7 @@ def checkout(request, me):
         data = json.loads(request.body or b"{}")
     except ValueError:
         data = {}
-    plan = plans().get(str(data.get("sku") or ""))
+    plan = plans().get(str(data.get("plan") or ""))
     if plan is None:
         return _fail("Pick one of the plans.")
     recipient = me
@@ -114,23 +122,30 @@ def checkout(request, me):
     if recent >= ORDERS_PER_HOUR:
         return _fail("That's a lot of checkouts. Try again in a bit.", 429)
 
-    order = SupportOrder.objects.create(buyer=me.username, recipient=recipient.username, sku=plan["sku"],
+    order = SupportOrder.objects.create(buyer=me.username, recipient=recipient.username, sku=S.SUPPORTER_ITEM_SKU,
                                         months=plan["months"], sandbox=S.XSOLLA_SANDBOX)
     body = {
         "sandbox": S.XSOLLA_SANDBOX,
         "user": {"id": {"value": str(me.id)}, "name": {"value": me.username}},
-        "purchase": {"items": [{"sku": plan["sku"], "quantity": 1}]},
+        "purchase": {"items": [{"sku": S.SUPPORTER_ITEM_SKU, "quantity": plan["months"]}]},  # 1 item = 1 month
+        # No settings.external_id: Xsolla answers "[0401-2000] Exception with PayStation service" when it's set
+        # (orders are matched by Xsolla's order id; custom_parameters keeps ours for their dashboard).
         "settings": {
             "return_url": f"{S.SiteURL}/support?order={order.id}",
             "language": "en",
-            "external_id": f"qlute-support-{order.id}",
         },
         "custom_parameters": {"qlute_order": order.id, "recipient": recipient.username},
     }
     headers = {"Content-Type": "application/json"}
+    # Xsolla needs the buyer's IP or country (it picks the currency from it) or it refuses the checkout.
     ip = _client_ip(request)
+    country = (request.META.get("HTTP_CF_IPCOUNTRY") or "").upper()
     if ip:
         headers["X-User-Ip"] = ip
+    elif len(country) == 2 and country.isalpha() and country not in ("XX", "T1"):
+        body["user"]["country"] = {"value": country}
+    else:
+        body["user"]["country"] = {"value": "US"}
     auth = base64.b64encode(f"{S.XSOLLA_PROJECT_ID}:{S.XSOLLA_API_KEY}".encode()).decode()
     headers["Authorization"] = "Basic " + auth
     try:
@@ -139,11 +154,11 @@ def checkout(request, me):
     except (requests.RequestException, ValueError) as e:
         log.error("xsolla token request failed: %s", e)
         order.delete()
-        return _fail("Couldn't reach the payment provider. Try again in a minute.", 502)
+        return _fail("Couldn't reach the payment provider. Try again in a minute.", 424)
     if res.status_code not in (200, 201) or not reply.get("token"):
         log.error("xsolla token refused (%s): %s", res.status_code, reply)
         order.delete()
-        return _fail("The payment provider refused the checkout. Try again later.", 502)
+        return _fail("The payment provider refused the checkout. Try again later.", 424)  # not 502: Cloudflare would hide this
     if reply.get("order_id"):
         SupportOrder.objects.filter(id=order.id).update(xsolla_order_id=int(reply["order_id"]))
     page = PAYSTATION_SANDBOX if S.XSOLLA_SANDBOX else PAYSTATION
@@ -165,16 +180,14 @@ def signature_ok(request):
 
 
 def _months_in(items):
-    """Supporter months in an order's items (unknown SKUs are other products: ignored)."""
-    known = plans()
+    """Supporter months in an order's items: one supporter item is one month (other SKUs: ignored)."""
     total = 0
     for item in items or []:
-        plan = known.get(str(item.get("sku") or ""))
-        if plan:
+        if str(item.get("sku") or "") == S.SUPPORTER_ITEM_SKU:
             try:
-                total += plan["months"] * max(1, int(item.get("quantity") or 1))
+                total += max(1, int(item.get("quantity") or 1))
             except (TypeError, ValueError):
-                total += plan["months"]
+                total += 1
     return total
 
 
@@ -292,11 +305,11 @@ def support_page(request):
         f'<li class="sp-perk"><span class="sp-perk-ico"><svg viewBox="0 0 24 24" aria-hidden="true">{ICONS[i]}</svg></span>'
         f'<h3>{escape(t)}</h3><p>{escape(d)}</p></li>' for i, t, d in PERKS)
     cards = "".join(
-        f'<label class="sp-plan"><input type="radio" name="sp-plan" value="{escape(p["sku"])}"{" checked" if n == 0 else ""}>'
+        f'<label class="sp-plan"><input type="radio" name="sp-plan" value="{p["months"]}"{" checked" if n == 0 else ""}>'
         f'<span class="sp-plan-box"><span class="sp-months">{p["months"]}</span>'
         f'<span class="sp-unit">month{"" if p["months"] == 1 else "s"}</span>'
         f'<span class="sp-price">{escape(p["price"])}</span></span></label>'
-        for n, p in enumerate(S.SUPPORTER_PLANS))
+        for n, p in enumerate(plans().values()))
 
     if not configured():
         buy = '<p class="sp-note">Supporter tags aren\'t on sale just yet. Check back soon &lt;3</p>'
@@ -332,6 +345,6 @@ def support_page(request):
         {buy}
     </section>
 </div>
-<script src="/static/script/support.js?v=1" defer></script>'''
+<script src="/static/script/support.js?v=2" defer></script>'''
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
     return HttpResponse(html)

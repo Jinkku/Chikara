@@ -63,7 +63,7 @@
             const res = await fetch("/apiv2/support/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-Chikara": "1" },
-                body: JSON.stringify({ sku: plan.value, gift: to }),
+                body: JSON.stringify({ plan: plan.value, gift: to }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.url) throw new Error(data.error || "Something went wrong. Try again?");
