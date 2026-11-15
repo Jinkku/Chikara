@@ -9,7 +9,7 @@
 
 Open pages hear about changes right away over ws/v1/notify/ (online/notify_consumer.py).
 
-A notification: {"id", "kind" (friend / invite / dm / comment), "actor", "text", "link", "count", "read", "created" (unix)}.
+A notification: {"id", "kind" (friend / invite / dm / comment / supporter / medal), "actor", "text", "link", "count", "read", "created" (unix)}.
 Same auth as apiv2/friends (game headers, or website cookies + "X-Chikara: 1" for POSTs).
 Nothing here may fail the action that caused it, so push() swallows its own errors.
 """

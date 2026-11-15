@@ -1008,6 +1008,8 @@ def public_profile(name):
     score = u.ranked_score or 0
     level_raw = score * leveltemp
     extra_hints = {t: h for t, _, h, _ in EXTRA_MEDALS}
+    from online.medals import unlock_times  # when each medal was first earned (online.medals)
+    unlocked = unlock_times(u.username)
     # uploaded / claimed sets per status tab, same counts as the website profile (user())
     from submissions.models import Submission
     owned = Beatmap.objects.filter(beatmapsetid__in=Submission.objects.filter(owner=u.username).values("beatmapsetid"))
@@ -1029,8 +1031,9 @@ def public_profile(name):
         "bio": u.bio or "",
         "cardborder": CheaterCardBorder if u.restricted else (
             _pfp_url(moderation.border_shown(u.username, u.cardborder)) if moderation.border_shown(u.username, u.cardborder) else None),
-        "medals": [{"title": t, "desc": d, "achieved": bool(g), "hint": MEDAL_HINTS.get(t) or extra_hints.get(t) or d}
-                   for t, d, g in getmedals(u.username)],
+        "medals": [{"title": t, "desc": d, "achieved": bool(g), "hint": MEDAL_HINTS.get(t) or extra_hints.get(t) or d,
+                    "achieved_at": int(unlocked[i].timestamp()) if g and i in unlocked else 0}
+                   for i, (t, d, g) in enumerate(getmedals(u.username))],
         "best": [_score_json(sc) for sc in Score.objects.filter(username=u.username, ranked=1).order_by('-points')[:10]],
         "recent": [_score_json(sc) for sc in Score.objects.filter(username=u.username).order_by('-created')[:10]],
     })
@@ -1420,11 +1423,15 @@ def api(request,command,value=None):
                         if level<1:
                             level=1
                         usr.save()
-                        return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0})
+                        from online import medals as medal_unlocks  # medals this play unlocked: the game pops them up
+                        return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0,
+                                             "medals": medal_unlocks.take_unseen_safe(user)})
                    elif accept and ranked == 0:
                         if submit:
                             save_score()
-                        return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": 0,"score": usr.ranked_score,"accuracy": usr.accuracy,"max_combo": usr.max_combo,"rankedmap": 0,"msg": "", "error": 0})
+                        from online import medals as medal_unlocks
+                        return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": 0,"score": usr.ranked_score,"accuracy": usr.accuracy,"max_combo": usr.max_combo,"rankedmap": 0,"msg": "", "error": 0,
+                                             "medals": medal_unlocks.take_unseen_safe(user)})
                    elif accept and ranked > 0:
                         usr.restricted = True
                         usr.save()
@@ -2068,13 +2075,17 @@ def user(request, user):
     # ---- medals
     medal_list = list(getmedals(user))
     earned = sum(1 for m in medal_list if m[2])
-    html += '<section class="infobox column pf-section">'
+    html += '<section class="infobox column pf-section" id="medals">'
     html += f'<div class="pf-sec-head"><span class="title">Medals</span><span class="pf-dim">{earned} / {len(medal_list)} earned</span></div>'
     html += '<div class="pf-medals">'
     extra_hints = {t: h for t, _, h, _ in EXTRA_MEDALS}
-    for title, desc, show in sorted(medal_list, key=lambda m: not m[2]):
+    from online.medals import unlock_times
+    unlocked = unlock_times(user)
+    for index, (title, desc, show) in sorted(enumerate(medal_list), key=lambda m: not m[1][2]):
         how = MEDAL_HINTS.get(title) or extra_hints.get(title) or desc
-        hint = escape(("Got it! " if show else "") + how)
+        when = unlocked.get(index) if show else None
+        got = f"Got it on {when.strftime('%-d %b %Y')}! " if when else "Got it! "
+        hint = escape((got if show else "") + how)
         html += (f'<div class="pf-medal{"" if show else " locked"}" tabindex="0" data-hint="{hint}" aria-label="{escape(title)}. {hint}">'
                  f'<span class="pf-medal-icon">{"★" if show else "?"}</span>'
                  f'<span><b>{title}</b><small>{desc}</small></span></div>')

@@ -123,7 +123,7 @@ class BeatmapComment(models.Model):
 class Notification(models.Model):
     """Something that happened to `username` (shown under the bell in the website header).
     Messages from the same person stack into one unread row (`count`) instead of piling up."""
-    KINDS = ["friend", "invite", "dm", "comment", "supporter"]
+    KINDS = ["friend", "invite", "dm", "comment", "supporter", "medal"]
     username = models.CharField(max_length=256)
     kind = models.CharField(max_length=16)
     actor = models.CharField(max_length=256, blank=True, default="")
@@ -138,3 +138,27 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.username}: {self.text}"
+
+
+class MedalUnlock(models.Model):
+    """The first time `username` earned medal number `medal` (its index in Chikara/views.py getmedals()).
+    Medals themselves are still worked out live (MEDALS.md); this records when each one was first earned, so the
+    game can pop it up once (`seen`: the game has shown it) and profiles can show the date."""
+    username = models.CharField(max_length=256, db_index=True)
+    medal = models.IntegerField()
+    title = models.CharField(max_length=128)   # at the time it was earned, for reading the table by hand
+    achieved = models.DateTimeField()
+    seen = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["username", "medal"], name="online_unique_medal_unlock")]
+
+    def __str__(self):
+        return f"{self.username}: {self.title}"
+
+
+class MedalBaseline(models.Model):
+    """Players whose medals have been recorded at least once. The first check records everything they already had
+    without popping it up, so existing players don't get a pile of old medals after the update."""
+    username = models.CharField(max_length=255, unique=True)  # MariaDB: unique CharFields max 255
+    created = models.DateTimeField(auto_now_add=True)

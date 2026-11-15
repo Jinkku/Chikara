@@ -102,6 +102,10 @@ def api(request, action=""):
             mutual, err = add_friend(me, parts[1])
             if err:
                 return JsonResponse({"error": 1, "reason": err}, status=400)
+            if mutual:  # "Social Butterfly" counts mutual friends, for both of you
+                from .medals import check
+                check(me.username)
+                check(parts[1])
             return JsonResponse({"ok": True, "mutual": mutual})
         remove_friend(me, parts[1])
         return JsonResponse({"ok": True})

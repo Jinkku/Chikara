@@ -185,6 +185,8 @@ def finish_view(request, me, token):
         drop_session(s)
     print(f"[submit] {me.username} {'updated' if result.updated else 'submitted'} set {result.setid} "
           f"({len(result.beatmaps)} difficulties)")
+    from online.medals import check
+    check(me.username)  # "Mapper"
     return JsonResponse(result.json())
 
 

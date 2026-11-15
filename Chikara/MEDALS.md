@@ -14,6 +14,26 @@ gets a medal the moment they qualify (and loses it if they stop qualifying, e.g.
 - **Order matters.** Both the original medals and the game client go by position in the list, so new medals are
   always **appended** to the end. Never insert or reorder.
 
+## Unlocks and the "Medal unlocked!" popup
+
+Whether a medal is earned is still worked out live, but the **first time** each one shows up as earned is recorded in
+`online.MedalUnlock` (`online/medals.py`). That's what drives the popups:
+
+- **Game:** a "Medal unlocked!" card per new medal, under the top bar (`Qlute/Script/Medals/MedalPopup.cs`). Several
+  at once stack (3 on screen, the rest behind a "+N more" pill); none show during gameplay. The game gets new medals
+  from the score-submit reply (`apiv2/ss` → `"medals"`) and from `GET apiv2/medals/new`, which it asks right after
+  login and every 3 minutes. Each unlock is handed to the game once (`MedalUnlock.seen`).
+- **Website:** a `medal` notification (bell + toast, gold styling in `static/css/headerbuttons.css`) linking to
+  `/user/<name>#medals`.
+- **Profiles:** hovering an earned medal says when it was earned ("Got it on 15 Nov 2026!"); `public_profile()`
+  sends `achieved_at` (unix, 0 = unknown).
+- **Checked:** after every score submission, on the game's polls, and right after the website actions that can earn
+  one (a mutual friend, a favourite, a comment, a beatmap upload).
+- **First check is silent:** a player's first check (`online.MedalBaseline`) records the medals they already had as
+  seen, so nobody gets a pile of old medals after the update.
+- An unlock is never removed. A medal that's lost later (e.g. dropping out of the Top 100) and earned again doesn't
+  pop up again. Restricted accounts don't collect unlocks.
+
 ## Original medals (`medals`, index 0-15)
 
 The awarding rules are the `medco == N` checks in `getmedals()`. Stats come from the `User` row.
@@ -87,7 +107,8 @@ Ranked-only also stops anyone from uploading an easy joke map and SS-ing it for 
    description in the same joking voice as the others; the hint should still say exactly what to do.
 2. Add `"rule_key": lambda: <condition>` to `checks` in `_extra_medal_checks()`. The lambdas are lazy and
    wrapped in `try`, so a broken rule only fails its own medal instead of the whole profile.
-3. Restart daphne (`sudo systemctl restart daphne`). `views.py` is only reloaded on restart.
+3. Restart daphne (`sudo systemctl restart daphne`). `views.py` is only reloaded on restart. Players who already
+   qualify get the new medal's popup on their next check.
 4. Update this file.
 
 Cost: all 34 medals take about 35 ms per player (measured on the live database in Nov 2026).

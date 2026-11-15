@@ -26,6 +26,7 @@ import online.beatmapsocial as beatmapsocial
 import submissions.claims as claims
 import moderation.news as news
 import moderation.payments as payments
+import online.medals as medals
 
 urlpatterns = [
     path('apiv2/search', views.api, {'command': 'search'}),
@@ -40,6 +41,8 @@ urlpatterns = [
     path('apiv2/favorites', beatmapsocial.api, {'kind': 'favorites'}),
     path('apiv2/favorites/<path:action>', beatmapsocial.api, {'kind': 'favorites'}),
     path('apiv2/comments/<path:action>', beatmapsocial.api, {'kind': 'comments'}),
+    path('apiv2/medals', medals.api),
+    path('apiv2/medals/<path:action>', medals.api),
     path('apiv2/avatar', usersettings.avatar),
     path('apiv2/banner', usersettings.banner),
     path('apiv2/cardborder', usersettings.cardborder),

@@ -117,6 +117,8 @@ def _favorites(request, parts, me, write):
                 more = "" if limit > MAX_FAVORITES else f" (supporters can have {moderation.SUPPORTER_LIMITS['favorites'][1]})"
                 return _error(f"You can have at most {limit} favourites{more}.")
             FavoriteBeatmap.objects.get_or_create(username=me.username, beatmapsetid=setid)
+            from .medals import check
+            check(me.username)  # "Collector"
         else:
             FavoriteBeatmap.objects.filter(username=me.username, beatmapsetid=setid).delete()
         return JsonResponse({"ok": True, "favorited": parts[0] == "add", "count": favorite_count(setid)})
@@ -224,6 +226,8 @@ def _comments(request, parts, me, write):
         c, err = post_comment(me, setid, data.get("text"), _int(data.get("beatmapid")))
         if err:
             return _error(err)
+        from .medals import check
+        check(me.username)  # "Critic"
         return JsonResponse({"ok": True, "comment": comment_json(c, me)})
 
     from Chikara.views import _pfp_url
