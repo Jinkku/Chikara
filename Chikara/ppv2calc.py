@@ -82,8 +82,9 @@ NODE_SIZE = 54            # Gameplay.nodeSize
 PERFECT_JUDGE_MIN = 120   # SettingsOperator.PerfectJudgeMin
 MAX_HEALTH = 150          # HealthBar.MaxHealth
 
-# Judgement weights in sixths so accuracy and score stay integer: 1, 1/2, 1/3, 0.
-W_PERFECT, W_GREAT, W_MEH = 6, 3, 2
+# Score weights in tenths so score stays integer: 1, 0.7, 0.3, 0.
+# All Perfect = 1,000,000, all Great = 700,000, all Meh = 300,000 on NoMod.
+W_PERFECT, W_GREAT, W_MEH = 10, 7, 3
 
 # Score
 SCORE_ACC_PORTION = 900_000
@@ -100,13 +101,13 @@ PEAK_WEIGHT = 0.90        # sorted section peaks are summed with this decay
 STAR_SCALE = 0.028
 
 # Performance
-PP_SCALE = 1.13          # calibrated: Hommarju - Slluuddggee [Slliimmee] SS = 124pp (its osu!mania value)
+PP_SCALE = 1.243         # 1.13 (Hommarju - Slluuddggee [Slliimmee] SS = 124pp, its osu!mania value) + 10%
 PP_STAR_POWER = 2.8
 LENGTH_BONUS_MAX = 0.15   # up to +15% ...
 LENGTH_BONUS_NOTES = 2000 # ... reached at this many notes, flat after
-ACC_FLOOR = 0.70          # accuracy at which a play is worth 0 pp
-ACC_POWER = 1.5
-MISS_BASE = 0.98          # each (length-normalised) miss keeps 98% of the pp
+GREAT_BASE = 0.999        # each (length-normalised) Great keeps 99.9% of the pp
+MEH_BASE = 0.995          # each Meh keeps 99.5%
+MISS_BASE = 0.98          # each miss keeps 98%
 MISS_NORMAL_NOTES = 1000  # maps longer than this get a lighter per-miss penalty
 
 PP_MOD_FACTOR = {         # pp only; rate mods are handled by the star rating
@@ -228,15 +229,16 @@ def max_performance(stars: float, note_count: int, mods: str = "") -> float:
     return PP_SCALE * max(stars - 0.15, 0.05) ** PP_STAR_POWER * length_bonus * pp_mod_factor(mods)
 
 
-LEVEL_MIN_PP = 5.0       # Lv 1 at exactly 5 pp, Lv 0 below
-LEVEL_MAX_PP = 1500.0    # Lv 100 at 1500 pp (and higher above it)
-LEVEL_CURVE = 0.8        # < 1: levels rise faster at low pp (Lv 7 = 50-60pp, Lv 50 = ~630pp)
+# Scaled with PP_SCALE (+10%), so a map keeps the same level as before the pp boost.
+LEVEL_MIN_PP = 5.5       # Lv 1 at exactly 5.5 pp, Lv 0 below
+LEVEL_MAX_PP = 1650.0    # Lv 100 at 1650 pp (and higher above it)
+LEVEL_CURVE = 0.8        # < 1: levels rise faster at low pp (Lv 7 = 55-65pp, Lv 50 = ~690pp)
 
 
 def level_from_pp(pp: float) -> int:
     """Map level from its NoMod SS pp. Exact mirror of the game's PerformanceCalculator.LevelFromPp:
-    (int)(1 + 99 * ((pp - 5) / 1495) ^ 0.8), truncated, no clamping (maps over 1500pp go past Lv 100).
-    Below 5pp the power of a negative number is NaN in C#, which .NET (9+) converts to 0: those maps are Lv 0."""
+    (int)(1 + 99 * ((pp - 5.5) / 1644.5) ^ 0.8), truncated, no clamping (maps over 1650pp go past Lv 100).
+    Below 5.5pp the power of a negative number is NaN in C#, which .NET (9+) converts to 0: those maps are Lv 0."""
     if pp is None or pp != pp:
         return 0
     x = (pp - LEVEL_MIN_PP) / (LEVEL_MAX_PP - LEVEL_MIN_PP)
@@ -251,11 +253,11 @@ def performance(max_pp: float, note_count: int, perfect: int, great: int, meh: i
     if note_count <= 0:
         return 0.0
     bad = max(bad, note_count - perfect - great - meh)
-    acc = (W_PERFECT * perfect + W_GREAT * great + W_MEH * meh) / (W_PERFECT * note_count)
-    acc_factor = max(0.0, (acc - ACC_FLOOR) / (1.0 - ACC_FLOOR)) ** ACC_POWER
-    eff_misses = bad * min(1.0, MISS_NORMAL_NOTES / note_count)
-    miss_factor = MISS_BASE ** eff_misses
-    return max_pp * acc_factor * miss_factor
+    norm = min(1.0, MISS_NORMAL_NOTES / note_count)
+    great_factor = GREAT_BASE ** (great * norm)
+    meh_factor = MEH_BASE ** (meh * norm)
+    miss_factor = MISS_BASE ** (bad * norm)
+    return max_pp * great_factor * meh_factor * miss_factor
 
 
 def combo_portion_max(note_count: int) -> int:
@@ -268,16 +270,22 @@ def combo_portion_max(note_count: int) -> int:
     return W_PERFECT * s
 
 
-def compute_score(note_count: int, perfect: int, great: int, meh: int,
+def compute_score(note_count: int, perfect: int, great: int, meh: int, bad: int,
                   combo_portion_num: int, multiplier: float) -> int:
+    """Every miss takes off one perfect note's accuracy value (SCORE_ACC_PORTION / note_count);
+    the score never goes below 0."""
     if note_count <= 0:
         return 0
     acc_num = W_PERFECT * perfect + W_GREAT * great + W_MEH * meh
     acc_den = W_PERFECT * note_count
     combo_den = combo_portion_max(note_count)
+    miss_num = W_PERFECT * max(bad, 0)
     # Every numerator/denominator is an integer below 2^53, so each division is one
     # correctly rounded IEEE double op: C# gets the exact same bits.
     base = (SCORE_ACC_PORTION * acc_num) / acc_den + (SCORE_COMBO_PORTION * combo_portion_num) / combo_den
+    base -= (SCORE_ACC_PORTION * miss_num) / acc_den
+    if base < 0:
+        base = 0.0
     return int(math.floor(base * multiplier + 0.5))
 
 
@@ -478,7 +486,7 @@ def calculate_ppv2(
 
     if replay_file == "":
         # Only the map's values were asked for (beatmap import): no need to simulate a play.
-        ss = compute_score(n, n, 0, 0, combo_portion_max(n), mult)
+        ss = compute_score(n, n, 0, 0, 0, combo_portion_max(n), mult)
         return GameplayResult(note_count=n, pp=max_pp, max_pp=max_pp, points=max_pp,
                               max_points=max_pp, score=ss, star_rating=stars,
                               multiplier=mult, rate=rate, perfect=n, max_combo=n)
@@ -495,7 +503,7 @@ def calculate_ppv2(
     result.multiplier = mult
     result.max_pp = result.max_points = max_pp
     result.pp = result.points = performance(max_pp, n, result.perfect, result.great, result.meh, result.bad)
-    result.score = compute_score(n, result.perfect, result.great, result.meh, result.combo_portion_num, mult)
+    result.score = compute_score(n, result.perfect, result.great, result.meh, result.bad, result.combo_portion_num, mult)
     return result
 
 
