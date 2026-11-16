@@ -78,6 +78,9 @@
 .sc-btn:hover { background: #ffffff30; }
 .sc-btn-main { background: var(--sc-accent); color: #221E27; font-weight: bold; }
 .sc-btn-main:hover { background: #f7cfff; }
+.sc-btn-danger { border: 0; color: inherit; font: inherit; font-size: 14px; cursor: pointer; background: #ff5c7a33; }
+.sc-btn-danger:hover { background: #ff5c7a66; }
+.sc-btn-danger:disabled { opacity: .6; cursor: default; }
 .sc-id { margin-left: auto; }
 
 @media (max-width: 700px) {

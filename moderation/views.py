@@ -122,6 +122,7 @@ def api(request, action):
         ("claims", True): claims.claims_edit_view,
         ("news", False): news.news_view,
         ("news", True): news.news_edit_view,
+        ("scores", True): scores_edit_view,
     }
     handler = handlers.get((name, write))
     if handler is None:
@@ -293,11 +294,15 @@ def ban_view(request, me, staff, args):
     if str(data.get("report") or "").isdigit():
         report = Report.objects.filter(id=int(data["report"])).first()
     b = service.ban(u.username, reason, hours or None, me.username, report)
+    deleted = 0
+    if data.get("delete_scores") is True:
+        deleted, _ = service.delete_scores(Score.objects.filter(username=u.username))
+        print(f"[moderation] {me.username} banned {u.username} and deleted all {deleted} of their scores")
     if data.get("close_reports", True):
         Report.objects.filter(target=u.username, status=Report.STATUS_OPEN).update(
             status=Report.STATUS_RESOLVED, handled_by=me.username, handled_at=timezone.now(),
             note=f"Banned: {reason}"[:MAX_REASON])
-    return JsonResponse({"ok": True, "ban": ban_json(b)})
+    return JsonResponse({"ok": True, "ban": ban_json(b), "deleted_scores": deleted})
 
 
 def unban_view(request, me, staff, args):
@@ -350,6 +355,48 @@ def staff_edit_view(request, me, staff, args):
     role = data.get("role") if data.get("role") in dict(StaffMember.ROLES) else StaffMember.ROLE_MOD
     StaffMember.objects.update_or_create(username=u.username, defaults={"role": role, "added_by": me.username})
     return JsonResponse({"ok": True})
+
+
+# ---------------------------------------------------------------- team: deleting scores
+
+def scores_edit_view(request, me, staff, args):
+    # POST mod/scores/<id>/delete
+    # POST mod/scores/purge {hours, username (optional), confirm}: without confirm=true it only counts what would go.
+    #      hours = 0 means all time, which needs a username.
+    data = body(request)
+    if len(args) == 2 and args[0].isdigit() and args[1] == "delete":
+        scores = Score.objects.filter(id=int(args[0]))
+        if not scores.exists():
+            return fail("That score doesn't exist.", 404)
+        deleted, players = service.delete_scores(scores)
+        print(f"[moderation] {me.username} deleted score #{args[0]} by {', '.join(players)}")
+        return JsonResponse({"ok": True, "deleted": deleted, "players": players})
+    if args != ["purge"]:
+        return fail("Unknown action.", 404)
+    try:
+        hours = float(data.get("hours") or 0)
+    except (TypeError, ValueError):
+        return fail("hours must be a number.")
+    who = text(data, "username", 256)
+    if hours == 0 and not who:
+        return fail("Deleting scores from all time needs a player name.")
+    if not 0 <= hours <= service.MAX_PURGE_HOURS:
+        return fail(f"Pick between a few minutes and {service.MAX_PURGE_HOURS // 24} days.")
+    scores = Score.objects.all()
+    if hours:
+        scores = scores.filter(created__gte=timezone.now() - timezone.timedelta(hours=hours))
+    if who:
+        if not User.objects.filter(username=who).exists():
+            return fail(f"There's no player called {who}.", 404)
+        scores = scores.filter(username=who)
+    if data.get("confirm") is not True:
+        players = list(scores.values("username").annotate(n=Count("id")).order_by("-n").values_list("username", "n"))
+        return JsonResponse({"ok": True, "preview": True, "count": sum(n for _, n in players),
+                             "players": [{"username": u or "", "scores": n} for u, n in players[:100]]})
+    deleted, players = service.delete_scores(scores)
+    print(f"[moderation] {me.username} deleted {deleted} scores from {'all time' if not hours else f'the last {hours:g}h'}"
+          f"{' by ' + who if who else ''} ({len(players)} players)")
+    return JsonResponse({"ok": True, "deleted": deleted, "players": players})
 
 
 # ---------------------------------------------------------------- supporters (admins grant time, e.g. after a donation)

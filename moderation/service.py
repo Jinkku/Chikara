@@ -297,3 +297,65 @@ def border_shown(username, path):
     if path and path in _supporter_border_paths() and not has_supporter_perks(username):
         return None
     return path
+
+
+# ---------------------------------------------------------------- deleting scores
+
+MAX_PURGE_HOURS = 24 * 30
+
+
+def delete_scores(scores):
+    """Deletes these scores (a Score queryset) and fixes up the players who set them: pp, accuracy, ranked score,
+    hit counts and max combo, then the global ranking. Replay files are left on disk. Returns (deleted, players)."""
+    from Chikara.views import PP_TOP_SCORES, PP_WEIGHT
+    from dbview.models import Score
+    rows = list(scores.values("id", "username", "ranked", "score", "max", "great", "meh", "bad"))
+    if not rows:
+        return 0, []
+    lost = {}  # username -> what their ranked plays had added to the account totals
+    for r in rows:
+        if r["ranked"] == 1 and r["username"]:
+            t = lost.setdefault(r["username"], {"ranked_score": 0, "max": 0, "great": 0, "meh": 0, "bad": 0})
+            for k, src in (("ranked_score", "score"), ("max", "max"), ("great", "great"), ("meh", "meh"), ("bad", "bad")):
+                t[k] += r[src] or 0
+    names = {r["username"] for r in rows if r["username"]}
+    with transaction.atomic():
+        Score.objects.filter(id__in=[r["id"] for r in rows]).delete()
+        users = list(User.objects.select_for_update().filter(username__in=names))
+        for u in users:
+            for k, n in lost.get(u.username, {}).items():
+                setattr(u, k, max(0, (getattr(u, k) or 0) - n))
+            plays = Score.objects.filter(username=u.username, ranked=1).order_by("-points").values(
+                "beatmap_id", "points", "max", "great", "meh", "bad")
+            seen, pp, acc, wsum, w = set(), 0.0, 0.0, 0.0, 1.0
+            for s in plays.iterator():  # best play per map, 0.95^n weighting (same as recalc_ppv3)
+                if s["beatmap_id"] in seen:
+                    continue
+                seen.add(s["beatmap_id"])
+                pp += (s["points"] or 0) * w
+                total = (s["max"] or 0) + (s["great"] or 0) + (s["meh"] or 0) + (s["bad"] or 0)
+                if total:
+                    acc += ((s["max"] or 0) + (s["great"] or 0) / 2 + (s["meh"] or 0) / 3) / total * w
+                wsum += w
+                w *= PP_WEIGHT
+                if len(seen) >= PP_TOP_SCORES:
+                    break
+            u.ranked_points = int(round(pp))
+            u.accuracy = round(acc / wsum * 100, 2) if wsum else 0
+            best = Score.objects.filter(username=u.username).order_by("-combo").values_list("combo", flat=True).first()
+            u.max_combo = best or 0
+        User.objects.bulk_update(users, ["ranked_points", "accuracy", "ranked_score", "max", "great", "meh", "bad",
+                                         "max_combo"])
+        rerank()
+    return len(rows), sorted(names)
+
+
+def rerank():
+    """Rewrites users.ranking from ranked_points (restricted players are left out, like recalc_ppv3)."""
+    ordered = list(User.objects.filter(restricted=False).order_by("-ranked_points", "id").only("id", "ranking"))
+    changed = []
+    for i, u in enumerate(ordered, 1):
+        if u.ranking != i:
+            u.ranking = i
+            changed.append(u)
+    User.objects.bulk_update(changed, ["ranking"], batch_size=500)

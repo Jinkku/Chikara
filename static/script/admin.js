@@ -79,7 +79,7 @@
         view.innerHTML = "";
         hint.style.display = "";
         hint.textContent = "Loading...";
-        const views = { supporters: showSupporters, news: showNews, claims: showClaims, reports: showReports, players: showPlayers, user: showUser, bans: showBans, team: showTeam, notices: showNotices, borders: showBorders };
+        const views = { scores: showScores, supporters: showSupporters, news: showNews, claims: showClaims, reports: showReports, players: showPlayers, user: showUser, bans: showBans, team: showTeam, notices: showNotices, borders: showBorders };
         (views[tab] || showReports)(arg || "", mine).catch(err => {
             if (mine === render) hint.textContent = err.message;
         });
@@ -392,6 +392,9 @@
                 <span>Sent ${u.reports_sent} report${u.reports_sent === 1 ? "" : "s"}</span>
             </div>
             <div id="action"></div>
+            ${u.scores ? `<div class="adm-row" style="margin-top:8px"><button class="adm-btn danger" id="wipe-all">Delete all ${u.scores.toLocaleString()} scores</button>
+                <a href="#scores=${encodeURIComponent(u.username)}"><button class="adm-btn">Delete recent scores...</button></a></div>
+                <p class="adm-msg" id="wmsg"></p>` : ""}
             <div class="adm-section">Supporter</div>
             <div id="support"></div>
             <div class="adm-section">Bans (${u.bans.length})</div>
@@ -399,6 +402,13 @@
             <div class="adm-section">Reports about them (${u.reports_against.length})</div>
             <div class="adm-list" id="reports"></div>`;
         supportBox(view.querySelector("#support"), u.username, u.supporter, u.can_grant_support, () => route());
+        const wipeAll = view.querySelector("#wipe-all");
+        if (wipeAll) wipeAll.onclick = async () => {
+            if (!confirm(`Delete ALL ${u.scores} of ${u.username}'s scores? Their pp, accuracy and rank go back to what's left (nothing). This can't be undone.`)) return;
+            wipeAll.disabled = true;
+            try { await api("scores/purge", { hours: 0, username: u.username, confirm: true }); route(); }
+            catch (err) { view.querySelector("#wmsg").textContent = err.message; wipeAll.disabled = false; }
+        };
         const action = view.querySelector("#action");
         if (u.restricted) {
             const b = active[0];
@@ -443,6 +453,7 @@
                         </span>
                     </div>
                     <label class="adm-row"><input type="checkbox" id="close" checked> Mark their open reports as resolved</label>
+                    <label class="adm-row"><input type="checkbox" id="wipe"> Also delete all their scores (${u.scores.toLocaleString()}); can't be undone</label>
                     <div class="adm-row"><button class="adm-btn danger" id="ban">Ban</button></div>
                     <p class="adm-msg" id="bmsg"></p>
                 </div>`;
@@ -457,10 +468,13 @@
                 if (reason.length < 3) { msg.textContent = "Give a reason; the player will see it."; return; }
                 if (!(hours >= 0)) { msg.textContent = "Pick a length."; return; }
                 const lengthText = hours === 0 ? "permanently" : length.value === "custom" ? `for ${hours} hours` : "for " + length.selectedOptions[0].text;
-                if (!confirm(`Ban ${u.username} ${lengthText}?\n\nReason: ${reason}`)) return;
+                const wipe = action.querySelector("#wipe").checked;
+                if (!confirm(`Ban ${u.username} ${lengthText}?\n\nReason: ${reason}` +
+                             (wipe ? `\n\nThis also DELETES ALL ${u.scores} of their scores, even if the ban is lifted later.` : ""))) return;
                 e.target.disabled = true;
                 try {
-                    await api("ban", { username: u.username, reason, hours, report: reportPart || null, close_reports: action.querySelector("#close").checked });
+                    await api("ban", { username: u.username, reason, hours, report: reportPart || null,
+                                       close_reports: action.querySelector("#close").checked, delete_scores: wipe });
                     refreshMe();
                     location.hash = "user=" + encodeURIComponent(u.username);
                     route();
@@ -514,6 +528,60 @@
             done(list.children.length ? "" : status === "active" ? "Nobody is banned right now." : "No bans yet.");
         }
         await load();
+    }
+
+    // ---------------------------------------------------------------- scores (bulk delete, e.g. after a broken submit or a cheater's spree)
+    async function showScores(prefill, mine) {
+        view.innerHTML = `
+            <p class="adm-meta" style="margin-top:0">Delete every score set in a time window, optionally only one player's.
+                Players' pp, accuracy and rank are recalculated. To delete a single score, open it and use "Delete score".</p>
+            <div class="adm-form">
+                <div class="adm-row">
+                    <label for="hours">Scores from the last</label>
+                    <select id="hours">
+                        <option value="0.25">15 minutes</option>
+                        <option value="1" selected>1 hour</option>
+                        <option value="3">3 hours</option>
+                        <option value="6">6 hours</option>
+                        <option value="12">12 hours</option>
+                        <option value="24">24 hours</option>
+                        <option value="72">3 days</option>
+                        <option value="168">7 days</option>
+                        <option value="720">30 days</option>
+                        <option value="0">All time (needs a player)</option>
+                    </select>
+                </div>
+                <input type="text" id="name" placeholder="Only this player (leave empty for everyone)" maxlength="256" value="${esc(prefill)}">
+                <div class="adm-row"><button class="adm-btn" id="check">Check what would be deleted</button></div>
+                <div id="preview"></div>
+                <p class="adm-msg"></p>
+            </div>`;
+        const form = view.querySelector(".adm-form"), msg = form.querySelector(".adm-msg"), preview = form.querySelector("#preview");
+        const hours = form.querySelector("#hours"), name = form.querySelector("#name");
+        const ask = () => ({ hours: Number(hours.value), username: name.value.trim() });
+        hours.onchange = name.oninput = () => { preview.innerHTML = ""; msg.textContent = ""; };
+        form.querySelector("#check").onclick = async () => {
+            msg.textContent = ""; preview.innerHTML = "";
+            const q = ask();
+            try {
+                const data = await api("scores/purge", q);
+                if (!data.count) { msg.textContent = "No scores in that window."; return; }
+                const label = hours.options[hours.selectedIndex].text;
+                preview.innerHTML = `
+                    <div class="adm-meta"><b>${data.count}</b> score${data.count === 1 ? "" : "s"} from ${q.hours ? "the last " + esc(label) : "all time"} by ${data.players.length} player${data.players.length === 1 ? "" : "s"}:</div>
+                    <div class="adm-meta">${data.players.map(p => `${userLink(p.username)} (${p.scores})`).join(", ")}</div>
+                    <div class="adm-row"><button class="adm-btn danger" id="go">Delete ${data.count} score${data.count === 1 ? "" : "s"}</button></div>`;
+                preview.querySelector("#go").onclick = async () => {
+                    if (!confirm(`Delete ${data.count} scores from ${q.hours ? "the last " + label : "all time"}${q.username ? " by " + q.username : ""}? This can't be undone.`)) return;
+                    try {
+                        const res = await api("scores/purge", { ...q, confirm: true });
+                        preview.innerHTML = "";
+                        msg.textContent = `Deleted ${res.deleted} score${res.deleted === 1 ? "" : "s"} (${res.players.length} player${res.players.length === 1 ? "" : "s"} recalculated).`;
+                    } catch (err) { msg.textContent = err.message; }
+                };
+            } catch (err) { msg.textContent = err.message; }
+        };
+        done("");
     }
 
     // ---------------------------------------------------------------- team

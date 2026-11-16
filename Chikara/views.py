@@ -762,7 +762,7 @@ def score_page(request, score_id):
     status = {1: ("Ranked", "s1"), 0: ("Unranked", "s0")}.get(sc.ranked, ("Special", "s2"))
 
     page_title = f"{urllib.parse.unquote(sc.username or '')} on {bm.title if bm else sc.beatmapname} [{bm.difficulty if bm else sc.beatmapdiff}] - Qlute"
-    html = header(request, customhead='<link rel="stylesheet" href="/static/css/score.css?v=1">', title=escape(page_title),
+    html = header(request, customhead='<link rel="stylesheet" href="/static/css/score.css?v=2">', title=escape(page_title),
                   description=f"{urllib.parse.unquote(sc.username or '')} got {g} rank, {acc:.2f}% accuracy and {int(sc.points or 0)}pp "
                               f"on {bm.artist + ' - ' + bm.title if bm else sc.beatmapname} in Qlute.",
                   image=cover or None, canonical=f"{SiteURL}/score/{sc.id}", robots=None if sc.ranked == 1 else NOINDEX)
@@ -802,8 +802,15 @@ def score_page(request, score_id):
         h += f'<a class="sc-btn sc-btn-main" href="/apiv2/getreplay/{sc.id}" download>&#8595; Download replay</a>'
     h += f'<a class="sc-btn" href="{map_url}">Beatmap leaderboard</a>'
     h += f'<a class="sc-btn" href="/user/{escape(sc.username or "")}">{name}\'s profile</a>'
+    viewer = request.COOKIES.get('username')
+    viewer_login = checklogin(viewer, request.COOKIES.get('password', None)) if viewer else (False, False)
+    staff_view = bool(viewer_login[0] and not viewer_login[1] and moderation.is_staff(viewer))
+    if staff_view:
+        h += f'<button type="button" class="sc-btn sc-btn-danger" id="sc-delete" data-id="{sc.id}">Delete score</button>'
     h += f'<span class="sc-dim sc-id">Score #{sc.id}{" &middot; " + escape(when.strftime("%d %b %Y")) if when else ""}</span>'
     h += '</section>'
+    if staff_view:
+        h += SCORE_DELETE_SCRIPT.replace("{back}", escape(map_url))
 
     # judgements
     h += '<section class="infobox column sc-section spacebottom"><div class="sc-sec-head"><span class="title">Judgements</span>'
@@ -815,6 +822,29 @@ def score_page(request, score_id):
     h += '</div></section></div>'
     html += h + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
     return HttpResponse(html)
+
+
+# Delete button on the score page (team only). Uses the moderation API; the server re-checks staff.
+SCORE_DELETE_SCRIPT = """<script>
+(function () {
+    const b = document.getElementById("sc-delete");
+    if (!b) return;
+    b.onclick = async () => {
+        if (!confirm("Delete this score? The player's pp, accuracy and rank will be recalculated. This can't be undone.")) return;
+        b.disabled = true; b.textContent = "Deleting...";
+        try {
+            const res = await fetch("/apiv2/mod/scores/" + b.dataset.id + "/delete",
+                { method: "POST", headers: { "Content-Type": "application/json", "X-Chikara": "1" }, body: "{}" });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json.error || "The server said " + res.status);
+            location.href = "{back}";
+        } catch (err) {
+            alert("Couldn't delete the score: " + err.message);
+            b.disabled = false; b.textContent = "Delete score";
+        }
+    };
+})();
+</script>"""
 
 
 # User score Front UX parser
