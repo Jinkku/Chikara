@@ -60,7 +60,7 @@ The awarding rules are the `medco == N` checks in `getmedals()`. Stats come from
 | 14 | Making the game better | You are making the community better! | On the Qlute team (`moderation.StaffMember`), `TEAM_MEDAL` | Join the Qlute team and help build the game |
 | 15 | Team Moderator | Keeping Qlute fun and fair for everyone | Team member with the `mod` role, `MOD_MEDAL` | Become a Qlute moderator and keep the peace |
 
-## Added medals (`EXTRA_MEDALS`, index 16-69)
+## Added medals (`EXTRA_MEDALS`, index 16-87)
 
 Each entry is `(title, description, how to earn, rule key)`. The description is the flavour text (shown on the tile and
 sent to the game); "how to earn" is the profile's hover hint. The rule for each key is in `_extra_medal_checks()`.
@@ -121,6 +121,24 @@ sent to the game); "how to earn" is the profile's hover hint. The rule for each 
 | 67 | Sliced and Diced | Chop chop 🔪 | Clear a ranked map with Slice, 70%+ accuracy | `mod:SL` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
 | 68 | Lights Out | Who needs to see the notes anyway? | Clear a ranked map with Black-out, 70%+ accuracy | `mod:BT` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
 | 69 | Safety Net | Failing is optional now | Clear a ranked map with No-Fail, 70%+ accuracy | `mod:NF` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
+| 70 | Hello World | Your very first clear 🌟 | Clear a ranked Lv 1+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass1` | clean clears* |
+| 71 | Tiny Steps | One foot in front of the other | Clear a ranked Lv 2+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass2` | clean clears* |
+| 72 | Getting the Hang of It | Oh, so THAT'S how it works | Clear a ranked Lv 3+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass3` | clean clears* |
+| 73 | Feeling It | The rhythm is taking over | Clear a ranked Lv 4+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass4` | clean clears* |
+| 74 | High Five | ✋ Up top! | Clear a ranked Lv 5+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass5` | clean clears* |
+| 75 | On a Roll | Can't stop, won't stop | Clear a ranked Lv 6+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass6` | clean clears* |
+| 76 | Lucky Seven | Jackpot 🎰 | Clear a ranked Lv 7+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass7` | clean clears* |
+| 77 | Eight Beat | Four on the floor, twice | Clear a ranked Lv 8+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass8` | clean clears* |
+| 78 | Cloud Nine | Floating after that one | Clear a ranked Lv 9+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass9` | clean clears* |
+| 79 | Spotless Start | Not a single miss, from day one | Full combo a ranked Lv 1+ difficulty (no HT, NF or slowdowns) | `fc1` | clean clears* |
+| 80 | Double Clean | Two levels in, still spotless | Full combo a ranked Lv 2+ difficulty (no HT, NF or slowdowns) | `fc2` | clean clears* |
+| 81 | Hat Trick | Three's a charm 🎩 | Full combo a ranked Lv 3+ difficulty (no HT, NF or slowdowns) | `fc3` | clean clears* |
+| 82 | Four on the Floor | Every beat, right on time | Full combo a ranked Lv 4+ difficulty (no HT, NF or slowdowns) | `fc4` | clean clears* |
+| 83 | Clean Hands | Not a smudge on that combo | Full combo a ranked Lv 5+ difficulty (no HT, NF or slowdowns) | `fc5` | clean clears* |
+| 84 | Six Pack | Your combo's been working out | Full combo a ranked Lv 6+ difficulty (no HT, NF or slowdowns) | `fc6` | clean clears* |
+| 85 | Seventh Heaven | Combo bliss | Full combo a ranked Lv 7+ difficulty (no HT, NF or slowdowns) | `fc7` | clean clears* |
+| 86 | Figure Eight | Smooth as ice ⛸ | Full combo a ranked Lv 8+ difficulty (no HT, NF or slowdowns) | `fc8` | clean clears* |
+| 87 | Nine Lives | ...and you didn't need a single one | Full combo a ranked Lv 9+ difficulty (no HT, NF or slowdowns) | `fc9` | clean clears* |
 
 ### †Game-reported medals (`CLIENT_MEDALS`)
 
@@ -156,8 +174,8 @@ The profile groups medals like this, easiest first inside each group; the APIs s
 - **Progress**: Baby Steps, Getting Hooked, Rising Star, Big Leagues, Elite, Seasoned, Centurion, Marathon, No Life, Dedicated
 - **Ranking**: Top 1,000, Top 100, Top 50, Top 10, The End
 - **Skill**: >~<, Combo Monster, S-Ranker, Flawless, Perfectionist, So Close, Sharpshooter, D-Ranker, Oops, Sniper, BreakThrough, Psycho
-- **Map level: Pass**: Warming Up, Finding the Rhythm, Getting Serious, Over the Hill, Deep End, Uncharted Waters, Into the Abyss, Event Horizon, Beyond Reason, Summit
-- **Map level: Full combo**: Clean Sweep, Steady Hands, Unbreakable, Iron Focus, Untouchable, Zero Gravity, Abyss Walker, Perfect Storm, Mythical, Absolute
+- **Map level: Pass**: Hello World, Tiny Steps, Getting the Hang of It, Feeling It, High Five, On a Roll, Lucky Seven, Eight Beat, Cloud Nine, Warming Up, Finding the Rhythm, Getting Serious, Over the Hill, Deep End, Uncharted Waters, Into the Abyss, Event Horizon, Beyond Reason, Summit
+- **Map level: Full combo**: Spotless Start, Double Clean, Hat Trick, Four on the Floor, Clean Hands, Six Pack, Seventh Heaven, Figure Eight, Nine Lives, Clean Sweep, Steady Hands, Unbreakable, Iron Focus, Untouchable, Zero Gravity, Abyss Walker, Perfect Storm, Mythical, Absolute
 - **Mods**: Double Trouble, Taking It Easy, Shuffle Mode, Sliced and Diced, Lights Out, Safety Net, Speed Demon, Slowpoke
 - **Community**: Mapper, Ranked Mapper, Collector, Social Butterfly, Critic, Welcome back Veteran
 - **Team & support**: Supporter, Making the game better, Team Moderator

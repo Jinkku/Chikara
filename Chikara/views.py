@@ -111,6 +111,25 @@ EXTRA_MEDALS = (
     ("Sliced and Diced", "Chop chop \U0001F52A", "Clear a ranked map with Slice, 70%+ accuracy", "mod:SL"),
     ("Lights Out", "Who needs to see the notes anyway?", "Clear a ranked map with Black-out, 70%+ accuracy", "mod:BT"),
     ("Safety Net", "Failing is optional now", "Clear a ranked map with No-Fail, 70%+ accuracy", "mod:NF"),
+    # map level medals for the first steps: pass and full combo at every level 1-9
+    ("Hello World", "Your very first clear 🌟", "Clear a ranked Lv 1+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass1"),
+    ("Tiny Steps", "One foot in front of the other", "Clear a ranked Lv 2+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass2"),
+    ("Getting the Hang of It", "Oh, so THAT'S how it works", "Clear a ranked Lv 3+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass3"),
+    ("Feeling It", "The rhythm is taking over", "Clear a ranked Lv 4+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass4"),
+    ("High Five", "✋ Up top!", "Clear a ranked Lv 5+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass5"),
+    ("On a Roll", "Can't stop, won't stop", "Clear a ranked Lv 6+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass6"),
+    ("Lucky Seven", "Jackpot 🎰", "Clear a ranked Lv 7+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass7"),
+    ("Eight Beat", "Four on the floor, twice", "Clear a ranked Lv 8+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass8"),
+    ("Cloud Nine", "Floating after that one", "Clear a ranked Lv 9+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass9"),
+    ("Spotless Start", "Not a single miss, from day one", "Full combo a ranked Lv 1+ difficulty (no HT, NF or slowdowns)", "fc1"),
+    ("Double Clean", "Two levels in, still spotless", "Full combo a ranked Lv 2+ difficulty (no HT, NF or slowdowns)", "fc2"),
+    ("Hat Trick", "Three's a charm 🎩", "Full combo a ranked Lv 3+ difficulty (no HT, NF or slowdowns)", "fc3"),
+    ("Four on the Floor", "Every beat, right on time", "Full combo a ranked Lv 4+ difficulty (no HT, NF or slowdowns)", "fc4"),
+    ("Clean Hands", "Not a smudge on that combo", "Full combo a ranked Lv 5+ difficulty (no HT, NF or slowdowns)", "fc5"),
+    ("Six Pack", "Your combo's been working out", "Full combo a ranked Lv 6+ difficulty (no HT, NF or slowdowns)", "fc6"),
+    ("Seventh Heaven", "Combo bliss", "Full combo a ranked Lv 7+ difficulty (no HT, NF or slowdowns)", "fc7"),
+    ("Figure Eight", "Smooth as ice ⛸", "Full combo a ranked Lv 8+ difficulty (no HT, NF or slowdowns)", "fc8"),
+    ("Nine Lives", "...and you didn't need a single one", "Full combo a ranked Lv 9+ difficulty (no HT, NF or slowdowns)", "fc9"),
 )
 
 # How the profile groups medals, in this order; inside a group they show in this order (easiest first).
@@ -120,9 +139,11 @@ MEDAL_CATEGORIES = (
     ("Ranking", ("Top 1,000", "Top 100", "Top 50", "Top 10", "The End")),
     ("Skill", (">~<", "Combo Monster", "S-Ranker", "Flawless", "Perfectionist", "So Close", "Sharpshooter",
                "D-Ranker", "Oops", "Sniper", "BreakThrough", "Psycho")),
-    ("Map level: Pass", ("Warming Up", "Finding the Rhythm", "Getting Serious", "Over the Hill", "Deep End",
+    ("Map level: Pass", ("Hello World", "Tiny Steps", "Getting the Hang of It", "Feeling It", "High Five", "On a Roll", "Lucky Seven", "Eight Beat", "Cloud Nine",
+                         "Warming Up", "Finding the Rhythm", "Getting Serious", "Over the Hill", "Deep End",
                          "Uncharted Waters", "Into the Abyss", "Event Horizon", "Beyond Reason", "Summit")),
-    ("Map level: Full combo", ("Clean Sweep", "Steady Hands", "Unbreakable", "Iron Focus", "Untouchable",
+    ("Map level: Full combo", ("Spotless Start", "Double Clean", "Hat Trick", "Four on the Floor", "Clean Hands", "Six Pack", "Seventh Heaven", "Figure Eight", "Nine Lives",
+                               "Clean Sweep", "Steady Hands", "Unbreakable", "Iron Focus", "Untouchable",
                                "Zero Gravity", "Abyss Walker", "Perfect Storm", "Mythical", "Absolute")),
     ("Mods", ("Double Trouble", "Taking It Easy", "Shuffle Mode", "Sliced and Diced", "Lights Out", "Safety Net",
               "Speed Demon", "Slowpoke")),
@@ -723,9 +744,9 @@ def _extra_medal_checks(user):
         "ss10": lambda: len({c.beatmap_id for c in clears if c.max and not (c.great or c.meh or c.bad)}) >= 10,
         "plays5000": lambda: play_count >= 5000,
     }
-    for lv in (10, 20, 30, 40, 60, 80, 90, 100):
+    for lv in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 60, 80, 90, 100):
         checks[f"pass{lv}"] = (lambda lv=lv: passed_lv(lv))
-    for lv in (10, 20, 40, 50, 60, 70, 80, 90, 100):
+    for lv in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 40, 50, 60, 70, 80, 90, 100):
         checks[f"fc{lv}"] = (lambda lv=lv: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= lv for c in clears))
     # mod introductions: any ranked play with the mod and 70%+ (HT / NF allowed here, it's their medal)
     mod_rows = list(ranked_plays.exclude(mods=None).exclude(mods="").only("mods", "max", "great", "meh", "bad"))
