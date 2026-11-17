@@ -1,7 +1,10 @@
 # Medals
 
-Medals are not stored anywhere. They are worked out live from a player's stats every time someone asks, so a player
-gets a medal the moment they qualify (and loses it if they stop qualifying, e.g. dropping out of the Top 100).
+Medals are worked out live from a player's stats every time someone asks, so a player gets a medal the moment they
+qualify. The first time a medal shows up as earned it's recorded (`online.MedalUnlock`, below), and from then on it
+**stays earned forever**, even if the play or stat behind it changes later (a better score replaces the qualifying
+play, levels get recalculated...). The exceptions are the medals about where a player is right now, `LIVE_MEDALS`:
+The End, Top 1,000 / 100 / 50 / 10, Supporter, Making the game better and Team Moderator. Those come and go.
 
 - **Code:** `Chikara/views.py`: `medals` (the original 16), `EXTRA_MEDALS` (the 18 added later),
   `getmedals()`, `_extra_medal_checks()` and `_medal_clears()`.
@@ -43,13 +46,13 @@ The awarding rules are the `medco == N` checks in `getmedals()`. Stats come from
 | 0 | The End | You've made it | Global rank **#1** | Climb all the way to global rank #1. Nobody above you. Nobody. |
 | 1 | Baby Steps | Welcome to the Game | More than **1 pp** | Earn your very first pp (more than 1). Everyone starts somewhere! |
 | 2 | >~< | Impressive | Max combo over **1,000** | Chain a combo of over 1,000 without dropping it |
-| 3 | Psycho | Dang you can read that?! | **Not obtainable.** The check (`points > 1000`) is hard-coded to never award it | Coming soon™. Even the devs don't know how yet 👀 |
-| 4 | Welcome back Veteran | Glad to see you back | **Not obtainable.** No rule | Coming soon™. Pack your bags, veteran |
+| 3 | Psycho | Dang you can read that?! | Clean clear* of a ranked Lv 30+ map with RND + DT at 1.5x or faster (`_former_coming_soon`) | Clear a ranked Lv 30+ difficulty with Random and Double Time at 1.5x or faster, 70%+ accuracy |
+| 4 | Welcome back Veteran | Glad to see you back | Back after 30+ days away: recorded live by `welcome_back()` when the game reports a status (setstatus), or a 30+ day gap between their submitted plays | Come back and play after 30 days or more away |
 | 5 | D-Ranker | Unrhythmic | More than **1,000 misses** in total | Miss over 1,000 notes in total. A badge of honour, honestly |
 | 6 | S-Ranker | Like to show off. huh? | More than **1,000 Perfect hits** in total | Land over 1,000 Perfect hits in total |
 | 7 | Supporter | Thanks for supporting Qlute! 💖 | An active supporter grant (`moderation.service.is_supporter`); checked right after `grant_support()` too. Was "Donator" (never obtainable) | Become a Qlute supporter (the Support page). Thank you <3 |
-| 8 | Sniper | First Comes, First Serve! | **Not obtainable.** No rule | Coming soon™. Keep your sights steady |
-| 9 | BreakThrough | Unstoppable | **Not obtainable.** No rule | Coming soon™. The wall hasn't been built yet |
+| 8 | Sniper | First Comes, First Serve! | First clean clear* on a ranked map that 2+ other players cleared later (by `Score.created`) | Be the first to clear a ranked map that at least 2 other players clear after you (70%+ accuracy) |
+| 9 | BreakThrough | Unstoppable | +100 pp within 7 days in `stat_history` (the day before a player's first ranked play counts as 0 pp) | Gain 100 pp or more within 7 days |
 | 10 | Top 100 | You are the chosen one | Global rank **100 or better** | Break into the global top 100 |
 | 11 | Top 50 | Almost There | Global rank **50 or better** | Push your way into the global top 50 |
 | 12 | Top 10 | Grab some Popcorn 🍿 | Global rank **10 or better** | Crack the global top 10 and enjoy the show |

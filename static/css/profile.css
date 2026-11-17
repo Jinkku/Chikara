@@ -254,3 +254,10 @@
     font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; color: #ffffffcc;
     padding-bottom: 4px; border-bottom: 1px solid #ffffff14; }
 .pf-medal-group-head .pf-dim { font-weight: normal; text-transform: none; letter-spacing: 0; }
+
+/* earned medals: "Got it on <date>!" under the hint, after a blank line, with a little more room below */
+.pf-medal[data-got]::after {
+    content: attr(data-hint) "\A\A" attr(data-got);
+    white-space: pre-line;
+    padding-bottom: 11px;
+}

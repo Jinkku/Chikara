@@ -35,13 +35,13 @@ MEDAL_HINTS = {
     "The End": "Climb all the way to global rank #1. Nobody above you. Nobody.",
     "Baby Steps": "Earn your very first pp (more than 1). Everyone starts somewhere!",
     ">~<": "Chain a combo of over 1,000 without dropping it",
-    "Psycho": "Coming soon\u2122. Even the devs don't know how yet \U0001F440",
-    "Welcome back Veteran": "Coming soon\u2122. Pack your bags, veteran",
+    "Psycho": "Clear a ranked Lv 30+ difficulty with Random and Double Time at 1.5x or faster, 70%+ accuracy",
+    "Welcome back Veteran": "Come back and play after 30 days or more away",
     "D-Ranker": "Miss over 1,000 notes in total. A badge of honour, honestly",
     "S-Ranker": "Land over 1,000 Perfect hits in total",
     "Supporter": "Become a Qlute supporter (the Support page). Thank you <3",
-    "Sniper": "Coming soon\u2122. Keep your sights steady",
-    "BreakThrough": "Coming soon\u2122. The wall hasn't been built yet",
+    "Sniper": "Be the first to clear a ranked map that at least 2 other players clear after you (70%+ accuracy)",
+    "BreakThrough": "Gain 100 pp or more within 7 days",
     "Top 100": "Break into the global top 100",
     "Top 50": "Push your way into the global top 50",
     "Top 10": "Crack the global top 10 and enjoy the show",
@@ -531,14 +531,18 @@ def getmedals(user):
     meh=getstat('meh',user)
     bad=getstat('bad',user)
     max_combo=getstat('max_combo',user)
+    soon = _former_coming_soon(user)
+    # Earned once = kept forever (online.MedalUnlock), except the medals about where you are right now.
+    from online.models import MedalUnlock
+    kept = set(MedalUnlock.objects.filter(username=user).values_list("medal", flat=True))
     for title,desc in medals:
         show=0
         if medco==0 and rank==1:
             show=1
         elif medco==1 and points>1:
             show=1
-        elif medco==3 and points>1000:
-            show=0
+        elif medco in (3, 4, 8, 9) and soon.get(medco):
+            show=1
         elif medco==2 and max_combo>1000:
             show=1
         elif medco==5 and bad>1000:
@@ -559,11 +563,90 @@ def getmedals(user):
             show=1
         elif medco==MOD_MEDAL and getattr(moderation.staff_of(user), "role", "") == "mod":
             show=1
+        if not show and medco in kept and title not in LIVE_MEDALS:
+            show=1
         medco+=1
         yield (title,desc,show)
     earned = _extra_medal_checks(user)
-    for title, desc, _hint, key in EXTRA_MEDALS:
-        yield (title, desc, 1 if earned.get(key) else 0)
+    for i, (title, desc, _hint, key) in enumerate(EXTRA_MEDALS):
+        yield (title, desc, 1 if earned.get(key) or (len(medals) + i) in kept else 0)
+
+
+# Medals that follow where a player is right now: they can be lost again. Every other medal, once recorded as
+# earned (online.MedalUnlock), stays earned forever even if the play or stat behind it changes later.
+LIVE_MEDALS = {"The End", "Top 1,000", "Top 100", "Top 50", "Top 10", "Supporter", "Making the game better",
+               "Team Moderator"}
+
+WELCOME_BACK_DAYS = 30
+
+
+def welcome_back(username, last_seen):
+    """Called when the game reports a player's status (setstatus): back after WELCOME_BACK_DAYS+ away earns
+    "Welcome back Veteran". It's recorded as an unlock right away (the game pops it up on its next medal check)."""
+    if not last_seen or timezone.now().timestamp() - last_seen < WELCOME_BACK_DAYS * 86400:
+        return
+    from online.models import MedalUnlock
+    MedalUnlock.objects.get_or_create(username=username, medal=4,
+                                      defaults={"title": medals[4][0], "achieved": timezone.now()})
+
+
+def _former_coming_soon(user):
+    """{medal index: earned} for the original medals that used to say "coming soon": Psycho (3),
+    Welcome back Veteran (4), Sniper (8) and BreakThrough (9). Rules in MEDAL_HINTS / MEDALS.md."""
+    from django.db.models import Min
+    from online.models import MedalUnlock
+    out = {}
+    u = User.objects.filter(username=user).first()
+    if u is None:
+        return out
+    try:
+        ranked_plays = Score.objects.filter(username=user, ranked=1)
+        clears = _medal_clears(ranked_plays)
+        lv = dict(Beatmap.objects.filter(ranked=1, beatmapid__in={c.beatmap_id for c in clears}).values_list("beatmapid", "Level"))
+        # Psycho: Random + DT at 1.5x+ on a Lv 30+ map
+        out[3] = any("RND" in (c.mods or "").upper() and "DT" in (c.mods or "").upper() and (c.speed_multi or 1) >= 1.5
+                     and (lv.get(c.beatmap_id) or 0) >= 30 for c in clears)
+        # Welcome back Veteran: recorded live by welcome_back(); or a 30+ day gap between their plays
+        if MedalUnlock.objects.filter(username=user, medal=4).exists():
+            out[4] = True
+        else:
+            times = sorted(Score.objects.filter(username=user).values_list("created", flat=True))
+            out[4] = any((b - a).days >= WELCOME_BACK_DAYS for a, b in zip(times, times[1:]))
+        # Sniper: first clear on a map that 2+ other players cleared later
+        clear_ids = {c.id for c in clears}
+        mine = {bid: when for sid, bid, when in ranked_plays.values_list("id", "beatmap_id", "created") if sid in clear_ids}
+        if mine:
+            others = (Score.objects.filter(beatmap_id__in=list(mine), ranked=1).exclude(username=user)
+                      .values("beatmap_id", "username").annotate(first=Min("created")))
+            first_other, later = {}, {}
+            for row in others:
+                bid = row["beatmap_id"]
+                first_other[bid] = min(first_other.get(bid, row["first"]), row["first"])
+                if mine[bid] and row["first"] > mine[bid]:
+                    later[bid] = later.get(bid, 0) + 1
+            out[8] = any(later.get(bid, 0) >= 2 and first_other[bid] > when for bid, when in mine.items() if when)
+        else:
+            out[8] = False
+        # BreakThrough: +100 pp within 7 days (daily history, Chikara/stathistory.py)
+        from dbview.models import StatHistory
+        hist = list(StatHistory.objects.filter(user_id=u.id).order_by("date").values_list("date", "points"))
+        first_play = ranked_plays.order_by("created").values_list("created", flat=True).first()
+        if hist and first_play and first_play.date() >= hist[0][0] - datetime.timedelta(days=1):
+            hist.insert(0, (first_play.date() - datetime.timedelta(days=1), 0))  # they had no pp before their first play
+        best = False
+        for i, (d1, p1) in enumerate(hist):
+            for d2, p2 in hist[i + 1:]:
+                if (d2 - d1).days > 7:
+                    break
+                if p2 - p1 >= 100:
+                    best = True
+                    break
+            if best:
+                break
+        out[9] = best
+    except Exception:
+        sentry_sdk.capture_exception()
+    return out
 
 
 MEDAL_BANNED_MODS = ("HT", "NF", "AT")  # slowed down, can't fail, autoplay: not a real clear
@@ -606,9 +689,6 @@ def _extra_medal_checks(user):
     play_count = plays.count()
     pp = u.ranked_points or 0
     level = player_levels.level(u.ranked_score or 0)
-    # Level medals earned under the old formula are kept (Chikara/levels.py)
-    from online.models import MedalUnlock
-    kept = set(MedalUnlock.objects.filter(username=user, title__in=("Seasoned", "Centurion")).values_list("title", flat=True))
     clears = _medal_clears(ranked_plays)
     levels = dict(Beatmap.objects.filter(ranked=1, beatmapid__in={c.beatmap_id for c in clears})
                   .values_list("beatmapid", "Level"))
@@ -620,8 +700,8 @@ def _extra_medal_checks(user):
         "plays1000": lambda: play_count >= 1000,
         "pp100": lambda: pp >= 100,
         "pp1000": lambda: pp >= 1000,
-        "level50": lambda: level >= 50 or "Seasoned" in kept,
-        "level100": lambda: level >= 100 or "Centurion" in kept,
+        "level50": lambda: level >= 50,
+        "level100": lambda: level >= 100,
         "ss": lambda: any(c.max and not (c.great or c.meh or c.bad) for c in clears),
         "fc30": lambda: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= 30 for c in clears),
         "acc98": lambda: play_count >= 50 and (u.accuracy or 0) >= 98,
@@ -1784,6 +1864,10 @@ def api(request,command,value=None):
             accept = login[0] and not login[1]
             if accept and len(text) >0:
                 usr = User.objects.get(username = username)
+                try:
+                    welcome_back(usr.username, usr.stattime)  # 30+ days away -> "Welcome back Veteran"
+                except Exception:
+                    sentry_sdk.capture_exception()
                 usr.stattime = int(timezone.now().timestamp())
                 usr.status = text
                 usr.save()
@@ -2161,7 +2245,7 @@ def user(request, user):
     public = usertest[0] and not usertest[1]
     seo = profile_seo(User.objects.filter(username=user).first()) if public else {}
     html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=17"><link rel="stylesheet" href="/static/css/favorites.css?v=2">'
-                                      '<link rel="stylesheet" href="/static/css/profile.css?v=12">',
+                                      '<link rel="stylesheet" href="/static/css/profile.css?v=13">',
                   robots=None if public else NOINDEX, **seo)
     status = 200 if usertest[0] else 404
     footer = (open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/report.html").read()
@@ -2326,9 +2410,11 @@ def user(request, user):
         for _key, index, title, desc, show in items:
             how = MEDAL_HINTS.get(title) or extra_hints.get(title) or desc
             when = unlocked.get(index) if show else None
-            got = f"Got it on {when.strftime('%-d %b %Y')}! " if when else "Got it! "
-            hint = escape((got if show else "") + how)
-            html += (f'<div class="pf-medal{"" if show else " locked"}" tabindex="0" data-hint="{hint}" aria-label="{escape(title)}. {hint}">'
+            got = (f"Got it on {when.strftime('%-d %b %Y')}!" if when else "Got it!") if show else ""
+            hint = escape(how)
+            got_attr = f' data-got="{escape(got)}"' if got else ""  # shown under the hint (profile.css)
+            html += (f'<div class="pf-medal{"" if show else " locked"}" tabindex="0" data-hint="{hint}"{got_attr} '
+                     f'aria-label="{escape(title)}. {hint}{(" " + escape(got)) if got else ""}">'
                      f'<span class="pf-medal-icon">{"★" if show else "?"}</span>'
                      f'<span><b>{title}</b><small>{desc}</small></span></div>')
         html += '</div></div>'
