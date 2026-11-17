@@ -1426,7 +1426,7 @@ def admin_page(request):
         html = header(request, title="Qlute - the black hole of death.", robots=NOINDEX) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read().replace('{sitetitle}', "404 not found o-o")
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
         return HttpResponse(html, status=404)
-    head = '<link rel="stylesheet" href="/static/css/catalog.css"><link rel="stylesheet" href="/static/css/admin.css?v=6">'
+    head = '<link rel="stylesheet" href="/static/css/catalog.css"><link rel="stylesheet" href="/static/css/admin.css?v=7">'
     html = header(request, customhead=head, title="Qlute - admin panel", robots=NOINDEX)
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/admin.html").read()
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()

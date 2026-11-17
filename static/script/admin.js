@@ -3,10 +3,36 @@
 (function () {
     const view = document.getElementById("admin-view");
     const hint = document.getElementById("admin-hint");
-    const tabs = document.querySelectorAll("#admin-tabs .catalog-tab");
+    const tabs = document.querySelectorAll("#admin-tabs .adm-tab");
     const openCount = document.getElementById("open-count");
     let me = null;
     let render = 0; // bumps on every navigation so late replies don't draw over a newer view
+    let userState = { name: "", sub: "history", act: "warn" }; // the player page remembers its tab between re-renders
+    const svg = d => `<svg viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+    const ICON = {
+        gavel: svg('<path d="m14 13-7.5 7.5a2.1 2.1 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8"/>'),
+        user: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 16 0v1"/>'),
+        clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+        alert: svg('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0ZM12 9v4M12 17h.01"/>'),
+        ban: svg('<circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/>'),
+        eraser: svg('<path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 21M22 21H7M5 11l9 9"/>'),
+        pen: svg('<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/>'),
+        trash: svg('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>'),
+    };
+    const TITLES = {
+        reports: ["Reports", "What players and the anti-cheat reported. Oldest first, so nothing waits too long."],
+        players: ["Players", "Find anyone to see their record or take action."],
+        user: ["Player", ""],
+        bans: ["Bans", "Who is restricted right now, and every ban before."],
+        takedowns: ["Beatmap takedowns", "Sets hidden for breaking the beatmap rules. They can be restored."],
+        scores: ["Scores", "Delete scores in bulk, e.g. after a broken submit or a cheater's spree."],
+        claims: ["Map claims", "Players asking to be credited as the mapper of a set."],
+        news: ["News", "Posts on the news page and the game's home screen."],
+        notices: ["Notices", "Banners on the game's home screen."],
+        borders: ["Card borders", "Borders players can pick in their settings."],
+        supporters: ["Supporters", "Who supports Qlute, and their orders."],
+        team: ["Team", "Moderators and admins."],
+    };
 
     const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const userLink = n => `<a href="#user=${encodeURIComponent(n)}">${esc(n)}</a>`;
@@ -76,10 +102,13 @@
         const [tab, arg] = decodeURIComponent(location.hash.slice(1) || "reports").split(/=(.*)/s);
         const mine = ++render;
         tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === (tab === "user" ? "players" : tab)));
+        const [title, sub] = TITLES[tab] || TITLES.reports;
+        document.getElementById("adm-title").textContent = title;
+        document.getElementById("adm-sub").textContent = sub;
         view.innerHTML = "";
         hint.style.display = "";
         hint.textContent = "Loading...";
-        const views = { scores: showScores, supporters: showSupporters, news: showNews, claims: showClaims, reports: showReports, players: showPlayers, user: showUser, bans: showBans, team: showTeam, notices: showNotices, borders: showBorders };
+        const views = { scores: showScores, supporters: showSupporters, news: showNews, claims: showClaims, takedowns: showTakedowns, reports: showReports, players: showPlayers, user: showUser, bans: showBans, team: showTeam, notices: showNotices, borders: showBorders };
         (views[tab] || showReports)(arg || "", mine).catch(err => {
             if (mine === render) hint.textContent = err.message;
         });
@@ -92,6 +121,7 @@
         openCount.textContent = me.open_reports ? me.open_reports : "";
         document.getElementById("claim-count").textContent = me.pending_claims ? me.pending_claims : "";
         document.querySelectorAll(".admin-only").forEach(t => t.hidden = !me.admin);
+        document.getElementById("adm-whoami").textContent = `${me.username} · ${me.admin ? "admin" : "moderator"}`;
     }
 
     // ---------------------------------------------------------------- reports
@@ -141,14 +171,14 @@
 
     function reportCard(r, changed) {
         const card = document.createElement("div");
-        card.className = "adm-card" + (r.status === "open" ? "" : " closed");
+        card.className = "adm-card " + (r.status !== "open" ? "closed" : r.source === "system" ? "tone-red" : "tone-yellow");
         const statusPill = r.status === "open" ? `<span class="adm-pill yellow">open</span>`
             : `<span class="adm-pill ${r.status === "resolved" ? "green" : ""}">${esc(r.status)}</span>`;
         card.innerHTML = `
             <div class="adm-head">
                 <span class="who">${userLink(r.target)} ${r.target_restricted ? `<span class="adm-pill red">restricted</span>` : ""}
                     ${r.target_open_reports > 1 ? `<span class="adm-pill purple">${r.target_open_reports} open reports</span>` : ""}</span>
-                <span>${statusPill} <span class="adm-pill">${esc(r.category_text)}</span></span>
+                <span>${statusPill} <span class="adm-pill">${esc(r.category_text)}</span>${r.rule ? ` <a class="adm-pill purple" href="/rules#${esc(r.rule)}" target="_blank">${esc(((me.rules || []).find(x => x.id === r.rule) || {}).text || "rules")}</a>` : ""}</span>
             </div>
             <div class="adm-meta">#${r.id} ${r.source === "system" ? "flagged by the anti-cheat" : `reported by ${userLink(r.reporter)}`} ${when(r.created)}${r.source === "system" ? "" : ` from the ${r.source === "game" ? "game" : "website"}`}</div>
             ${r.evidence && r.evidence.length ? evidenceHtml(r.evidence) : `<p class="adm-text">${esc(r.details)}</p>`}
@@ -169,7 +199,7 @@
         }
         button("Open player", "", async () => location.hash = "user=" + encodeURIComponent(r.target));
         if (r.status === "open") {
-            button("Ban...", "danger", async () => location.hash = `user=${encodeURIComponent(r.target)}&report=${r.id}`);
+            button("Take action...", "danger", async () => location.hash = `user=${encodeURIComponent(r.target)}&report=${r.id}`);
             button("Resolve", "good", async () => {
                 const note = prompt("What was done? (optional)", "");
                 if (note === null) throw new Error("");
@@ -392,45 +422,116 @@
         const u = await api("user/" + encodeURIComponent(name));
         if (!current(mine)) return;
         const active = u.bans.filter(b => b.active);
+        const fromReport = (u.reports_against.find(r => String(r.id) === reportPart) || {}).rule || "";
+        if (userState.name !== u.username) userState = { name: u.username, sub: "history", act: "warn" };
+        if (reportPart) userState.sub = "action";
+        const history = u.reports_against.length + u.warnings.length + u.bans.length + u.names.length;
+        const tile = (label, value) => `<div class="adm-tile"><span>${label}</span><b>${value}</b></div>`;
+        const seg = (key, text, icon, cls = "") => `<button type="button" data-act="${key}" class="${cls}">${ICON[icon]}${text}</button>`;
         view.innerHTML = `
-            <div class="adm-head">
-                <span class="who" style="font-size:24px">${esc(u.username)}
-                    ${u.restricted ? `<span class="adm-pill red">restricted</span>` : `<span class="adm-pill green">in good standing</span>`}
-                    ${u.staff ? `<span class="adm-pill purple">${esc(u.staff)}</span>` : ""}</span>
-                <a href="/user/${encodeURIComponent(u.username)}"><button class="adm-btn">View profile</button></a>
-            </div>
-            <div class="adm-stats" style="margin:8px 0 4px">
-                <span>Rank: ${u.rank ? "#" + u.rank.toLocaleString() : "unranked"}</span>
-                <span>${(u.points || 0).toLocaleString()}pp</span>
-                <span>${u.accuracy}% acc</span>
-                <span>${u.scores.toLocaleString()} scores</span>
-                <span>Joined ${when(u.joined)}</span>
-                <span>Last seen ${when(u.last_seen)}</span>
-                <span>Sent ${u.reports_sent} report${u.reports_sent === 1 ? "" : "s"}</span>
-            </div>
-            <div id="action"></div>
-            ${u.scores ? `<div class="adm-row" style="margin-top:8px"><button class="adm-btn danger" id="wipe-all">Delete all ${u.scores.toLocaleString()} scores</button>
-                <a href="#scores=${encodeURIComponent(u.username)}"><button class="adm-btn">Delete recent scores...</button></a></div>
-                <p class="adm-msg" id="wmsg"></p>` : ""}
-            <div class="adm-section">Country</div>
-            <div class="adm-form" id="country">
-                <div class="adm-row">
-                    ${u.country ? `<img class="adm-flag" src="/static/img/flags/${esc(u.country.toLowerCase())}.svg" alt="">` : ""}
-                    <select id="country-pick"><option value="">No country</option>${u.all_countries.map(([c, n]) =>
-                        `<option value="${esc(c)}"${c === u.country ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>
-                    <button class="adm-btn" id="country-save">Set country</button>
-                    ${u.country_set ? `<span class="adm-meta">set ${when(u.country_set)}</span>` : ""}
+            <div class="adm-player${u.restricted ? " is-restricted" : ""}">
+                <img class="adm-avatar" src="${esc(u.pfp)}" alt="">
+                <div>
+                    <h2 class="adm-player-name">${esc(u.username)}</h2>
+                    <div class="adm-player-pills">
+                        ${u.restricted ? `<span class="adm-pill red">restricted</span>` : `<span class="adm-pill green">in good standing</span>`}
+                        ${u.staff ? `<span class="adm-pill purple">${esc(u.staff)}</span>` : ""}
+                        ${u.supporter && u.supporter.active ? `<span class="adm-pill purple">&#9829; supporter</span>` : ""}
+                        ${u.warnings.length ? `<span class="adm-pill yellow">${u.warnings.length} warning${u.warnings.length === 1 ? "" : "s"}</span>` : ""}
+                        ${(u.privacy || []).map(p => `<span class="adm-pill blue">${esc(p)}</span>`).join("")}
+                        ${u.hide_country ? `<span class="adm-pill blue">hides country</span>` : ""}
+                    </div>
                 </div>
-                <span class="adm-meta">Played from: ${u.countries_seen.length ? u.countries_seen.map(c =>
-                    `${esc(c.name)} (${c.days} day${c.days === 1 ? "" : "s"}, ${esc(c.first)} to ${esc(c.last)})`).join(" &middot; ") : "nowhere recorded yet"}</span>
-                <p class="adm-msg" id="cmsg"></p>
+                <div class="adm-player-links"><a href="/user/${u.id}" target="_blank"><button class="adm-btn">View profile &nearr;</button></a></div>
             </div>
-            <div class="adm-section">Supporter</div>
-            <div id="support"></div>
-            <div class="adm-section">Bans (${u.bans.length})</div>
-            <div class="adm-list" id="bans"></div>
-            <div class="adm-section">Reports about them (${u.reports_against.length})</div>
-            <div class="adm-list" id="reports"></div>`;
+            <div class="adm-tiles">
+                ${tile("Rank", u.rank ? "#" + u.rank.toLocaleString() : "unranked")}
+                ${tile("Performance", (u.points || 0).toLocaleString() + "pp")}
+                ${tile("Accuracy", u.accuracy + "%")}
+                ${tile("Scores", u.scores.toLocaleString())}
+                ${tile("Joined", when(u.joined))}
+                ${tile("Last seen", when(u.last_seen))}
+                ${tile("Reports sent", u.reports_sent.toLocaleString())}
+            </div>
+            ${u.restricted ? `<div class="adm-banner"><div id="action"></div></div>` : ""}
+            <nav class="adm-subtabs" role="tablist">
+                <button type="button" class="adm-subtab" data-sub="action">${ICON.gavel}Take action</button>
+                <button type="button" class="adm-subtab" data-sub="account">${ICON.user}Account</button>
+                <button type="button" class="adm-subtab" data-sub="history">${ICON.clock}History <span class="adm-count">${history}</span></button>
+            </nav>
+            <div class="adm-pane" data-pane="action">
+                ${u.can_ban ? `
+                <div class="adm-seg">
+                    ${seg("warn", "Warn", "alert")}
+                    ${u.restricted ? "" : seg("ban", "Ban", "ban", "danger")}
+                    ${seg("reset", "Reset profile", "eraser")}
+                    ${seg("rename", "Rename", "pen")}
+                    ${u.scores ? seg("scores", "Scores", "trash", "danger") : ""}
+                </div>
+                ${reportPart ? `<p class="adm-meta" style="margin:0 0 10px">Acting on report #${esc(reportPart)}: the rule is filled in from it.</p>` : ""}
+                <div class="adm-pane" data-act-pane="warn"><div id="warn"></div></div>
+                ${u.restricted ? "" : `<div class="adm-pane" data-act-pane="ban"><div id="action"></div></div>`}
+                <div class="adm-pane" data-act-pane="reset"><div id="reset"></div></div>
+                <div class="adm-pane" data-act-pane="rename"><div id="rename"></div></div>
+                ${u.scores ? `<div class="adm-pane" data-act-pane="scores"><div class="adm-form">
+                    <b>Delete scores</b>
+                    <span class="adm-meta">Their pp, accuracy and rank are recalculated from what's left. This can't be undone.</span>
+                    <div class="adm-row"><button class="adm-btn danger" id="wipe-all">Delete all ${u.scores.toLocaleString()} scores</button>
+                        <a href="#scores=${encodeURIComponent(u.username)}"><button class="adm-btn">Delete recent scores...</button></a></div>
+                    <p class="adm-msg" id="wmsg"></p></div></div>` : ""}`
+                : `<p class="adm-empty">You can't act on this account (yourself, or a team member you don't outrank).</p>
+                   ${u.restricted ? "" : `<div id="action" hidden></div>`}`}
+            </div>
+            <div class="adm-pane" data-pane="account">
+                <div class="adm-two">
+                    <div>
+                        <div class="adm-section">Country</div>
+                        <div class="adm-form" id="country">
+                            <div class="adm-row">
+                                ${u.country ? `<img class="adm-flag" src="/static/img/flags/${esc(u.country.toLowerCase())}.svg" alt="">` : ""}
+                                <select id="country-pick"><option value="">No country</option>${u.all_countries.map(([c, n]) =>
+                                    `<option value="${esc(c)}"${c === u.country ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>
+                                <button class="adm-btn" id="country-save">Set country</button>
+                            </div>
+                            <span class="adm-meta">${u.country_set ? `Set ${when(u.country_set)}.` : ""}${u.hide_country ? " Hidden from other players." : ""}</span>
+                            <span class="adm-meta">Played from: ${u.countries_seen.length ? u.countries_seen.map(c =>
+                                `${esc(c.name)} (${c.days} day${c.days === 1 ? "" : "s"}, ${esc(c.first)} to ${esc(c.last)})`).join(" &middot; ") : "nowhere recorded yet"}</span>
+                            <p class="adm-msg" id="cmsg"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="adm-section">Supporter</div>
+                        <div id="support"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="adm-pane" data-pane="history">
+                <div class="adm-section">Reports about them (${u.reports_against.length})</div>
+                <div class="adm-list" id="reports"></div>
+                <div class="adm-section">Warnings (${u.warnings.length})</div>
+                <div class="adm-list" id="warnings"></div>
+                <div class="adm-section">Bans (${u.bans.length})</div>
+                <div class="adm-list" id="bans"></div>
+                ${u.names.length ? `<div class="adm-section">Previous names (${u.names.length})</div>
+                <div class="adm-list">${u.names.map(n => `<div class="adm-card${n.forced ? " tone-yellow" : ""}"><div class="adm-head"><span class="who">${esc(n.old)} &rarr; ${esc(n.new)}</span>
+                    <span>${n.forced ? `<span class="adm-pill yellow">by the team</span>` : `<span class="adm-pill">by the player</span>`}${n.hidden ? `<span class="adm-pill red">old name hidden</span>` : ""}</span></div>
+                    <div class="adm-meta">By ${esc(n.by)} ${when(n.created)}${n.reason ? ": " + esc(n.reason) : ""}</div></div>`).join("")}</div>` : ""}
+            </div>`;
+        const showSub = sub => {
+            userState.sub = sub;
+            view.querySelectorAll("[data-sub]").forEach(b => b.classList.toggle("active", b.dataset.sub === sub));
+            view.querySelectorAll("[data-pane]").forEach(p => p.hidden = p.dataset.pane !== sub);
+        };
+        const showAct = act => {
+            if (!view.querySelector(`[data-act="${act}"]`)) act = "warn";
+            userState.act = act;
+            view.querySelectorAll("[data-act]").forEach(b => b.classList.toggle("active", b.dataset.act === act));
+            view.querySelectorAll("[data-act-pane]").forEach(p => p.hidden = p.dataset.actPane !== act);
+        };
+        view.querySelectorAll("[data-sub]").forEach(b => b.onclick = () => showSub(b.dataset.sub));
+        view.querySelectorAll("[data-act]").forEach(b => b.onclick = () => showAct(b.dataset.act));
+        showSub(userState.sub);
+        showAct(userState.act);
         supportBox(view.querySelector("#support"), u.username, u.supporter, u.can_grant_support, () => route());
         view.querySelector("#country-save").onclick = async e => {
             e.target.disabled = true;
@@ -468,6 +569,8 @@
             action.innerHTML = `
                 <div class="adm-form">
                     <b>Ban ${esc(u.username)}${reportPart ? ` (from report #${esc(reportPart)})` : ""}</b>
+                    <label for="ban-rule">Rule broken (the player sees this)</label>
+                    ${ruleSelect("ban-rule", fromReport)}
                     <label for="reason">Reason (the player sees this)</label>
                     <textarea id="reason" rows="2" maxlength="500" placeholder="e.g. Using an auto-player on ranked maps"></textarea>
                     <label for="length">Length</label>
@@ -500,6 +603,8 @@
                     ? Number(action.querySelector("#amount").value) * Number(action.querySelector("#unit").value)
                     : Number(length.value);
                 const msg = action.querySelector("#bmsg");
+                const rule = action.querySelector("#ban-rule").value;
+                if (!rule) { msg.textContent = "Pick the rule they broke."; return; }
                 if (reason.length < 3) { msg.textContent = "Give a reason; the player will see it."; return; }
                 if (!(hours >= 0)) { msg.textContent = "Pick a length."; return; }
                 const lengthText = hours === 0 ? "permanently" : length.value === "custom" ? `for ${hours} hours` : "for " + length.selectedOptions[0].text;
@@ -508,7 +613,7 @@
                              (wipe ? `\n\nThis also DELETES ALL ${u.scores} of their scores, even if the ban is lifted later.` : ""))) return;
                 e.target.disabled = true;
                 try {
-                    await api("ban", { username: u.username, reason, hours, report: reportPart || null,
+                    await api("ban", { username: u.username, reason, hours, rule, report: reportPart || null,
                                        close_reports: action.querySelector("#close").checked, delete_scores: wipe });
                     refreshMe();
                     location.hash = "user=" + encodeURIComponent(u.username);
@@ -519,23 +624,186 @@
             action.innerHTML = `<p class="adm-meta">You can't ban this account (yourself, or a team member you don't outrank).</p>`;
         }
         const bans = view.querySelector("#bans");
-        bans.innerHTML = u.bans.map(banCard).join("") || `<p class="adm-meta">No bans.</p>`;
+        bans.innerHTML = u.bans.map(banCard).join("") || `<p class="adm-empty">No bans.</p>`;
+        view.querySelector("#warnings").innerHTML = u.warnings.map(warningCard).join("") || `<p class="adm-empty">No warnings.</p>`;
+        if (u.can_ban) {
+            warnForm(view.querySelector("#warn"), u, reportPart, fromReport);
+            resetForm(view.querySelector("#reset"), u, reportPart);
+            renameForm(view.querySelector("#rename"), u, reportPart);
+        }
         const reports = view.querySelector("#reports");
         u.reports_against.forEach(r => reports.appendChild(reportCard(r, route)));
-        if (!u.reports_against.length) reports.innerHTML = `<p class="adm-meta">No reports.</p>`;
+        if (!u.reports_against.length) reports.innerHTML = `<p class="adm-empty">No reports about them.</p>`;
         done("");
+    }
+
+    // ---------------------------------------------------------------- rules: every action names the rule it enforces (/rules)
+    function ruleSelect(id, selected) {
+        return `<select id="${id}"><option value="">Pick a rule...</option>${(me.rules || []).map(r =>
+            `<option value="${esc(r.id)}"${r.id === selected ? " selected" : ""}>${esc(r.text)}</option>`).join("")}</select>`;
+    }
+
+    function ruleTag(rule, text) {
+        return rule ? `<a class="adm-pill purple" href="/rules#${esc(rule)}" target="_blank">${esc(text)}</a>` : "";
+    }
+
+    function warnForm(box, u, reportPart, fromReport) {
+        box.innerHTML = `
+            <div class="adm-form">
+                <span class="adm-meta">The first step for smaller things: the player gets a notification, and it stays on their record here.</span>
+                <label for="warn-rule">Rule broken</label>
+                ${ruleSelect("warn-rule", fromReport)}
+                <label for="warn-reason">Reason (the player sees this)</label>
+                <textarea id="warn-reason" rows="2" maxlength="500" placeholder="e.g. Please keep the chat friendly"></textarea>
+                <label class="adm-row"><input type="checkbox" id="warn-close" checked> Mark their open reports as resolved</label>
+                <div class="adm-row"><button class="adm-btn primary" id="warn-go">Warn</button></div>
+                <p class="adm-msg" id="warn-msg"></p>
+            </div>`;
+        box.querySelector("#warn-go").onclick = async e => {
+            const rule = box.querySelector("#warn-rule").value, reason = box.querySelector("#warn-reason").value.trim();
+            const msg = box.querySelector("#warn-msg");
+            if (!rule) { msg.textContent = "Pick the rule they broke."; return; }
+            if (reason.length < 3) { msg.textContent = "Give a reason; the player will see it."; return; }
+            if (!confirm(`Warn ${u.username}?\n\nReason: ${reason}`)) return;
+            e.target.disabled = true;
+            try {
+                await api("warn", { username: u.username, reason, rule, report: reportPart || null,
+                                    close_reports: box.querySelector("#warn-close").checked });
+                refreshMe(); route();
+            } catch (err) { msg.textContent = err.message; e.target.disabled = false; }
+        };
+    }
+
+    function resetForm(box, u, reportPart) {
+        const parts = [["avatar", "Avatar"], ["banner", "Profile banner"], ["bio", "Bio"], ["cardborder", "Card border"]];
+        box.innerHTML = `
+            <div class="adm-form">
+                <span class="adm-meta">Puts these back to the default (uploaded files are deleted). The player gets a notification.</span>
+                <div class="adm-row">${parts.map(([k, t]) => `<label class="adm-row"><input type="checkbox" data-part="${k}"${u.profile[k] ? "" : " disabled"}> ${t}${u.profile[k] ? "" : " (not set)"}</label>`).join("")}</div>
+                <label for="reset-rule">Rule broken</label>
+                ${ruleSelect("reset-rule", "profiles")}
+                <label for="reset-reason">Reason (the player sees this)</label>
+                <textarea id="reset-reason" rows="2" maxlength="500" placeholder="e.g. Offensive avatar"></textarea>
+                <label class="adm-row"><input type="checkbox" id="reset-close" checked> Mark their open reports as resolved</label>
+                <div class="adm-row"><button class="adm-btn danger" id="reset-go">Reset</button></div>
+                <p class="adm-msg" id="reset-msg"></p>
+            </div>`;
+        box.querySelector("#reset-go").onclick = async e => {
+            const picked = [...box.querySelectorAll("[data-part]:checked")].map(c => c.dataset.part);
+            const rule = box.querySelector("#reset-rule").value, reason = box.querySelector("#reset-reason").value.trim();
+            const msg = box.querySelector("#reset-msg");
+            if (!picked.length) { msg.textContent = "Pick what to reset."; return; }
+            if (!rule) { msg.textContent = "Pick the rule they broke."; return; }
+            if (reason.length < 3) { msg.textContent = "Give a reason; the player will see it."; return; }
+            if (!confirm(`Reset ${u.username}'s ${picked.join(", ")}? This can't be undone.\n\nReason: ${reason}`)) return;
+            e.target.disabled = true;
+            try {
+                await api("reset", { username: u.username, parts: picked, reason, rule, report: reportPart || null,
+                                     close_reports: box.querySelector("#reset-close").checked });
+                refreshMe(); route();
+            } catch (err) { msg.textContent = err.message; e.target.disabled = false; }
+        };
+    }
+
+    function renameForm(box, u, reportPart) {
+        box.innerHTML = `
+            <div class="adm-form">
+                <span class="adm-meta">For names that break the rules. The player is told, logs in again with the new name, and their open game connections close.</span>
+                <label for="rn-name">New username</label>
+                <input id="rn-name" type="text" maxlength="15" placeholder="e.g. Player${u.id}" value="Player${u.id}">
+                <label for="rn-rule">Rule broken</label>
+                ${ruleSelect("rn-rule", "profiles")}
+                <label for="rn-reason">Reason (the player sees this)</label>
+                <textarea id="rn-reason" rows="2" maxlength="500" placeholder="e.g. Offensive username"></textarea>
+                <label class="adm-row"><input type="checkbox" id="rn-hide" checked> Hide the old name (not shown on the profile, nobody can use it again)</label>
+                <label class="adm-row"><input type="checkbox" id="rn-close" checked> Mark their open reports as resolved</label>
+                <div class="adm-row"><button class="adm-btn danger" id="rn-go">Rename</button></div>
+                <p class="adm-msg" id="rn-msg"></p>
+            </div>`;
+        box.querySelector("#rn-go").onclick = async e => {
+            const name = box.querySelector("#rn-name").value, rule = box.querySelector("#rn-rule").value;
+            const reason = box.querySelector("#rn-reason").value.trim(), msg = box.querySelector("#rn-msg");
+            if (!rule) { msg.textContent = "Pick the rule they broke."; return; }
+            if (reason.length < 3) { msg.textContent = "Give a reason; the player will see it."; return; }
+            if (!confirm(`Rename ${u.username} to ${name}?\n\nReason: ${reason}`)) return;
+            e.target.disabled = true;
+            try {
+                const r = await api("rename", { username: u.username, new_name: name, reason, rule, report: reportPart || null,
+                                                hide_old: box.querySelector("#rn-hide").checked,
+                                                close_reports: box.querySelector("#rn-close").checked });
+                refreshMe();
+                location.hash = "user=" + encodeURIComponent(r.username);
+            } catch (err) { msg.textContent = err.message; e.target.disabled = false; }
+        };
+    }
+
+    function warningCard(w) {
+        return `
+            <div class="adm-card tone-yellow">
+                <div class="adm-head"><span class="who">${userLink(w.username)}</span><span><span class="adm-pill yellow">warning</span> ${ruleTag(w.rule, w.rule_text)}</span></div>
+                <p class="adm-text">${esc(w.reason)}</p>
+                <div class="adm-meta">By ${esc(w.issued_by)} ${when(w.created)}${w.report ? ` &middot; report #${w.report}` : ""}</div>
+            </div>`;
     }
 
     function banCard(b) {
         const state = b.active ? `<span class="adm-pill red">${b.permanent ? "permanent" : "active, " + esc(b.time_left) + " left"}</span>`
             : b.lifted_by ? `<span class="adm-pill green">lifted</span>` : `<span class="adm-pill">expired</span>`;
         return `
-            <div class="adm-card${b.active ? "" : " closed"}">
-                <div class="adm-head"><span class="who">${userLink(b.username)}</span><span>${state}</span></div>
+            <div class="adm-card${b.active ? " tone-red" : " closed"}">
+                <div class="adm-head"><span class="who">${userLink(b.username)}</span><span>${state} ${ruleTag(b.rule, b.rule_text)}</span></div>
                 <p class="adm-text">${esc(b.reason)}</p>
                 <div class="adm-meta">By ${esc(b.issued_by)} ${when(b.created)} &middot; ${b.permanent ? "no end date" : b.active ? "ends " + when(b.expires) : "was set to end " + esc(new Date(b.expires * 1000).toLocaleString())}${b.report ? ` &middot; report #${b.report}` : ""}</div>
                 ${b.lifted_by ? `<div class="adm-meta">Lifted by ${esc(b.lifted_by)} ${when(b.lifted_at)}${b.lift_note ? ": " + esc(b.lift_note) : ""}</div>` : ""}
             </div>`;
+    }
+
+    // ---------------------------------------------------------------- beatmap takedowns (rules: Beatmaps, moderation/takedowns.py)
+    async function showTakedowns(arg, mine) {
+        view.innerHTML = `
+            <div class="adm-form">
+                <b>Take down a beatmap set</b>
+                <span class="adm-meta">Hides it everywhere (listings, search, its page, the game) and stops its download. Scores and files are kept, so it can be restored. The uploader gets a notification.</span>
+                <label for="td-set">Beatmap set id (or its link)</label>
+                <input id="td-set" type="text" placeholder="e.g. 1000000000 or /beatmapset/1000000000" value="${esc(arg || "")}">
+                <label for="td-rule">Rule broken</label>
+                ${ruleSelect("td-rule", "beatmaps")}
+                <label for="td-reason">Reason (the uploader sees this)</label>
+                <textarea id="td-reason" rows="2" maxlength="500" placeholder="e.g. Re-upload of someone else's map without permission"></textarea>
+                <div class="adm-row"><button class="adm-btn danger" id="td-go">Take down</button></div>
+                <p class="adm-msg" id="td-msg"></p>
+            </div>
+            <div class="adm-section">Taken down</div>
+            <div class="adm-list" id="list"></div>`;
+        view.querySelector("#td-go").onclick = async e => {
+            const setid = Number((view.querySelector("#td-set").value.match(/\d+/) || [""])[0]);
+            const rule = view.querySelector("#td-rule").value, reason = view.querySelector("#td-reason").value.trim();
+            const msg = view.querySelector("#td-msg");
+            if (!setid) { msg.textContent = "Give a beatmap set id."; return; }
+            if (!rule) { msg.textContent = "Pick the rule the set breaks."; return; }
+            if (reason.length < 3) { msg.textContent = "Give a reason; the uploader will see it."; return; }
+            if (!confirm(`Take down beatmap set ${setid}?\n\nReason: ${reason}`)) return;
+            e.target.disabled = true;
+            try { await api("takedowns/add", { setid, rule, reason }); location.hash = "takedowns"; route(); }
+            catch (err) { msg.textContent = err.message; e.target.disabled = false; }
+        };
+        const data = await api("takedowns");
+        if (!current(mine)) return;
+        const list = view.querySelector("#list");
+        list.innerHTML = data.results.map(t => `
+            <div class="adm-card">
+                <div class="adm-head"><span class="who">${esc(t.title)} <span class="adm-meta">#${t.setid}</span></span><span>${ruleTag(t.rule, t.rule_text)}</span></div>
+                <p class="adm-text">${esc(t.reason)}</p>
+                <div class="adm-meta">By ${esc(t.by)} ${when(t.created)} &middot; ${t.files} download file${t.files === 1 ? "" : "s"} kept aside</div>
+                <div class="adm-row"><button class="adm-btn good" data-restore="${t.setid}">Restore</button></div>
+            </div>`).join("") || `<p class="adm-meta">Nothing is taken down.</p>`;
+        list.querySelectorAll("[data-restore]").forEach(b => b.onclick = async () => {
+            if (!confirm(`Restore beatmap set ${b.dataset.restore}? It shows up everywhere again.`)) return;
+            b.disabled = true;
+            try { await api("takedowns/restore", { setid: Number(b.dataset.restore) }); route(); }
+            catch (err) { alert(err.message); b.disabled = false; }
+        });
+        done("");
     }
 
     // ---------------------------------------------------------------- bans

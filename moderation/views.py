@@ -265,6 +265,7 @@ def user_view(request, me, staff, args):
     data = user_row(u, roles)
     data.update({
         "status": u.status or "",
+        "pfp": u.pfppath if (u.pfppath or "").startswith("http") else DataURL + (u.pfppath or ""),
         "accuracy": round(u.accuracy or 0, 2),
         "scores": Score.objects.filter(username=u.username).count(),
         "bans": [ban_json(b) for b in Ban.objects.filter(username=u.username).order_by("-created")[:50]],
