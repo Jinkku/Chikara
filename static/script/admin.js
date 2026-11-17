@@ -124,7 +124,7 @@
 
     // Anti-cheat reports: every check of each flagged / banned play (Chikara/anticheat.py), newest first
     function evidenceHtml(list) {
-        const label = { pass: "pass", flag: "flag", fail: "fail", skip: "skip" };
+        const label = { pass: "pass", warn: "sign", flag: "flag", fail: "fail", skip: "skip" };
         return list.slice().reverse().map(e => `
             <details class="adm-ev" ${e === list[list.length - 1] ? "open" : ""}>
                 <summary><span class="adm-pill ${e.outcome === "banned" ? "red" : e.outcome === "flagged" ? "yellow" : "purple"}">${esc(e.outcome)}</span>

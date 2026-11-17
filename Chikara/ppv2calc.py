@@ -36,7 +36,7 @@ Score:
 import math
 import re
 import statistics
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 PP_VERSION = 3
 
@@ -61,6 +61,7 @@ class GameplayResult:
     bad_combo: int = 0
     health: int = 150
     unstable_rate: float = 0.0
+    hit_log: list = field(default_factory=list)  # [(note_time, column, offset_ms)] of every hit, in order
     combo_portion_num: int = 0   # internal: sum of weight * min(combo, COMBO_CAP)
 
     @property
@@ -602,6 +603,7 @@ def _simulate(notes, presses, od, song_end) -> GameplayResult:
         targets = sorted(i for i in (first_unhit(c) for c in range(4) if accepted[c]) if i is not None)
         for i in targets:
             if judge(t - notes[i][1]):
+                result.hit_log.append((notes[i][1], notes[i][0], t - notes[i][1]))
                 hit[i] = True
         result.max_combo = max(result.max_combo, result.combo)
 

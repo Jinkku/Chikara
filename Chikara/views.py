@@ -762,7 +762,7 @@ def score_page(request, score_id):
     status = {1: ("Ranked", "s1"), 0: ("Unranked", "s0")}.get(sc.ranked, ("Special", "s2"))
 
     page_title = f"{urllib.parse.unquote(sc.username or '')} on {bm.title if bm else sc.beatmapname} [{bm.difficulty if bm else sc.beatmapdiff}] - Qlute"
-    html = header(request, customhead='<link rel="stylesheet" href="/static/css/score.css?v=2">', title=escape(page_title),
+    html = header(request, customhead='<link rel="stylesheet" href="/static/css/score.css?v=3">', title=escape(page_title),
                   description=f"{urllib.parse.unquote(sc.username or '')} got {g} rank, {acc:.2f}% accuracy and {int(sc.points or 0)}pp "
                               f"on {bm.artist + ' - ' + bm.title if bm else sc.beatmapname} in Qlute.",
                   image=cover or None, canonical=f"{SiteURL}/score/{sc.id}", robots=None if sc.ranked == 1 else NOINDEX)
@@ -811,6 +811,7 @@ def score_page(request, score_id):
     h += '</section>'
     if staff_view:
         h += SCORE_DELETE_SCRIPT.replace("{back}", escape(map_url))
+        h += score_review_html(sc)
 
     # judgements
     h += '<section class="infobox column sc-section spacebottom"><div class="sc-sec-head"><span class="title">Judgements</span>'
@@ -822,6 +823,44 @@ def score_page(request, score_id):
     h += '</div></section></div>'
     html += h + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
     return HttpResponse(html)
+
+
+def score_review_html(sc):
+    """Team-only anti-cheat panel on the score page: bot likelihood (private module) and every check."""
+    try:
+        from Chikara import anticheat
+    except ImportError:
+        from Chikara import anticheat_basic as anticheat
+    try:
+        rv = anticheat.score_review(sc)
+    except Exception:
+        sentry_sdk.capture_exception()
+        rv = {"error": "The anti-cheat couldn't check this score."}
+    h = '<section class="infobox column sc-section sc-ac"><div class="sc-sec-head"><span class="title">Anti-cheat</span>'
+    h += '<span class="sc-dim">only the team sees this</span></div>'
+    if rv.get("error"):
+        return h + f'<p class="sc-dim">{escape(rv["error"])}</p></section>'
+    pct = rv.get("percent")
+    if pct is not None:
+        band, word = ("high", "Likely botted") if pct >= 60 else ("mid", "Unclear") if pct >= 20 else ("low", "Looks human")
+        h += (f'<div class="sc-ac-head ac-{band}"><div class="sc-ac-pct"><b>{pct:g}%</b><span>bot likelihood</span></div>'
+              f'<div class="sc-ac-meter"><span class="sc-ac-word">{word}</span>'
+              f'<span class="sc-ac-bar"><span style="width:{max(2, pct):.1f}%"></span></span>'
+              '<small>An estimate from hit timing, not proof. Real plays here score under 15%; test bots 70-99%.</small></div></div>')
+        h += '<table class="sc-ac-table"><thead><tr><th>Sign</th><th>This play</th><th>Real players</th><th>Bot-like</th></tr></thead><tbody>'
+        for f in rv.get("factors", []):
+            w = f["weight"]
+            h += (f'<tr><td>{escape(f["name"])}</td><td>{escape(f["value"])}</td><td class="sc-dim">{escape(f["typical"])}</td>'
+                  f'<td><span class="sc-ac-w" style="--w:{w * 100:.0f}%" title="{w * 100:.0f}%"></span></td></tr>')
+        h += '</tbody></table>'
+    h += '<details class="sc-ac-checks"' + ('' if pct is not None else ' open') + '><summary>All checks</summary>'
+    h += '<table class="sc-ac-table"><thead><tr><th>Check</th><th>Result</th><th>Measured</th><th>Expected</th></tr></thead><tbody>'
+    for c in rv.get("checks", []):
+        st = c["status"]
+        h += (f'<tr class="ac-st-{escape(st)}"><td>{escape(c["check"])}</td>'
+              f'<td><span class="sc-ac-status">{"sign" if st == "warn" else escape(st)}</span></td>'
+              f'<td>{escape(c["value"])}</td><td class="sc-dim">{escape(c["limit"])}</td></tr>')
+    return h + '</tbody></table></details></section>'
 
 
 # Delete button on the score page (team only). Uses the moderation API; the server re-checks staff.
@@ -1173,7 +1212,7 @@ def admin_page(request):
         html = header(request, title="Qlute - the black hole of death.", robots=NOINDEX) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read().replace('{sitetitle}', "404 not found o-o")
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
         return HttpResponse(html, status=404)
-    head = '<link rel="stylesheet" href="/static/css/catalog.css"><link rel="stylesheet" href="/static/css/admin.css?v=4">'
+    head = '<link rel="stylesheet" href="/static/css/catalog.css"><link rel="stylesheet" href="/static/css/admin.css?v=5">'
     html = header(request, customhead=head, title="Qlute - admin panel", robots=NOINDEX)
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/admin.html").read()
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
@@ -1361,17 +1400,18 @@ def api(request,command,value=None):
                    else:
                        finalscore = process_score(smax, sgreat, smeh, mult, info.notecount)
                    # Anti-cheat: cheating is refused and banned, suspicious plays are kept and reported (admin panel).
-                   # The anti-cheat module is private (kept out of the public repo); without it plays are only re-played.
+                   # Chikara/anticheat.py is private (git-ignored); without it the public Chikara/anticheat_basic.py runs.
                    try:
                        from Chikara import anticheat
                    except ImportError:
-                       anticheat = None
+                       from Chikara import anticheat_basic as anticheat
                    if anticheat:
                        ac_header, ac_presses = anticheat.parse(replay_data)
                        ac_pp = User.objects.filter(username=user).values_list("ranked_points", flat=True).first() or 0
                        verdict = anticheat.check(user, ac_header, ac_presses, pointsdata, beatmap_id, beatmapset_id, mods, speed_multi,
                                                  anticheat.stored_replays(beatmap_id, exclude_path=replay_name),
-                                                 ranked=info.ranked, pp_limit=max(ac_pp * PP_JUMP_RATIO, PP_JUMP_FLOOR))
+                                                 ranked=info.ranked, pp_limit=max(ac_pp * PP_JUMP_RATIO, PP_JUMP_FLOOR),
+                                                 history=anticheat.player_urs(user, exclude_path=replay_name))
                        ban_msg = anticheat.act(user, verdict, beatmap_id, info.title, replay_name,
                                                pp=pointsdata.points if pointsdata else None,
                                                acc=pointsdata.accuracy if pointsdata else None)
@@ -1381,7 +1421,7 @@ def api(request,command,value=None):
                            print(f"[anticheat] refused {user} map {beatmap_id}: {verdict.ban_reason or verdict.reject}")
                            return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,
                                                 "msg": ban_msg or verdict.reject,"error": 1})
-                       anticheat.accepted(user)
+                       anticheat.accepted(user, pointsdata)
                    if info.ranked != 0:
                        points = pointsdata.points
                        maxpoints = pointsdata.max_points

@@ -91,3 +91,30 @@
     .sc-id { margin-left: 0; flex-basis: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .sc-map-bg { transition: none; } .sc-map:hover .sc-map-bg { transform: none; } }
+
+/* team-only anti-cheat panel (views.score_review_html) */
+.sc-ac { gap: 12px; }
+.sc-ac-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 14px 16px; border-radius: 12px; background: var(--sc-tile); --ac: #67b930; }
+.sc-ac-head.ac-mid { --ac: #e0b63a; }
+.sc-ac-head.ac-high { --ac: #ff6b6b; }
+.sc-ac-pct { display: flex; flex-direction: column; min-width: 110px; }
+.sc-ac-pct b { font-size: 34px; line-height: 1.1; color: var(--ac); }
+.sc-ac-pct span { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--sc-dim); }
+.sc-ac-meter { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sc-ac-word { font-weight: bold; }
+.sc-ac-bar { display: block; height: 8px; border-radius: 4px; background: #ffffff1a; overflow: hidden; }
+.sc-ac-bar > span { display: block; height: 100%; border-radius: 4px; background: var(--ac); }
+.sc-ac-meter small { color: var(--sc-dim); font-size: 12px; }
+.sc-ac-table { width: 100%; border-collapse: collapse; font-size: 13px; display: block; overflow-x: auto; }
+.sc-ac-table th { text-align: left; font-weight: normal; font-size: 12px; color: var(--sc-dim); padding: 4px 8px; white-space: nowrap; }
+.sc-ac-table td { padding: 6px 8px; border-top: 1px solid #ffffff12; vertical-align: top; }
+.sc-ac-table td:first-child { font-weight: bold; white-space: nowrap; }
+.sc-ac-w { display: inline-block; width: 70px; height: 6px; border-radius: 3px; vertical-align: middle;
+    background: linear-gradient(90deg, #ff6b6b var(--w), #ffffff1a var(--w)); }
+.sc-ac-checks summary { cursor: pointer; color: var(--sc-dim); font-size: 13px; padding: 4px 0; }
+.sc-ac-status { display: inline-block; min-width: 34px; text-align: center; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: bold; text-transform: uppercase; background: #ffffff20; }
+.ac-st-pass .sc-ac-status { background: #67b93055; color: #c9f5ad; }
+.ac-st-warn .sc-ac-status { background: #d4703755; color: #ffd2b5; }
+.ac-st-flag .sc-ac-status { background: #c5c220; color: #221E27; }
+.ac-st-fail .sc-ac-status { background: #d43737; color: #fff; }
+.ac-st-skip .sc-ac-status { color: #ffffff80; background: #ffffff14; }
