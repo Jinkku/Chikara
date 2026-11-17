@@ -59,32 +59,14 @@ def add_friend(me, name):
     if Friend.objects.filter(username=me.username).count() >= limit:
         more = "" if limit > MAX_FRIENDS else f" (supporters can have {SUPPORTER_LIMITS['friends'][1]})"
         return False, f"You can have at most {limit} friends{more}."
-    _, created = Friend.objects.get_or_create(username=me.username, friend=target.username)
-    mutual = is_friend(target.username, me.username)
-    if created:
-        notify(target.id, {"type": "chat.friend", "user": me.username, "added": True, "mutual": mutual})
-        from .notifications import push
-        push(target.username, "friend", me.username,
-             f"{me.username} added you as a friend" + (" back! You're mutual friends now." if mutual else "."),
-             f"/user/{me.username}")
-    return mutual, None
+    Friend.objects.get_or_create(username=me.username, friend=target.username)
+    # Being added isn't announced (no website notification, no game popup); the other player sees it in their
+    # friends list / followers count.
+    return is_friend(target.username, me.username), None
 
 
 def remove_friend(me, name):
     Friend.objects.filter(username=me.username, friend=name).delete()
-
-
-def notify(user_id, event):
-    """Tells the player's open game (online chat socket) right away. Never fails the request over it."""
-    try:
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
-        from .chat_consumer import user_group
-        layer = get_channel_layer()
-        if layer is not None:
-            async_to_sync(layer.group_send)(user_group(user_id), event)
-    except Exception as e:
-        print(f"[friends] couldn't notify user {user_id}: {e}")
 
 
 @csrf_exempt
