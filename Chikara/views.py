@@ -1238,7 +1238,7 @@ def friends_page(request):
 
 
 def search_page(request):
-    head = '<link rel="stylesheet" href="/static/css/catalog.css?v=17"><link rel="stylesheet" href="/static/css/search.css?v=2">'
+    head = '<link rel="stylesheet" href="/static/css/catalog.css?v=17"><link rel="stylesheet" href="/static/css/search.css?v=4">'
     html = header(request, customhead=head, title="Qlute - search players and scores",
                   description="Search Qlute players, see who's online right now, and look up the best and most recent scores.")
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/search.html").read()

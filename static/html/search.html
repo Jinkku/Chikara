@@ -1,22 +1,36 @@
-    <div class="infoboxcontainer">
+    <div class="infoboxcontainer" id="search-page">
         <div class="infoboxtitle"><h1 class="page-title">search</h1></div>
-        <div class="infobox column verticalpadding catalog-controls">
-            <input id="site-search" class="catalog-search" type="search" placeholder="Search..." autocomplete="off">
-            <div class="catalog-tabs" id="search-tabs">
-                <button data-kind="users" class="catalog-tab">Users</button>
-                <button data-kind="players" class="catalog-tab">Online Players</button>
-                <button data-kind="scores" class="catalog-tab">Scores</button>
+
+        <section class="infobox column sr-hero">
+            <label class="sr-field">
+                <svg class="sr-field-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M16.5 16.5 21 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+                <input id="site-search" type="search" placeholder="Search..." autocomplete="off" aria-label="Search">
+                <kbd class="sr-kbd" title="Press / to search">/</kbd>
+            </label>
+            <div class="sr-bar">
+                <div class="sr-seg" id="search-tabs" role="tablist">
+                    <button type="button" data-kind="users" class="sr-tab">Users</button>
+                    <button type="button" data-kind="players" class="sr-tab"><span class="sr-live"></span>Online</button>
+                    <button type="button" data-kind="scores" class="sr-tab">Scores</button>
+                </div>
+                <div class="sr-options" id="score-options">
+                    <div class="sr-seg sr-seg-small">
+                        <button type="button" data-sort="best" class="sr-tab">Best</button>
+                        <button type="button" data-sort="recent" class="sr-tab">Recent</button>
+                    </div>
+                    <label class="sr-switch"><input type="checkbox" id="score-ranked" checked><span class="sr-switch-track"></span>Ranked only</label>
+                </div>
             </div>
-            <div class="catalog-tabs search-options" id="score-options">
-                <button data-sort="best" class="catalog-tab">Best</button>
-                <button data-sort="recent" class="catalog-tab">Recent</button>
-                <label class="search-check"><input type="checkbox" id="score-ranked" checked> Ranked only</label>
+        </section>
+
+        <section class="infobox column sr-section spacebottom">
+            <div class="sr-sec-head">
+                <span class="title" id="search-title">Users</span>
+                <span class="sr-dim" id="search-count"></span>
             </div>
-        </div>
-        <div class="infobox column verticalpadding spacebottom">
             <div id="search-results"></div>
             <p id="search-hint" class="catalog-hint">Loading... (Make sure javascript is enabled.)</p>
             <div id="search-more"></div>
-        </div>
+        </section>
     </div>
-    <script src="/static/script/sitesearch.js?v=3"></script>
+    <script src="/static/script/sitesearch.js?v=4"></script>

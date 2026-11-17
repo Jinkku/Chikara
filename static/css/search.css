@@ -1,39 +1,159 @@
-.search-options { align-items: center; }
-.search-check { display: flex; align-items: center; gap: 6px; color: #ffffffaa; font-size: 15px; cursor: pointer; margin-left: 4px; }
-.search-users {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 10px;
+/* Search page, styled after the profile page (profile.css): gradient hero, soft tiles, pink accent. */
+#search-page {
+    --sr-accent: #f3baff; --sr-tile: #ffffff10; --sr-tile-2: #ffffff1a; --sr-dim: #ffffff99; --sr-online: #6ee7a0;
 }
-.search-user {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px;
-    background: #3a3342;
-    border-radius: 8px;
-    color: #fff;
-    text-decoration: none;
-    transition: transform 0.12s, background 0.12s;
-    min-width: 0;
-}
-.search-user:hover { background: #463e50; transform: translateY(-2px); }
-.search-user img { width: 48px; height: 48px; border-radius: 5px; object-fit: cover; flex: none; }
-.search-user .who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.search-user .name { font-weight: bold; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.search-user .sub { font-size: 12px; color: #ffffffaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.search-user .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #67b930; margin-right: 5px; }
-.search-scores a { color: #fff; text-decoration: none; }
-.search-scores .score-card:hover { background: #463e50; }
-.search-scores .score-card-left { min-width: 0; }
-.search-scores .info { min-width: 0; }
-.search-scores .info span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.search-scores .score-card-right { align-items: center; flex: none; }
-@media (max-width: 600px) {
-    .search-scores .score-card-right .mod { display: none; }
-}
+#search-page h2, #search-page p { margin: 0; }
+.sr-dim { color: var(--sr-dim); font-size: 13px; }
 
-/* player card with their profile banner behind it (sitesearch.js); no banner = the plain card above */
-.search-user.has-banner { background: linear-gradient(90deg, #2a2430f2 0%, #2a2430c0 50%, #2a243080 100%), var(--banner) center / cover no-repeat; }
-.search-user.has-banner:hover { background: linear-gradient(90deg, #2a2430e0 0%, #2a2430a0 50%, #2a243050 100%), var(--banner) center / cover no-repeat; }
-.search-user.has-banner .name { text-shadow: 0 1px 4px #000000a0; }
+/* ---------- hero: heading, search field, tabs */
+.sr-hero {
+    gap: 14px; padding-top: 20px; padding-bottom: 20px;
+    background:
+        radial-gradient(120% 140% at 0% 0%, #f3baff33 0%, transparent 55%),
+        linear-gradient(135deg, #3a2a45 0%, #00000085 70%);
+}
+.sr-hero-head { display: flex; flex-direction: column; gap: 6px; }
+.sr-heading { font-size: 28px; line-height: 1.15; }
+.sr-hero .sr-dim { font-size: 14px; }
+
+.sr-field {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 14px; border-radius: 14px;
+    background: #00000045; border: 1px solid #ffffff14;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+    cursor: text;
+}
+.sr-field:focus-within { border-color: #f3baff88; box-shadow: 0 0 0 4px #f3baff1f; background: #00000060; }
+.sr-field-icon { flex: none; color: var(--sr-dim); }
+.sr-field:focus-within .sr-field-icon { color: var(--sr-accent); }
+.sr-field input {
+    flex: 1; min-width: 0; padding: 14px 0; border: none; background: none; outline: none;
+    color: #fff; font-family: inherit; font-size: 17px;
+}
+.sr-field input::placeholder { color: #ffffff70; }
+.sr-field input::-webkit-search-cancel-button { filter: invert(1) opacity(.6); cursor: pointer; }
+.sr-kbd {
+    flex: none; padding: 2px 8px; border-radius: 6px; font-family: inherit; font-size: 12px;
+    color: var(--sr-dim); background: #ffffff12; border: 1px solid #ffffff1f;
+}
+.sr-field:focus-within .sr-kbd { display: none; }
+
+.sr-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.sr-seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #00000040; }
+.sr-tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    margin: 0; padding: 7px 16px; border: none; border-radius: 999px;
+    background: none; color: #ffffffb0; font-family: inherit; font-size: 14px; cursor: pointer;
+    transition: background .15s, color .15s;
+}
+.sr-tab:hover { background: #ffffff14; color: #fff; border-radius: 999px; }
+.sr-tab.active { background: var(--sr-accent); color: #221E27; font-weight: bold; }
+.sr-tab.active:hover { background: var(--sr-accent); filter: brightness(1.06); }
+.sr-seg-small .sr-tab { padding: 5px 13px; font-size: 13px; }
+.sr-live { width: 7px; height: 7px; border-radius: 50%; background: var(--sr-online); box-shadow: 0 0 0 3px #6ee7a033; }
+.sr-tab.active .sr-live { background: #1f7a48; box-shadow: none; }
+
+.sr-options { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.sr-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--sr-dim); cursor: pointer; user-select: none; }
+.sr-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.sr-switch-track {
+    position: relative; width: 34px; height: 20px; border-radius: 999px; background: #ffffff24;
+    transition: background .15s;
+}
+.sr-switch-track::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: transform .15s;
+}
+.sr-switch input:checked + .sr-switch-track { background: var(--sr-accent); }
+.sr-switch input:checked + .sr-switch-track::after { transform: translateX(14px); background: #221E27; }
+.sr-switch input:focus-visible + .sr-switch-track { outline: 2px solid #f3baff88; outline-offset: 2px; }
+.sr-switch:has(input:checked) { color: #fff; }
+
+/* ---------- results section */
+.sr-section { gap: 12px; padding-top: 20px; padding-bottom: 20px; margin-top: 12px; }
+.sr-section .title { margin-bottom: 0; }
+.sr-sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+#search-results:empty { display: none; }
+#search-page .catalog-hint { margin: 14px 0; color: var(--sr-dim); }
+
+/* ---------- player cards: a small version of the profile hero */
+.search-users { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 10px; }
+.sr-user {
+    display: flex; align-items: center; gap: 14px; min-width: 0;
+    padding: 14px; border-radius: 14px; border: 1px solid transparent;
+    background: var(--sr-tile); color: #fff; text-decoration: none;
+    transition: background .15s, border-color .15s, transform .15s;
+}
+.sr-user:hover { background: var(--sr-tile-2); border-color: #f3baff55; transform: translateY(-2px); }
+.sr-user.has-banner {
+    background:
+        linear-gradient(90deg, #1b1620f0 0%, #1b1620c0 50%, #1b162070 100%),
+        var(--banner) center / cover no-repeat;
+}
+.sr-user.has-banner:hover {
+    background:
+        linear-gradient(90deg, #1b1620e0 0%, #1b1620a0 50%, #1b162045 100%),
+        var(--banner) center / cover no-repeat;
+}
+.sr-user.has-banner .sr-name, .sr-user.has-banner .sr-rank { text-shadow: 0 2px 8px #000000b0; }
+
+.sr-avatar { position: relative; flex: none; }
+.sr-avatar img {
+    display: block; width: 58px; height: 58px; object-fit: cover; border-radius: 14px;
+    border: 2px solid #ffffff30; box-shadow: 0 6px 16px #00000060;
+}
+.sr-avatar-dot {
+    position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--sr-online); border: 3px solid #2a2230;
+}
+.sr-ident { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sr-name { font-weight: bold; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-presence { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sr-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-presence.on { color: #9ff0c0; }
+.sr-presence .sr-live { flex: none; }
+.sr-acc { font-size: 12px; color: var(--sr-dim); }
+.sr-rank-block {
+    flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+    padding: 7px 11px; border-radius: 10px; background: #00000040; text-align: right;
+}
+.sr-rank { font-size: 18px; font-weight: bold; line-height: 1.1; }
+.sr-rank.none { font-size: 13px; font-weight: normal; color: var(--sr-dim); }
+.sr-pp { font-size: 12px; font-weight: bold; color: var(--sr-accent); }
+
+/* ---------- score cards: same look as the profile's Best scores / Last played */
+.search-scores { display: flex; flex-direction: column; gap: 6px; }
+.search-scores > a { color: #fff; text-decoration: none; }
+.search-scores .score-card {
+    margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--sr-tile); gap: 10px;
+    border: 1px solid transparent; transition: background .12s, border-color .12s;
+}
+.search-scores a:hover .score-card { background: var(--sr-tile-2); border-color: #f3baff40; }
+.search-scores .score-card-left { min-width: 0; }
+.search-scores .score-card .info { min-width: 0; gap: 2px; }
+.search-scores .score-card .info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-scores .score-card .info span:first-child { font-size: 14px; }
+.search-scores .score-card .info .sr-dim { font-size: 12px; }
+.search-scores .sr-player { color: #fff; font-weight: bold; cursor: pointer; }
+.search-scores .sr-player:hover { color: var(--sr-accent); text-decoration: underline; }
+.search-scores .score-card-right { flex: none; align-items: center; gap: 4px; }
+.search-scores .rank { border-radius: 8px; flex: none; }
+.search-scores .pp { background: none; color: var(--sr-accent); padding: 4px 6px; margin-left: 0; }
+.search-scores .mod { padding: 3px 7px; font-size: 12px; margin-left: 0; }
+.search-scores .sr-acc-chip { padding: 3px 8px; border-radius: 6px; background: #00000030; font-size: 12px; color: #ffffffcc; }
+
+/* ---------- loading shimmer */
+.sr-skel { border-radius: 14px; background: linear-gradient(90deg, #ffffff0a 0%, #ffffff16 50%, #ffffff0a 100%); background-size: 200% 100%; animation: sr-shimmer 1.2s linear infinite; }
+.search-users .sr-skel { height: 90px; }
+.search-scores .sr-skel { height: 58px; border-radius: 10px; }
+@keyframes sr-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .sr-skel { animation: none; } .sr-user:hover { transform: none; } }
+
+@media (max-width: 700px) {
+    .sr-heading { font-size: 22px; }
+    .sr-bar { flex-direction: column; align-items: stretch; }
+    .sr-seg { display: flex; }
+    .sr-seg .sr-tab { flex: 1; justify-content: center; }
+    .sr-options { justify-content: space-between; }
+    .sr-kbd { display: none; }
+    .search-scores .score-card-right .mod, .search-scores .sr-acc-chip { display: none; }
+}
