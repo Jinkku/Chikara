@@ -1490,6 +1490,11 @@ def api(request,command,value=None):
                         if level<1:
                             level=1
                         usr.save()
+                        try:  # today's point on everyone's profile graph (ranks shift for others too)
+                            from Chikara import stathistory
+                            stathistory.snapshot()
+                        except Exception:
+                            sentry_sdk.capture_exception()
                         from online import medals as medal_unlocks  # medals this play unlocked: the game pops them up
                         return JsonResponse({"rank": usr.ranking,"points": usr.ranked_points,"level": level,"score": usr.ranked_score,"accuracy": accuracy,"max_combo": maxcombo,"rankedmap": ranked,"msg": "", "error": 0,
                                              "medals": medal_unlocks.take_unseen_safe(user)})
@@ -2023,7 +2028,7 @@ def user(request, user):
     public = usertest[0] and not usertest[1]
     seo = profile_seo(User.objects.filter(username=user).first()) if public else {}
     html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=17"><link rel="stylesheet" href="/static/css/favorites.css?v=2">'
-                                      '<link rel="stylesheet" href="/static/css/profile.css?v=4">',
+                                      '<link rel="stylesheet" href="/static/css/profile.css?v=6">',
                   robots=None if public else NOINDEX, **seo)
     status = 200 if usertest[0] else 404
     footer = (open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/report.html").read()
@@ -2103,7 +2108,8 @@ def user(request, user):
     html += (f'<div class="pf-tile pf-tile-level"><span class="pf-tile-label">Level</span><span class="pf-tile-value">{level:,}</span>'
              f'<span class="pf-level-bar" title="{level_pct}% to level {level + 1}"><span style="width:{level_pct}%"></span></span>'
              f'<span class="pf-tile-sub">{level_pct}% to next</span></div>')
-    tiles = [("Accuracy", f"{accuracy}%"), ("Ranked score", f"{score:,}"), ("Play time", playtime(usr.playtime)),
+    play_count = Score.objects.filter(username=usr.username).count()
+    tiles = [("Accuracy", f"{accuracy}%"), ("Ranked score", f"{score:,}"), ("Play count", f"{play_count:,}"), ("Play time", playtime(usr.playtime)),
              ("Max combo", f"{usr.max_combo or 0:,}x")]
     if usr.username == 'aquapoki':
         tiles.append(("Virgin Meter", "69.420%"))  # easter egg, carried over from the classic profile
@@ -2123,6 +2129,22 @@ def user(request, user):
         pct = f"{n / total_hits * 100:.1f}%" if total_hits else "0%"
         html += f'<span><i class="pf-hit-{cls}"></i>{label} <b>{n:,}</b> <small>{pct}</small></span>'
     html += '</div></div></section>'
+
+    # ---- 90-day rank / pp / ranked score graph (Chikara/stathistory.py, drawn by profilehistory.js)
+    from Chikara import stathistory
+    stathistory.ensure_today()
+    hist = stathistory.history(usr.id)
+    if len(hist) >= 2:
+        html += '<section class="infobox column pf-section" id="profile-history">'
+        html += ('<div class="pf-sec-head"><span class="title">History</span>'
+                 '<div class="pf-hist-tabs" role="tablist">'
+                 '<button type="button" class="pf-hist-tab" data-key="rank">Rank</button>'
+                 '<button type="button" class="pf-hist-tab" data-key="pp">Performance</button>'
+                 '<button type="button" class="pf-hist-tab" data-key="score">Ranked score</button></div></div>')
+        html += '<div class="pf-hist-summary"><span class="pf-hist-now"></span><span class="pf-hist-delta"></span><span class="pf-dim">last 90 days</span></div>'
+        html += '<div class="pf-hist-chart"></div>'
+        html += f'<script type="application/json" id="pf-history-data">{json.dumps(hist)}</script>'  # dates and numbers only
+        html += '</section><script src="/static/script/profilehistory.js?v=1"></script>'
 
     # ---- about me (ids kept for bioeditor.js)
     if usr.bio or owner:

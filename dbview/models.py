@@ -122,4 +122,15 @@ class Hashes(models.Model):
     ostype = models.TextField(null=True, blank=True)
     hash = models.TextField(null=True, blank=True)
     class Meta:
-        db_table = 'hashes' 
+        db_table = 'hashes'
+class StatHistory(models.Model):
+    """One row per player per day: rank, pp and ranked score, for the profile's 90-day graph (Chikara/stathistory.py)."""
+    user_id = models.IntegerField(db_index=True)
+    date = models.DateField()
+    rank = models.IntegerField(null=True, blank=True)
+    points = models.IntegerField(default=0)
+    score = models.BigIntegerField(default=0)
+
+    class Meta:
+        db_table = 'stat_history'
+        unique_together = (('user_id', 'date'),)

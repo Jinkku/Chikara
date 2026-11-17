@@ -160,3 +160,34 @@
 @media (max-width: 700px) {
     .pf-hero.has-banner { background: linear-gradient(0deg, #1b1620f2 10%, #1b162099 100%), var(--banner) center / cover no-repeat; }
 }
+
+/* ---------- history graph (profilehistory.js) */
+.pf-hist-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #00000040; }
+#profile-page .pf-hist-tab {
+    margin: 0; padding: 5px 13px; border: none; border-radius: 999px; background: none;
+    color: #ffffffb0; font-family: inherit; font-size: 13px; cursor: pointer; transition: background .15s, color .15s;
+}
+#profile-page .pf-hist-tab:hover { background: #ffffff14; color: #fff; border-radius: 999px; }
+#profile-page .pf-hist-tab.active { background: var(--pf-accent); color: #221E27; font-weight: bold; }
+.pf-hist-summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; }
+.pf-hist-now { font-size: 24px; font-weight: bold; }
+.pf-hist-delta { font-size: 13px; font-weight: bold; color: var(--pf-dim); }
+.pf-hist-delta.up { color: #9ff0c0; }
+.pf-hist-delta.down { color: var(--pf-miss); }
+.pf-hist-chart { position: relative; width: 100%; min-height: 200px; }
+.pf-hist-chart svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.pf-hist-grid line { stroke: #ffffff14; stroke-width: 1; }
+.pf-hist-grid text { fill: #ffffff80; font-size: 11px; font-family: inherit; }
+.pf-hist-line { fill: none; stroke: var(--pf-accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.pf-hist-end { fill: var(--pf-accent); stroke: #2a2230; stroke-width: 2; }
+.pf-hist-cross { stroke: #ffffff55; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+.pf-hist-dot { fill: var(--pf-accent); stroke: #2a2230; stroke-width: 2; pointer-events: none; }
+.pf-hist-tip {
+    position: absolute; z-index: 5; pointer-events: none; white-space: nowrap;
+    display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; border-radius: 8px;
+    background: #15121a; border: 1px solid #f3baff55; box-shadow: 0 6px 18px #00000080; font-size: 12px;
+}
+.pf-hist-tip span { color: var(--pf-dim); }
+.pf-hist-tip b { font-size: 14px; }
+@media (max-width: 700px) { .pf-hist-tabs { display: flex; width: 100%; } #profile-page .pf-hist-tab { flex: 1; } }
+.pf-hist-tip[hidden] { display: none; }
