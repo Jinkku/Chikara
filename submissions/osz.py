@@ -372,6 +372,9 @@ def _submit_locked(z, charts, skipped, username, staff):
     # Which set is this? The .osu files carry the set id the server gave them on the first upload.
     claimed = [_int(c.meta.get("BeatmapSetID"), 0) for c in charts]
     claimed = max(set(claimed), key=claimed.count)
+    from moderation import takedowns
+    if claimed > 0 and takedowns.is_down(claimed):
+        raise SubmitError("This beatmap set was taken down by the Qlute team, so it can't be updated. Ask the team if you think that's a mistake.")
     sub = Submission.objects.filter(beatmapsetid=claimed).first() if claimed > 0 else None
     existing = []
     if sub is not None:

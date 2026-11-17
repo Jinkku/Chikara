@@ -117,6 +117,8 @@ def api(request, action):
         ("ban", True): ban_view,
         ("warn", True): warn_view,
         ("reset", True): reset_view,
+        ("takedowns", False): takedowns_view,
+        ("takedowns", True): takedowns_edit_view,
         ("unban", True): unban_view,
         ("bans", False): bans_view,
         ("staff", False): staff_view,
@@ -389,6 +391,39 @@ def reset_view(request, me, staff, args):
         return fail("Pick what to reset.")
     _close_reports(u, me, data, f"Profile reset ({', '.join(done)}): {reason}")
     return JsonResponse({"ok": True, "reset": done})
+
+
+def takedowns_view(request, me, staff, args):
+    from . import takedowns
+    from .models import TakenDown
+    start = page_of(request) * PAGE
+    return JsonResponse({"results": [takedowns.json(t) for t in TakenDown.objects.order_by("-created")[start:start + PAGE]],
+                         "page_size": PAGE})
+
+
+def takedowns_edit_view(request, me, staff, args):
+    """POST mod/takedowns/add {setid, reason, rule}   or   mod/takedowns/restore {setid}   (rules: Beatmaps)"""
+    from . import takedowns
+    data = body(request)
+    try:
+        setid = int(data.get("setid") or 0)
+    except (TypeError, ValueError):
+        setid = 0
+    if setid <= 0:
+        return fail("Give a beatmap set id.")
+    if args == ["restore"]:
+        err = takedowns.restore(setid, me.username)
+        return fail(err) if err else JsonResponse({"ok": True})
+    if args != ["add"]:
+        return fail("Unknown action.", 404)
+    reason = text(data, "reason", MAX_REASON)
+    if len(reason) < 3:
+        return fail("Give a reason; the uploader will see it.")
+    rule = rules.clean(str(data.get("rule") or ""))
+    if not rule:
+        return fail("Pick the rule the set breaks.")
+    t, err = takedowns.take_down(setid, reason, rule, me.username)
+    return fail(err) if err else JsonResponse({"ok": True, "takedown": takedowns.json(t)})
 
 
 def unban_view(request, me, staff, args):

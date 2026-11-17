@@ -153,7 +153,8 @@ def parse_query(query):
 
 def search(request):
     g = request.GET
-    rows = Beatmap.objects.all()
+    from moderation import takedowns
+    rows = takedowns.visible(Beatmap.objects.all())  # taken-down sets never show (moderation/takedowns.py)
     words, typed_filters, typed_status = parse_query(g.get("query"))
 
     rec = None

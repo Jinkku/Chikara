@@ -275,7 +275,8 @@ def sitemap(request):
                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
         for path, priority, freq in SITEMAP_PAGES:
             out.append(f"<url><loc>{SiteURL}{path}</loc><changefreq>{freq}</changefreq><priority>{priority}</priority></url>")
-        sets = (Beatmap.objects.values("beatmapsetid").annotate(updated=Max("created"))
+        from moderation import takedowns
+        sets = (takedowns.visible(Beatmap.objects.all()).values("beatmapsetid").annotate(updated=Max("created"))
                 .order_by("-updated")[:SITEMAP_MAX_SETS])
         for row in sets:
             lastmod = f"<lastmod>{row['updated']:%Y-%m-%d}</lastmod>" if row["updated"] else ""
@@ -358,6 +359,9 @@ Sitemap: {site}/sitemap.xml
 
 def getdifficulties(id): # Difficulty processing
     x=[]
+    from moderation import takedowns
+    if id!=0 and takedowns.is_down(id):
+        return x  # taken down (moderation/takedowns.py): looks like a set with no difficulties
     if id!=0:
         beatmaps = Beatmap.objects.values().filter(beatmapsetid=id)
     else:
@@ -843,6 +847,20 @@ def beatmap(request, command):
         setid, diffid = 0, 0
     diffs = list(Beatmap.objects.filter(beatmapsetid=setid).order_by("Level", "notecount")) if setid else []
     head = '<link rel="stylesheet" href="/static/css/beatmap.css?v=11">'
+    from moderation.models import TakenDown
+    down = TakenDown.objects.filter(beatmapsetid=setid).first() if setid and diffs else None
+    if down is not None:  # moderation/takedowns.py
+        viewer = moderation.request_user(request)
+        team = viewer is not None and moderation.is_staff(viewer.username)
+        html = header(request, customhead=head, title="Qlute - beatmap unavailable", robots=NOINDEX)
+        html += ('<div class="infoboxcontainer"><div class="infobox column verticalpadding spacetop spacebottom">'
+                 '<h2>This beatmap set isn\'t available</h2><p>It was taken down by the Qlute team '
+                 '(see <a href="/rules#beatmaps">the beatmap rules</a>).</p>')
+        if team:
+            html += (f'<p class="catalog-hint">Team only: {escape(down.title)} &middot; {escape(down.reason)} &middot; '
+                     f'by {escape(down.by)}. <a href="/admin#takedowns">Restore it in the admin panel</a>.</p>')
+        html += '</div></div>' + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
+        return HttpResponse(html, status=410)
     if not diffs:
         html = header(request, customhead=head, title="Qlute - beatmap not found", robots=NOINDEX)
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/beatmap.html").read() \
@@ -1549,6 +1567,9 @@ def api(request,command,value=None):
                    mult = getmult(mods,speed=speed_multi)
                    info = Beatmap.objects.filter(beatmapid = beatmap_id, beatmapsetid = beatmapset_id).first()
                    
+                   from moderation import takedowns
+                   if info is not None and takedowns.is_down(beatmapset_id):
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "This beatmap was taken down, so scores on it can't be submitted.","error": 1})
                    if info == None:
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "There is no beatmaps that I recognize with this one :/","error": 1})
                    else:

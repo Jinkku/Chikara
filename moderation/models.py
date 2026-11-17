@@ -86,6 +86,21 @@ class Warning(models.Model):
         return f"{self.username}: {self.reason[:40]}"
 
 
+class TakenDown(models.Model):
+    """A beatmap set the team took down (rules: Beatmaps): hidden everywhere, files kept so it can be restored
+    (moderation/takedowns.py)."""
+    beatmapsetid = models.IntegerField(unique=True)
+    title = models.TextField(blank=True, default="")
+    reason = models.TextField()
+    rule = models.CharField(max_length=16, blank=True, default="")
+    by = models.CharField(max_length=256)
+    created = models.DateTimeField(auto_now_add=True)
+    moved = models.JSONField(default=list, blank=True)  # [[served path, kept path], ...] of the .osz files
+
+    def __str__(self):
+        return f"set {self.beatmapsetid}: {self.reason[:40]}"
+
+
 class Notice(models.Model):
     """A banner on the game's home screen (apiv2/getnotice). image is relative to the storage folder, e.g. "events/x.png"."""
     image = models.CharField(max_length=255)

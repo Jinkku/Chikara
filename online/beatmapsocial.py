@@ -45,7 +45,8 @@ def _int(value, fallback=None):
 
 
 def _set_exists(setid):
-    return Beatmap.objects.filter(beatmapsetid=setid).exists()
+    from moderation import takedowns
+    return takedowns.visible(Beatmap.objects.filter(beatmapsetid=setid)).exists()
 
 
 def favorite_count(setid):
@@ -73,7 +74,8 @@ def favorite_sets(username, page=0):
     ids = list(FavoriteBeatmap.objects.filter(username=username).order_by("-created", "-id")
                .values_list("beatmapsetid", flat=True)[page * FAVORITES_PER_PAGE:(page + 1) * FAVORITES_PER_PAGE])
     diffs = {}
-    for row in Beatmap.objects.filter(beatmapsetid__in=ids).order_by("Level", "notecount").values():
+    from moderation import takedowns
+    for row in takedowns.visible(Beatmap.objects.filter(beatmapsetid__in=ids)).order_by("Level", "notecount").values():
         diffs.setdefault(row["beatmapsetid"], []).append(row)
     return [set_json(diffs[i]) for i in ids if i in diffs]  # sets removed from the server drop out
 

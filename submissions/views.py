@@ -231,6 +231,9 @@ def edit_view(request, me, setid):
     allowed, team, owner = can_edit(me, setid)
     if not allowed:
         return fail("Only the person who submitted this set or the Qlute team can edit it.", 403)
+    from moderation import takedowns
+    if takedowns.is_down(setid) and not team:
+        return fail("This set was taken down by the Qlute team, so it can't be edited.", 403)
     data = body(request)
     changes = {}
     for key in osz.SET_FIELDS + ("mapper",):  # can_edit: only the uploader or the team gets here
