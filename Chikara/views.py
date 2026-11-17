@@ -2207,14 +2207,20 @@ def ranking(request, command=""):
     except ValueError:
         page_no = 1
     per_page = 50
-    total = User.objects.filter(restricted=False, ranked_points__gt=0).count()
+    # ?type=score ranks by ranked score instead of performance points
+    by_score = request.GET.get("type") == "score"
+    field = "ranked_score" if by_score else "ranked_points"
+    qs = "?type=score" if by_score else ""
+    ranked = User.objects.filter(restricted=False, **{field + "__gt": 0})
+    total = ranked.count()
     pages = max(1, -(-total // per_page))
-    title = "Qlute - global player ranking" + (f" (page {page_no})" if page_no > 1 else "")
-    htmltemp = header(request, customhead='<link rel="stylesheet" href="/static/css/ranking.css?v=2">', title=title,
-                      canonical=SiteURL + "/ranking" + (f"/{page_no}" if page_no > 1 else ""),
+    title = ("Qlute - ranked score ranking" if by_score else "Qlute - global player ranking") + (f" (page {page_no})" if page_no > 1 else "")
+    htmltemp = header(request, customhead='<link rel="stylesheet" href="/static/css/ranking.css?v=3">', title=title,
+                      canonical=SiteURL + "/ranking" + (f"/{page_no}" if page_no > 1 else "") + qs,
                       description="The global Qlute leaderboard: the top rhythm game players ranked by performance points, "
                                   "with score, accuracy and hit counts.") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/ranking.html").read()
-    users, tols = getstat('ranking', None, page=page_no)
+    users = list(ranked.order_by("-" + field, "username")[per_page * (page_no - 1):per_page * page_no])
+    tols = len(users)
     now = int(timezone.now().timestamp())
     me = request.COOKIES.get('username', None)
 
@@ -2226,7 +2232,11 @@ def ranking(request, command=""):
                 "banner": shown_banner(u),
                 "me": me is not None and urllib.parse.unquote(me) == urllib.parse.unquote(u.username or "")}
 
-    html = f"<p class='rk-sub'>{total:,} ranked players &middot; ranked by performance points</p>"
+    html = ("<div class='rk-head'><nav class='rk-tabs' aria-label='Ranking type'>"
+            f"<a class='rk-tab{'' if by_score else ' active'}' href='/ranking'{'' if by_score else ' aria-current=page'}>Performance</a>"
+            f"<a class='rk-tab{' active' if by_score else ''}' href='/ranking?type=score'{' aria-current=page' if by_score else ''}>Ranked score</a>"
+            "</nav>"
+            f"<p class='rk-sub'>{total:,} ranked players &middot; ranked by {'ranked score' if by_score else 'performance points'}</p></div>")
     if not tols:
         html += "<div class='rk-empty'><h3>Someone needs to play more! (｡•̀ᴖ•́｡)</h3></div>"
     rank = per_page * (page_no - 1)
@@ -2242,13 +2252,17 @@ def ranking(request, command=""):
                      f"<span class='rk-medal'>#{place}</span>"
                      f"<span class='rk-pod-avatar'><img src='{st['pfp']}' alt='' loading='lazy' width='88' height='88'>{dot}</span>"
                      f"<span class='rk-pod-name'>{_rank_name(u)}</span>"
-                     f"<span class='rk-pod-pp'>{st['points']:,}<small> pp</small></span>"
-                     f"<span class='rk-pod-meta'>{st['acc']}% acc &middot; {st['score']:,} score</span></a>")
+                     + (f"<span class='rk-pod-pp'>{st['score']:,}<small> score</small></span>"
+                        f"<span class='rk-pod-meta'>{st['acc']}% acc &middot; {st['points']:,} pp</span></a>" if by_score else
+                        f"<span class='rk-pod-pp'>{st['points']:,}<small> pp</small></span>"
+                        f"<span class='rk-pod-meta'>{st['acc']}% acc &middot; {st['score']:,} score</span></a>"))
         html += "</div>"
     if rows:
         html += ("<div class='table-scroll'><table class='rk-table'><thead><tr>"
-                 "<th class='rk-c-rank'>Rank</th><th class='rk-c-player'>Player</th><th>Points</th><th>Accuracy</th>"
-                 "<th class='rk-hide-sm'>Score</th><th class='rk-hide-sm rk-hit'>Perfect</th><th class='rk-hide-sm rk-hit'>Great</th>"
+                 "<th class='rk-c-rank'>Rank</th><th class='rk-c-player'>Player</th>"
+                 + ("<th>Score</th><th>Accuracy</th><th class='rk-hide-sm'>Points</th>" if by_score else
+                    "<th>Points</th><th>Accuracy</th><th class='rk-hide-sm'>Score</th>") +
+                 "<th class='rk-hide-sm rk-hit'>Perfect</th><th class='rk-hide-sm rk-hit'>Great</th>"
                  "<th class='rk-hide-sm rk-hit'>Meh</th><th class='rk-hide-sm rk-hit'>Miss</th></tr></thead><tbody>")
         for u in rows:
             rank += 1
@@ -2258,9 +2272,9 @@ def ranking(request, command=""):
             html += (f"<tr class='{'rk-me' if st['me'] else ''}'><td class='rk-c-rank'>#{rank}</td>"
                      f"<td class='rk-c-player'><a href='{st['href']}'><span class='rk-avatar'><img src='{st['pfp']}' alt='' loading='lazy' width='34' height='34'>{dot}</span>"
                      f"<span class='rk-name'>{_rank_name(u)}</span></a></td>"
-                     f"<td class='rk-pp'>{st['points']:,}</td>"
+                     f"<td class='rk-pp'>{st['score' if by_score else 'points']:,}</td>"
                      f"<td><span class='rk-acc'><span class='rk-acc-bar'><span style='width:{acc_w}%'></span></span>{st['acc']}%</span></td>"
-                     f"<td class='rk-hide-sm'>{st['score']:,}</td>"
+                     f"<td class='rk-hide-sm'>{st['points' if by_score else 'score']:,}</td>"
                      f"<td class='rk-hide-sm rk-hit'>{st['perfect']:,}</td><td class='rk-hide-sm rk-hit'>{st['great']:,}</td>"
                      f"<td class='rk-hide-sm rk-hit'>{st['meh']:,}</td><td class='rk-hide-sm rk-hit rk-miss'>{st['miss']:,}</td></tr>")
         html += "</tbody></table></div>"
@@ -2269,7 +2283,7 @@ def ranking(request, command=""):
     def pg(n, label=None, cls=""):
         if n == page_no and label is None:
             return f"<span class='rk-page rk-page-cur' aria-current='page'>{n}</span>"
-        return f"<a class='rk-page {cls}' href='/ranking/{n}'>{label or n}</a>"
+        return f"<a class='rk-page {cls}' href='/ranking/{n}{qs}'>{label or n}</a>"
     nav = []
     if page_no > 1:
         nav.append(pg(page_no - 1, "&lsaquo; prev", "rk-page-step"))

@@ -98,3 +98,19 @@ a.rk-page:hover, a.rk-page:focus-visible { background: #ffffff26; }
         var(--banner) center / cover no-repeat;
 }
 .rk-pod.has-banner .rk-pod-name, .rk-pod.has-banner .rk-pod-pp { text-shadow: 0 1px 6px #000000c0; }
+
+/* Performance / Ranked score tabs (same pill style as the search page) */
+.rk-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.rk-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #00000040; }
+.rk-tab {
+    padding: 7px 16px; border-radius: 999px; font-size: 14px; color: #ffffffb0;
+    transition: background .15s, color .15s;
+}
+.rk-tab:hover { background: #ffffff14; color: #fff; }
+.rk-tab.active { background: var(--rk-accent); color: #221E27; font-weight: bold; }
+.rk-tab.active:hover { background: var(--rk-accent); filter: brightness(1.06); }
+@media (max-width: 700px) {
+    .rk-head { flex-direction: column; align-items: stretch; }
+    .rk-tabs { display: flex; }
+    .rk-tab { flex: 1; text-align: center; }
+}
