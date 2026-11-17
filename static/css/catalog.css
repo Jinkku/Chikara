@@ -333,3 +333,8 @@
 /* mapper name on a card that links to their profile (claimed / self-uploaded sets, beatmapcard.js) */
 .catalog-body .line.mapper .mapper-link { cursor: pointer; border-radius: 3px; text-decoration: underline; text-decoration-color: #f3baff55; text-underline-offset: 2px; }
 .catalog-body .line.mapper .mapper-link:hover, .catalog-body .line.mapper .mapper-link:focus-visible { color: #fff; text-decoration-color: #f3baff; outline: none; }
+
+/* search tips row (beatmaps.html #cf-tips) */
+.cf-tips .cf-chip { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.cf-tips-note { flex-basis: 100%; font-size: 12px; color: #ffffff80; margin-top: 2px; }
+.cf-tips-note code { padding: 1px 5px; border-radius: 4px; background: #00000040; color: #ffffffcc; }

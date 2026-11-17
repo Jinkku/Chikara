@@ -6,7 +6,7 @@
             <div class="catalog-searchrow">
                 <label class="catalog-searchbox">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
-                    <input id="catalog-search" type="search" placeholder="Search titles, artists, mappers, tags, sources..." autocomplete="off" aria-label="Search beatmaps">
+                    <input id="catalog-search" type="search" placeholder="Search titles, artists, mappers... or try bpm>180 level>=30" autocomplete="off" aria-label="Search beatmaps">
                 </label>
                 <button type="button" class="catalog-filter-toggle" id="catalog-filter-toggle" aria-expanded="true" aria-controls="catalog-filters" aria-label="Filters">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
@@ -21,6 +21,18 @@
                 <div class="cf-row"><span class="cf-label">Explicit</span><div class="cf-chips" id="cf-explicit" role="radiogroup" aria-label="Explicit content"></div></div>
                 <div class="cf-row"><span class="cf-label">Extra</span><div class="cf-chips" id="cf-extra" aria-label="Extra"></div></div>
                 <div class="cf-row" id="cf-played-row" hidden><span class="cf-label">Played</span><div class="cf-chips" id="cf-played" role="radiogroup" aria-label="Played"></div></div>
+                <div class="cf-row"><span class="cf-label">Search tips</span><div class="cf-chips cf-tips" id="cf-tips">
+                    <button type="button" class="cf-chip" data-tip="bpm>180" title="BPM over 180">bpm&gt;180</button>
+                    <button type="button" class="cf-chip" data-tip="length<2:00" title="Shorter than 2 minutes (seconds, 2:30, 3m or 90s)">length&lt;2:00</button>
+                    <button type="button" class="cf-chip" data-tip="level>=30" title="Map level 30 or more (lv works too)">level&gt;=30</button>
+                    <button type="button" class="cf-chip" data-tip="od>=8" title="Overall difficulty 8 or more">od&gt;=8</button>
+                    <button type="button" class="cf-chip" data-tip="pp>200" title="SS pp over 200">pp&gt;200</button>
+                    <button type="button" class="cf-chip" data-tip="notes<500" title="Fewer than 500 notes">notes&lt;500</button>
+                    <button type="button" class="cf-chip" data-tip="mapper=" title="Mapper name contains...">mapper=</button>
+                    <button type="button" class="cf-chip" data-tip="diff=" title="Difficulty name contains... (!= to leave out)">diff=</button>
+                    <button type="button" class="cf-chip" data-tip="status=special" title="ranked / special / unranked">status=special</button>
+                    <span class="cf-tips-note">Combine them with words: <code>camellia bpm&gt;200 length&lt;3:00</code>. Use = != &gt; &gt;= &lt; &lt;=, and "quotes" for spaces.</span>
+                </div></div>
                 <button type="button" class="cf-reset" id="cf-reset" hidden>Clear filters</button>
             </div>
         </div>
@@ -37,4 +49,4 @@
         </div>
     </div>
     <script src="/static/script/beatmapcard.js?v=1"></script>
-    <script src="/static/script/beatmapcatalog.js?v=15"></script>
+    <script src="/static/script/beatmapcatalog.js?v=16"></script>

@@ -2711,7 +2711,7 @@ def base(request, uri,command=""):
     elif uri == "":
         html = header(request, customhead='<link rel="stylesheet" href="/static/css/news.css?v=1">', title="Qlute - home page", canonical=SiteURL + "/") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/homes.html").read().replace("{news}", __import__("moderation.news", fromlist=["x"]).latest_html()).replace("{usertag}",escape(request.COOKIES.get('username', None))).replace("{usercount}",format(registered_count(),",")).replace("{active}",format(online_count(),","))
     elif uri.strip("/") == "beatmaps":
-        html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=17">', title="Qlute - beatmap listing",
+        html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=18">', title="Qlute - beatmap listing",
                       canonical=SiteURL + "/beatmaps",
                       description="Browse every Qlute beatmap: search by title, artist or mapper, filter by status, genre and language, "
                                   "preview songs and download them free.") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/beatmaps.html").read()

@@ -2,7 +2,13 @@
 
 GET apiv2/search, every parameter optional:
     query     words; each one must match the title, artist (either spelling), mapper, tags, source,
-              a difficulty name or an id
+              a difficulty name or an id. It can also hold osu!-style filters (parse_query), matched per difficulty:
+                numbers  bpm, length (seconds, or 2:30 / 3m / 90s), level (lv), pp (SS pp), od, notes, plays
+                         with = != > >= < <=     e.g.  bpm>180  length<2:00  level>=30  od=8
+                text     mapper (creator), artist, title, diff (difficulty), source, tag  with = (contains) or != (not)
+                         e.g.  mapper=sotarks  diff="another"  artist!=camellia
+                status   status=ranked / special / unranked (r / s / u): overrides the status parameter
+              Anything that isn't a valid filter is searched as a normal word.
     status    1 ranked (default), 2 or 4 special (the game sends 2, the website 4), 0 unranked
     uploader  NAME: only the sets NAME submitted, any status (the website's "Yours" tab)
     genre     osu! genre id (GENRES); 1 also matches sets nobody filled in
@@ -79,9 +85,76 @@ def _status_q(status):
     return Q(ranked=status)
 
 
+# typed filters in the search box (osu!-style): key, operator, value; values with spaces go in "quotes"
+import re as _re
+
+_TOKEN = _re.compile(r'(\w+(?:>=|<=|!=|>|<|=|:)"[^"]*")|("[^"]*")|(\S+)')
+_FILTER = _re.compile(r'^(\w+)(>=|<=|!=|>|<|=|:)(.*)$')
+_NUMBERS = {"bpm": "BPM", "length": "Length", "len": "Length", "level": "Level", "lv": "Level", "pp": "pp",
+            "od": "Accuracy", "notes": "notecount", "objects": "notecount", "plays": "playcount"}
+_TEXTS = {"mapper": ("mapper",), "creator": ("mapper",), "artist": ("artist", "artist_unicode"),
+          "title": ("title", "title_unicode"), "diff": ("difficulty",), "difficulty": ("difficulty",),
+          "version": ("difficulty",), "source": ("source",), "tag": ("tags",), "tags": ("tags",)}
+_STATUSES = {"ranked": 1, "r": 1, "special": 4, "s": 4, "loved": 4, "unranked": 0, "u": 0, "graveyard": 0}
+_LOOKUP = {">": "gt", ">=": "gte", "<": "lt", "<=": "lte"}
+
+
+def _number(key, text):
+    """A filter value as a number; length also takes 2:30, 3m, 90s."""
+    text = text.strip().lower()
+    if key in ("length", "len"):
+        m = _re.fullmatch(r"(\d+):(\d{1,2})", text)
+        if m:
+            return int(m.group(1)) * 60 + int(m.group(2))
+        m = _re.fullmatch(r"(\d+(?:\.\d+)?)(m|s)", text)
+        if m:
+            return float(m.group(1)) * (60 if m.group(2) == "m" else 1)
+    n = float(text)
+    if n != n or n in (float("inf"), float("-inf")):  # nan / inf aren't numbers a database can compare
+        raise ValueError(text)
+    return n
+
+
+def parse_query(query):
+    """Split the search box into (plain words, [Q filters], status override or None). At most 10 of each."""
+    words, filters, status = [], [], None
+    for m in _TOKEN.finditer(query or ""):
+        token = (m.group(0) or "").strip()
+        f = _FILTER.match(token)
+        if f:
+            key, op, value = f.group(1).lower(), f.group(2), f.group(3).strip().strip('"')
+            op = "=" if op == ":" else op
+            if key in _NUMBERS and value:
+                try:
+                    n = _number(key, value)
+                except ValueError:
+                    n = None
+                if n is not None:
+                    field = _NUMBERS[key]
+                    if op == "=":
+                        filters.append(Q(**{field: n}))
+                    elif op == "!=":
+                        filters.append(~Q(**{field: n}))
+                    else:
+                        filters.append(Q(**{f"{field}__{_LOOKUP[op]}": n}))
+                    continue
+            elif key in _TEXTS and value and op in ("=", "!="):
+                q = Q()
+                for field in _TEXTS[key]:
+                    q |= Q(**{f"{field}__icontains": value})
+                filters.append(q if op == "=" else ~q)
+                continue
+            elif key == "status" and op == "=" and value.lower() in _STATUSES:
+                status = _STATUSES[value.lower()]
+                continue
+        words.append(token.strip('"'))
+    return [w for w in words if w][:10], filters[:10], status
+
+
 def search(request):
     g = request.GET
     rows = Beatmap.objects.all()
+    words, typed_filters, typed_status = parse_query(g.get("query"))
 
     rec = None
     rec_rows = None
@@ -98,15 +171,19 @@ def search(request):
     elif uploader:
         from submissions.models import Submission
         rows = rows.filter(beatmapsetid__in=Submission.objects.filter(owner=uploader).values("beatmapsetid"))
-        if g.get("status") not in (None, ""):  # a profile's Ranked / Special tabs; the "Yours" tab sends none
+        if typed_status is not None:
+            rows = rows.filter(_status_q(typed_status))
+        elif g.get("status") not in (None, ""):  # a profile's Ranked / Special tabs; the "Yours" tab sends none
             rows = rows.filter(_status_q(_int(g.get("status"), 1)))
     else:
-        rows = rows.filter(_status_q(_int(g.get("status"), 1)))
+        rows = rows.filter(_status_q(typed_status if typed_status is not None else _int(g.get("status"), 1)))
     status_rows = rows  # every difficulty of a matching set is shown, not just the ones the words matched
     if rec_rows is not None:
         rows = rec_rows
 
-    for word in (g.get("query") or "").split()[:10]:
+    for f in typed_filters:  # bpm>180, mapper=..., level>=30: a set shows when one of its difficulties matches
+        rows = rows.filter(f)
+    for word in words:
         rows = rows.filter(
             Q(title__icontains=word) | Q(title_unicode__icontains=word) |
             Q(artist__icontains=word) | Q(artist_unicode__icontains=word) |

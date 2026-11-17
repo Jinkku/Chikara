@@ -263,3 +263,18 @@
     // The level shown on the "Recommended Difficulty (Lv. X)" chip.
     if (me) fetch("/apiv2/recommendation").then(r => r.json()).then(setRec).catch(() => { });
 })();
+
+// Search tips: clicking an example adds it to the search box (a "key=" one waits for you to type the value)
+(function () {
+    const box = document.getElementById("cf-tips"), input = document.getElementById("catalog-search");
+    if (!box || !input) return;
+    box.querySelectorAll("[data-tip]").forEach(b => b.addEventListener("click", () => {
+        const tip = b.dataset.tip, key = tip.split(/[=<>!:]/)[0];
+        // replace an earlier filter on the same key instead of piling them up
+        const words = input.value.split(/\s+/).filter(w => w && !new RegExp("^" + key + "(>=|<=|!=|>|<|=|:)", "i").test(w));
+        input.value = (words.join(" ") + " " + tip).trim();
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        if (!tip.endsWith("=")) input.dispatchEvent(new Event("input", { bubbles: true }));
+    }));
+})();
