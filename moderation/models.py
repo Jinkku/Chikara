@@ -19,12 +19,15 @@ class StaffMember(models.Model):
 
 
 class Report(models.Model):
+    # In the order of the rules page (moderation/rules.py CATEGORY_RULE says which section each one is about).
     CATEGORIES = [
+        ("account", "Multi-accounting or account sharing"),
         ("cheating", "Cheating"),
-        ("profile", "Inappropriate name or profile"),
         ("chat", "Chat abuse / harassment"),
-        ("multiplayer", "Multiplayer abuse"),
         ("spam", "Spam"),
+        ("multiplayer", "Multiplayer abuse"),
+        ("profile", "Inappropriate name or profile"),
+        ("beatmap", "Stolen or inappropriate beatmap"),
         ("other", "Other"),
     ]
     STATUS_OPEN = "open"
@@ -58,6 +61,7 @@ class Ban(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     expires = models.DateTimeField(null=True, blank=True)
     report = models.ForeignKey(Report, null=True, blank=True, on_delete=models.SET_NULL, related_name="bans")
+    rule = models.CharField(max_length=16, blank=True, default="")  # rules section broken (moderation/rules.py)
     # Still restricting the account. Cleared when it expires (checked lazily) or is lifted early.
     enforced = models.BooleanField(default=True, db_index=True)
     lifted_by = models.CharField(max_length=256, blank=True, default="")
@@ -66,6 +70,20 @@ class Ban(models.Model):
 
     def __str__(self):
         return f"{self.username}: {self.reason[:40]} ({'permanent' if self.expires is None else self.expires})"
+
+
+class Warning(models.Model):
+    """A formal warning: the first step on the rules page's enforcement ladder. The player gets a notification;
+    the team sees every warning on the player's page, so repeat offences are easy to spot."""
+    username = models.CharField(max_length=256, db_index=True)
+    reason = models.TextField()
+    rule = models.CharField(max_length=16, blank=True, default="")  # moderation/rules.py section
+    issued_by = models.CharField(max_length=256)
+    created = models.DateTimeField(auto_now_add=True)
+    report = models.ForeignKey(Report, null=True, blank=True, on_delete=models.SET_NULL, related_name="warnings")
+
+    def __str__(self):
+        return f"{self.username}: {self.reason[:40]}"
 
 
 class Notice(models.Model):

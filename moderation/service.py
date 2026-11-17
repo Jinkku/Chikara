@@ -12,7 +12,8 @@ from django.db.models import F
 from django.utils import timezone
 
 from dbview.models import User
-from .models import Ban, Report, StaffMember
+from . import rules
+from .models import Ban, Report, StaffMember, Warning
 
 MAX_BAN_HOURS = 24 * 365 * 10
 REPORTS_PER_HOUR = 10
@@ -82,11 +83,13 @@ def active_ban(username):
     return refresh(username) if username else None
 
 
-def ban(username, reason, hours, by, report=None):
-    """hours: None/0 = permanent."""
+def ban(username, reason, hours, by, report=None, rule=""):
+    """hours: None/0 = permanent. rule: the rules section broken (moderation/rules.py); taken from the report's
+    category when not given."""
     expires = timezone.now() + timedelta(hours=hours) if hours else None
+    rule = rules.clean(rule) or (rules.CATEGORY_RULE.get(report.category, "") if report is not None else "")
     with transaction.atomic():
-        b = Ban.objects.create(username=username, reason=reason, issued_by=by, expires=expires, report=report)
+        b = Ban.objects.create(username=username, reason=reason, issued_by=by, expires=expires, report=report, rule=rule)
         User.objects.filter(username=username).update(restricted=True)
     kick_online(username, ban_message(b))
     return b
@@ -110,7 +113,52 @@ def ban_message(b):
         when = "This restriction is permanent."
     else:
         when = f"It ends in {time_left(b.expires)} ({b.expires.strftime('%Y-%m-%d %H:%M')} UTC)."
-    return f"Your account is restricted.\nReason: {b.reason}\n{when}"
+    rule = f"\nRule broken: {rules.label(b.rule)} (see the rules page)" if rules.label(b.rule) else ""
+    return f"Your account is restricted.\nReason: {b.reason}{rule}\n{when}"
+
+
+# ---------------------------------------------------------------- warnings and profile resets (rules: Enforcement)
+
+def warn(username, reason, by, rule="", report=None):
+    """Formal warning: recorded for the team and sent to the player as a notification."""
+    rule = rules.clean(rule) or (rules.CATEGORY_RULE.get(report.category, "") if report is not None else "")
+    w = Warning.objects.create(username=username, reason=reason, rule=rule, issued_by=by, report=report)
+    from online.notifications import push
+    about = f" ({rules.label(rule)})" if rule else ""
+    push(username, "moderation", "Qlute team", f"Warning from the Qlute team{about}: {reason}", rules.link(rule))
+    return w
+
+
+PROFILE_PARTS = {"avatar": "avatar", "banner": "profile banner", "bio": "bio", "cardborder": "card border"}
+
+
+def reset_profile(username, parts, reason, by, rule="profiles"):
+    """Puts parts of a profile back to the default (rules: Names & profiles). Uploaded files are deleted.
+    Returns the parts that were reset."""
+    from Chikara.settings import NoProfilePictureURL
+    from Chikara import usersettings
+    u = User.objects.filter(username=username).first()
+    parts = [p for p in parts if p in PROFILE_PARTS]
+    if u is None or not parts:
+        return []
+    fields = {}
+    if "avatar" in parts:
+        usersettings._delete_uploaded(u.id, u.pfppath)
+        fields["pfppath"] = NoProfilePictureURL
+    if "banner" in parts:
+        usersettings._delete_banner(u.id, u.bannerpath)
+        fields["bannerpath"] = None
+    if "bio" in parts:
+        fields["bio"] = None
+    if "cardborder" in parts:
+        fields["cardborder"] = None
+    User.objects.filter(id=u.id).update(**fields)
+    what = ", ".join(PROFILE_PARTS[p] for p in parts)
+    from online.notifications import push
+    push(username, "moderation", "Qlute team",
+         f"The Qlute team reset your {what} ({rules.label(rules.clean(rule)) or 'rules'}): {reason}", rules.link(rule))
+    print(f"[moderation] {by} reset {username}'s {what}: {reason}")
+    return parts
 
 
 def time_left(expires):

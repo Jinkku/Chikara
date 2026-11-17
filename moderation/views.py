@@ -9,11 +9,11 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils import timezone
 
-from Chikara.settings import SUPPORT_URL
+from Chikara.settings import DataURL, NoProfilePictureURL, SUPPORT_URL
 from dbview.models import Score, User
 from submissions import claims
-from . import content, news, service
-from .models import Ban, CardBorder, Notice, Report, StaffMember, SupportOrder, Supporter
+from . import content, news, rules, service
+from .models import Ban, CardBorder, Notice, Report, StaffMember, SupportOrder, Supporter, Warning
 
 PAGE = 50
 MAX_REASON = 500
@@ -54,6 +54,7 @@ def report_json(r):
     return {
         "id": r.id, "reporter": r.reporter, "target": r.target,
         "category": r.category, "category_text": dict(Report.CATEGORIES).get(r.category, r.category),
+        "rule": rules.CATEGORY_RULE.get(r.category, ""),
         "details": r.details, "context": r.context, "source": r.source, "status": r.status,
         "created": ts(r.created), "handled_by": r.handled_by, "handled_at": ts(r.handled_at), "note": r.note,
         "evidence": r.evidence or [],
@@ -68,8 +69,13 @@ def ban_json(b):
         "created": ts(b.created), "expires": ts(b.expires), "permanent": b.expires is None,
         "active": active, "time_left": service.time_left(b.expires) if active and b.expires else "",
         "lifted_by": b.lifted_by, "lifted_at": ts(b.lifted_at), "lift_note": b.lift_note,
-        "report": b.report_id or 0,
+        "report": b.report_id or 0, "rule": b.rule, "rule_text": rules.label(b.rule),
     }
+
+
+def warning_json(w):
+    return {"id": w.id, "username": w.username, "reason": w.reason, "rule": w.rule, "rule_text": rules.label(w.rule),
+            "issued_by": w.issued_by, "created": ts(w.created), "report": w.report_id or 0}
 
 
 def user_row(u, staff_roles):
@@ -109,6 +115,8 @@ def api(request, action):
         ("users", False): users_view,
         ("user", False): user_view,
         ("ban", True): ban_view,
+        ("warn", True): warn_view,
+        ("reset", True): reset_view,
         ("unban", True): unban_view,
         ("bans", False): bans_view,
         ("staff", False): staff_view,
@@ -145,6 +153,7 @@ def me_view(me):
         "restricted": bool(User.objects.filter(id=me.id).values_list("restricted", flat=True).first()),
         "ban": ban_json(ban) if ban else None,
         "categories": [{"id": k, "text": v} for k, v in Report.CATEGORIES],
+        "rules": [{"id": k, "text": v} for k, v in rules.SECTIONS],
     }
     if staff is not None:
         data["open_reports"] = Report.objects.filter(status=Report.STATUS_OPEN).count()
@@ -255,6 +264,9 @@ def user_view(request, me, staff, args):
         "accuracy": round(u.accuracy or 0, 2),
         "scores": Score.objects.filter(username=u.username).count(),
         "bans": [ban_json(b) for b in Ban.objects.filter(username=u.username).order_by("-created")[:50]],
+        "warnings": [warning_json(w) for w in Warning.objects.filter(username=u.username).order_by("-created")[:50]],
+        "profile": {"avatar": u.pfppath != NoProfilePictureURL, "banner": bool(u.bannerpath), "bio": bool(u.bio),
+                    "cardborder": bool(u.cardborder)},
         "reports_against": [report_json(r) for r in Report.objects.filter(target=u.username).order_by("-created")[:50]],
         "reports_sent": Report.objects.filter(reporter=u.username).count(),
         "can_ban": can_ban(me, staff, u.username) is None,
@@ -317,7 +329,7 @@ def ban_view(request, me, staff, args):
     report = None
     if str(data.get("report") or "").isdigit():
         report = Report.objects.filter(id=int(data["report"])).first()
-    b = service.ban(u.username, reason, hours or None, me.username, report)
+    b = service.ban(u.username, reason, hours or None, me.username, report, rule=rules.clean(str(data.get("rule") or "")))
     deleted = 0
     if data.get("delete_scores") is True:
         deleted, _ = service.delete_scores(Score.objects.filter(username=u.username))
@@ -327,6 +339,56 @@ def ban_view(request, me, staff, args):
             status=Report.STATUS_RESOLVED, handled_by=me.username, handled_at=timezone.now(),
             note=f"Banned: {reason}"[:MAX_REASON])
     return JsonResponse({"ok": True, "ban": ban_json(b), "deleted_scores": deleted})
+
+
+def _target_and_reason(request, me, staff):
+    """(user, reason, rule, report, data) or (None, error response) for warn / reset."""
+    data = body(request)
+    target = text(data, "username", 256)
+    u = User.objects.filter(username=target).first() if target else None
+    if u is None:
+        return None, fail(f"There's no player called {target}.", 404)
+    why_not = can_ban(me, staff, u.username)
+    if why_not:
+        return None, fail(why_not.replace("banned", "warned or reset"), 403)
+    reason = text(data, "reason", MAX_REASON)
+    if len(reason) < 3:
+        return None, fail("Give a reason; the player will see it.")
+    report = Report.objects.filter(id=int(data["report"])).first() if str(data.get("report") or "").isdigit() else None
+    return (u, reason, rules.clean(str(data.get("rule") or "")), report, data), None
+
+
+def _close_reports(u, me, data, note):
+    if data.get("close_reports", True):
+        Report.objects.filter(target=u.username, status=Report.STATUS_OPEN).update(
+            status=Report.STATUS_RESOLVED, handled_by=me.username, handled_at=timezone.now(), note=note[:MAX_REASON])
+
+
+def warn_view(request, me, staff, args):
+    """POST mod/warn {username, reason, rule, report, close_reports}: formal warning (rules: Enforcement)."""
+    got, err = _target_and_reason(request, me, staff)
+    if err:
+        return err
+    u, reason, rule, report, data = got
+    w = service.warn(u.username, reason, me.username, rule, report)
+    _close_reports(u, me, data, f"Warned: {reason}")
+    print(f"[moderation] {me.username} warned {u.username}: {reason}")
+    return JsonResponse({"ok": True, "warning": warning_json(w)})
+
+
+def reset_view(request, me, staff, args):
+    """POST mod/reset {username, parts: [avatar, banner, bio, cardborder], reason, rule, close_reports}
+    (rules: Names & profiles: the team may reset an avatar or bio that breaks the rules)."""
+    got, err = _target_and_reason(request, me, staff)
+    if err:
+        return err
+    u, reason, rule, report, data = got
+    parts = data.get("parts") if isinstance(data.get("parts"), list) else []
+    done = service.reset_profile(u.username, [str(p) for p in parts], reason, me.username, rule or "profiles")
+    if not done:
+        return fail("Pick what to reset.")
+    _close_reports(u, me, data, f"Profile reset ({', '.join(done)}): {reason}")
+    return JsonResponse({"ok": True, "reset": done})
 
 
 def unban_view(request, me, staff, args):

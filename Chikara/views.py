@@ -1966,7 +1966,7 @@ ADMIN_MENU_ITEM = ('<a class="am-item" href="/admin"><svg viewBox="0 0 24 24" ar
 
 
 HEADER_BUTTONS = """<link rel="stylesheet" href="/static/css/headerbuttons.css?v=2">
-<script src="/static/script/notifications.js?v=3" defer></script>
+<script src="/static/script/notifications.js?v=4" defer></script>
 <div class="hb">
     <a class="hb-btn" href="/chat" aria-label="Chat rooms" title="Chat rooms">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/></svg>
