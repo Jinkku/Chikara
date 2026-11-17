@@ -287,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // ---------------------------------------------------------------- country: switch to one your play history allows
-(function () {
+document.addEventListener("DOMContentLoaded", () => {
   const status = document.getElementById("country-status");
   document.querySelectorAll(".country-switch").forEach(b => b.addEventListener("click", async () => {
     if (!confirm(`Switch your country to ${b.textContent.replace(/^Switch to /, "")}? You can't change it again for 6 months.`)) return;
@@ -306,4 +306,4 @@ document.addEventListener("DOMContentLoaded", () => {
       b.disabled = false;
     }
   }));
-})();
+});

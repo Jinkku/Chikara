@@ -9,7 +9,13 @@ html, body {
 }
 body {
     min-height: 100%; /* not height: the sticky header needs a body as tall as the page */
+    min-height: 100dvh;
+    /* header, page, footer in a column; the page grows so the footer stays at the bottom on short pages */
+    display: flex;
+    flex-direction: column;
 }
+body > main { flex: 1 0 auto; }
+body > header, body > footer { flex-shrink: 0; }
 body {
     margin: 0px;
     padding: 0px;
@@ -286,7 +292,7 @@ button:hover {
   padding: 10px 10px;
   flex: 1;
   height: auto;
-  min-height: 100vh;
+  /* no min-height: body is a column and <main> grows, which keeps the footer at the bottom */
 }
 
 .infoboxtitle {
