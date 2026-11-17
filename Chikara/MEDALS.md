@@ -57,7 +57,7 @@ The awarding rules are the `medco == N` checks in `getmedals()`. Stats come from
 | 14 | Making the game better | You are making the community better! | On the Qlute team (`moderation.StaffMember`), `TEAM_MEDAL` | Join the Qlute team and help build the game |
 | 15 | Team Moderator | Keeping Qlute fun and fair for everyone | Team member with the `mod` role, `MOD_MEDAL` | Become a Qlute moderator and keep the peace |
 
-## Added medals (`EXTRA_MEDALS`, index 16-46)
+## Added medals (`EXTRA_MEDALS`, index 16-69)
 
 Each entry is `(title, description, how to earn, rule key)`. The description is the flavour text (shown on the tile and
 sent to the game); "how to earn" is the profile's hover hint. The rule for each key is in `_extra_medal_checks()`.
@@ -68,8 +68,8 @@ sent to the game); "how to earn" is the profile's hover hint. The rule for each 
 | 17 | No Life | Touch grass? Never heard of it | Submit 1,000 plays | `plays1000` | `Score` rows |
 | 18 | Rising Star | Someone's been practising ✨ | Reach 100 pp | `pp100` | `User.ranked_points` |
 | 19 | Elite | Your keyboard fears you | Reach 1,000 pp | `pp1000` | `User.ranked_points` |
-| 20 | Seasoned | Halfway to triple digits! | Reach level 50 | `level50` | `User.ranked_score × leveltemp` |
-| 21 | Centurion | Triple digits, baby! | Reach level 100 | `level100` | same |
+| 20 | Seasoned | Halfway to triple digits! | Reach level 50 | `level50` | `levels.level(User.ranked_score)`; kept if earned under the old score / 2M levels |
+| 21 | Centurion | Triple digits, baby! | Reach level 100 | `level100` | same (kept if earned before) |
 | 22 | Flawless | Not a single hair out of place | SS a ranked map, every hit Perfect (no HT, NF or slowdowns) | `ss` | clean clears* |
 | 23 | Unbreakable | Your combo has plot armour | Full combo a ranked Lv 30+ difficulty (no HT, NF or slowdowns) | `fc30` | clean clears* |
 | 24 | Sharpshooter | Do you even miss? | Keep 98%+ overall accuracy over 50+ plays | `acc98` | `User.accuracy`, `Score` rows |
@@ -95,6 +95,29 @@ sent to the game); "how to earn" is the profile's hover hint. The rule for each 
 | 44 | Night Owl | Sleep is for the weak 🦉 | Finish a play between 2 and 5 am (the player's own clock) | `client:nightowl` | game-reported† |
 | 45 | Silent Disco | Who needs music anyway? | Finish a play with the game's music volume all the way down | `client:muted` | game-reported† |
 | 46 | Doki Doki | Listening to Qlute's heartbeat 💓 | Keep the mouse on the main menu logo for 64 heartbeats | `client:heartbeat` | game-reported† |
+| 47 | Warming Up | The keyboard's getting warm | Clear a ranked Lv 10+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass10` | clean clears* |
+| 48 | Finding the Rhythm | Tap tap tap, it's clicking | Clear a ranked Lv 20+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass20` | clean clears* |
+| 49 | Getting Serious | No more warm-up maps | Clear a ranked Lv 30+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass30` | clean clears* |
+| 50 | Over the Hill | It's all downhill from here. Right? | Clear a ranked Lv 40+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass40` | clean clears* |
+| 51 | Uncharted Waters | Here be dragons 🐉 | Clear a ranked Lv 60+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass60` | clean clears* |
+| 52 | Event Horizon | Even light can't escape these notes | Clear a ranked Lv 80+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass80` | clean clears* |
+| 53 | Beyond Reason | Your fingers have left the chat | Clear a ranked Lv 90+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass90` | clean clears* |
+| 54 | Summit | Nothing left to climb 🏔 | Clear a ranked Lv 100+ difficulty with 70%+ accuracy (no HT, NF or slowdowns) | `pass100` | clean clears* |
+| 55 | Clean Sweep | Not a single note dropped | Full combo a ranked Lv 10+ difficulty (no HT, NF or slowdowns) | `fc10` | clean clears* |
+| 56 | Steady Hands | Calm, cool, collected | Full combo a ranked Lv 20+ difficulty (no HT, NF or slowdowns) | `fc20` | clean clears* |
+| 57 | Iron Focus | Blink and you'll miss it. You didn't. | Full combo a ranked Lv 40+ difficulty (no HT, NF or slowdowns) | `fc40` | clean clears* |
+| 58 | Untouchable | The misses can't find you | Full combo a ranked Lv 50+ difficulty (no HT, NF or slowdowns) | `fc50` | clean clears* |
+| 59 | Zero Gravity | Floating through the chaos | Full combo a ranked Lv 60+ difficulty (no HT, NF or slowdowns) | `fc60` | clean clears* |
+| 60 | Abyss Walker | You walked out of the deep without a scratch | Full combo a ranked Lv 70+ difficulty (no HT, NF or slowdowns) | `fc70` | clean clears* |
+| 61 | Perfect Storm | Thunder, lightning, zero misses ⚡ | Full combo a ranked Lv 80+ difficulty (no HT, NF or slowdowns) | `fc80` | clean clears* |
+| 62 | Mythical | People will tell stories about this one | Full combo a ranked Lv 90+ difficulty (no HT, NF or slowdowns) | `fc90` | clean clears* |
+| 63 | Absolute | There is nothing beyond this | Full combo a ranked Lv 100+ difficulty (no HT, NF or slowdowns) | `fc100` | clean clears* |
+| 64 | Double Trouble | Twice the speed, twice the fun | Clear a ranked map with Double Time, 70%+ accuracy | `mod:DT` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
+| 65 | Taking It Easy | Half the speed, all of the vibes | Clear a ranked map with Half Time, 70%+ accuracy | `mod:HT` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
+| 66 | Shuffle Mode | Who put that note there? | Clear a ranked map with Random, 70%+ accuracy | `mod:RND` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
+| 67 | Sliced and Diced | Chop chop 🔪 | Clear a ranked map with Slice, 70%+ accuracy | `mod:SL` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
+| 68 | Lights Out | Who needs to see the notes anyway? | Clear a ranked map with Black-out, 70%+ accuracy | `mod:BT` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
+| 69 | Safety Net | Failing is optional now | Clear a ranked map with No-Fail, 70%+ accuracy | `mod:NF` | ranked `Score` rows with the mod, 70%+ accuracy (HT / NF allowed) |
 
 ### †Game-reported medals (`CLIENT_MEDALS`)
 
@@ -123,6 +146,20 @@ Neither was a real clear.
 
 Ranked-only also stops anyone from uploading an easy joke map and SS-ing it for a medal.
 
+## Categories (`MEDAL_CATEGORIES`)
+
+The profile groups medals like this, easiest first inside each group; the APIs send each medal's `category`.
+
+- **Progress**: Baby Steps, Getting Hooked, Rising Star, Big Leagues, Elite, Seasoned, Centurion, Marathon, No Life, Dedicated
+- **Ranking**: Top 1,000, Top 100, Top 50, Top 10, The End
+- **Skill**: >~<, Combo Monster, S-Ranker, Flawless, Perfectionist, So Close, Sharpshooter, D-Ranker, Oops, Sniper, BreakThrough, Psycho
+- **Map level: Pass**: Warming Up, Finding the Rhythm, Getting Serious, Over the Hill, Deep End, Uncharted Waters, Into the Abyss, Event Horizon, Beyond Reason, Summit
+- **Map level: Full combo**: Clean Sweep, Steady Hands, Unbreakable, Iron Focus, Untouchable, Zero Gravity, Abyss Walker, Perfect Storm, Mythical, Absolute
+- **Mods**: Double Trouble, Taking It Easy, Shuffle Mode, Sliced and Diced, Lights Out, Safety Net, Speed Demon, Slowpoke
+- **Community**: Mapper, Ranked Mapper, Collector, Social Butterfly, Critic, Welcome back Veteran
+- **Team & support**: Supporter, Making the game better, Team Moderator
+- **Secret**: Cheat Code, Rage Quit, Pause Addict, Night Owl, Silent Disco, Doki Doki
+
 ## Adding a medal
 
 1. Append `("Title", "Playful description", "How to earn it", "rule_key")` to the end of `EXTRA_MEDALS`. Keep the
@@ -131,7 +168,8 @@ Ranked-only also stops anyone from uploading an easy joke map and SS-ing it for 
    wrapped in `try`, so a broken rule only fails its own medal instead of the whole profile.
 3. Restart daphne (`sudo systemctl restart daphne`). `views.py` is only reloaded on restart. Players who already
    qualify get the new medal's popup on their next check.
-4. Update this file.
+4. Add its title to a group in `MEDAL_CATEGORIES` (otherwise it shows under "Other").
+5. Update this file.
 
 Adding a game-reported medal: use rule key `"client:<name>"` (it lands in `CLIENT_MEDALS` by itself), then call
 `MedalPopup.Claim("<name>")` from the game when it happens.

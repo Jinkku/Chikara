@@ -246,3 +246,11 @@
 .pf-presence-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf-hero.has-banner .pf-presence { background: #00000066; }
 .pf-hero.has-banner .pf-presence.on { background: #0e2a1cb3; }
+
+/* medals grouped by category (views.MEDAL_CATEGORIES) */
+.pf-medal-group { display: flex; flex-direction: column; gap: 8px; }
+.pf-medal-group + .pf-medal-group { margin-top: 8px; }
+.pf-medal-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; color: #ffffffcc;
+    padding-bottom: 4px; border-bottom: 1px solid #ffffff14; }
+.pf-medal-group-head .pf-dim { font-weight: normal; text-transform: none; letter-spacing: 0; }

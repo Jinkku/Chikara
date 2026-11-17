@@ -85,11 +85,72 @@ EXTRA_MEDALS = (
     ("Night Owl", "Sleep is for the weak \U0001F989", "Finish a play between 2 and 5 in the morning", "client:nightowl"),
     ("Silent Disco", "Who needs music anyway?", "Finish a play with the game's volume all the way down", "client:muted"),
     ("Doki Doki", "Listening to Qlute's heartbeat \U0001F493", "Hover the logo on the main menu and just... listen for a while", "client:heartbeat"),
+    # 47+: map level medals, pass and full combo every 10 levels (Deep End = Lv 50 pass, Into the Abyss = Lv 70 pass,
+    # Unbreakable = Lv 30 FC already exist). Same clean-clear rules as the skill medals.
+    ("Warming Up", "The keyboard's getting warm", "Clear a ranked Lv 10+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass10"),
+    ("Finding the Rhythm", "Tap tap tap, it's clicking", "Clear a ranked Lv 20+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass20"),
+    ("Getting Serious", "No more warm-up maps", "Clear a ranked Lv 30+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass30"),
+    ("Over the Hill", "It's all downhill from here. Right?", "Clear a ranked Lv 40+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass40"),
+    ("Uncharted Waters", "Here be dragons \U0001F409", "Clear a ranked Lv 60+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass60"),
+    ("Event Horizon", "Even light can't escape these notes", "Clear a ranked Lv 80+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass80"),
+    ("Beyond Reason", "Your fingers have left the chat", "Clear a ranked Lv 90+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass90"),
+    ("Summit", "Nothing left to climb \U0001F3D4", "Clear a ranked Lv 100+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass100"),
+    ("Clean Sweep", "Not a single note dropped", "Full combo a ranked Lv 10+ difficulty (no HT, NF or slowdowns)", "fc10"),
+    ("Steady Hands", "Calm, cool, collected", "Full combo a ranked Lv 20+ difficulty (no HT, NF or slowdowns)", "fc20"),
+    ("Iron Focus", "Blink and you'll miss it. You didn't.", "Full combo a ranked Lv 40+ difficulty (no HT, NF or slowdowns)", "fc40"),
+    ("Untouchable", "The misses can't find you", "Full combo a ranked Lv 50+ difficulty (no HT, NF or slowdowns)", "fc50"),
+    ("Zero Gravity", "Floating through the chaos", "Full combo a ranked Lv 60+ difficulty (no HT, NF or slowdowns)", "fc60"),
+    ("Abyss Walker", "You walked out of the deep without a scratch", "Full combo a ranked Lv 70+ difficulty (no HT, NF or slowdowns)", "fc70"),
+    ("Perfect Storm", "Thunder, lightning, zero misses \u26A1", "Full combo a ranked Lv 80+ difficulty (no HT, NF or slowdowns)", "fc80"),
+    ("Mythical", "People will tell stories about this one", "Full combo a ranked Lv 90+ difficulty (no HT, NF or slowdowns)", "fc90"),
+    ("Absolute", "There is nothing beyond this", "Full combo a ranked Lv 100+ difficulty (no HT, NF or slowdowns)", "fc100"),
+    # mod introductions: clear a ranked map with each mod (any speed), 70%+ accuracy
+    ("Double Trouble", "Twice the speed, twice the fun", "Clear a ranked map with Double Time, 70%+ accuracy", "mod:DT"),
+    ("Taking It Easy", "Half the speed, all of the vibes", "Clear a ranked map with Half Time, 70%+ accuracy", "mod:HT"),
+    ("Shuffle Mode", "Who put that note there?", "Clear a ranked map with Random, 70%+ accuracy", "mod:RND"),
+    ("Sliced and Diced", "Chop chop \U0001F52A", "Clear a ranked map with Slice, 70%+ accuracy", "mod:SL"),
+    ("Lights Out", "Who needs to see the notes anyway?", "Clear a ranked map with Black-out, 70%+ accuracy", "mod:BT"),
+    ("Safety Net", "Failing is optional now", "Clear a ranked map with No-Fail, 70%+ accuracy", "mod:NF"),
 )
+
+# How the profile groups medals, in this order; inside a group they show in this order (easiest first).
+MEDAL_CATEGORIES = (
+    ("Progress", ("Baby Steps", "Getting Hooked", "Rising Star", "Big Leagues", "Elite", "Seasoned", "Centurion",
+                  "Marathon", "No Life", "Dedicated")),
+    ("Ranking", ("Top 1,000", "Top 100", "Top 50", "Top 10", "The End")),
+    ("Skill", (">~<", "Combo Monster", "S-Ranker", "Flawless", "Perfectionist", "So Close", "Sharpshooter",
+               "D-Ranker", "Oops", "Sniper", "BreakThrough", "Psycho")),
+    ("Map level: Pass", ("Warming Up", "Finding the Rhythm", "Getting Serious", "Over the Hill", "Deep End",
+                         "Uncharted Waters", "Into the Abyss", "Event Horizon", "Beyond Reason", "Summit")),
+    ("Map level: Full combo", ("Clean Sweep", "Steady Hands", "Unbreakable", "Iron Focus", "Untouchable",
+                               "Zero Gravity", "Abyss Walker", "Perfect Storm", "Mythical", "Absolute")),
+    ("Mods", ("Double Trouble", "Taking It Easy", "Shuffle Mode", "Sliced and Diced", "Lights Out", "Safety Net",
+              "Speed Demon", "Slowpoke")),
+    ("Community", ("Mapper", "Ranked Mapper", "Collector", "Social Butterfly", "Critic", "Welcome back Veteran")),
+    ("Team & support", ("Supporter", "Making the game better", "Team Moderator")),
+    ("Secret", ("Cheat Code", "Rage Quit", "Pause Addict", "Night Owl", "Silent Disco", "Doki Doki")),
+)
+_MEDAL_PLACE = {t: (ci, ti) for ci, (_c, titles) in enumerate(MEDAL_CATEGORIES) for ti, t in enumerate(titles)}
+
+
+def _short_num(n):
+    """1,234 / 12.3k / 4.5M / 1.2B"""
+    n = max(0, int(n))
+    for size, unit in ((1_000_000_000, "B"), (1_000_000, "M"), (1_000, "k")):
+        if n >= size:
+            return f"{n / size:.1f}".rstrip("0").rstrip(".") + unit
+    return f"{n:,}"
+
+
+def medal_category(title):
+    """(category name, sort key) of a medal; anything not listed goes last under "Other"."""
+    ci, ti = _MEDAL_PLACE.get(title, (len(MEDAL_CATEGORIES), 0))
+    return (MEDAL_CATEGORIES[ci][0] if ci < len(MEDAL_CATEGORIES) else "Other"), (ci, ti)
 # Medals the game reports itself: {claim name: medal index}. Earned = the unlock row exists (online.MedalUnlock).
 CLIENT_MEDALS = {key.split(":", 1)[1]: len(medals) + i for i, (_t, _d, _h, key) in enumerate(EXTRA_MEDALS)
                  if key.startswith("client:")}
-leveltemp=0.0000005 # Level multiplier
+leveltemp=0.0000005 # the old linear level (score / 2M); levels now come from Chikara/levels.py
+from Chikara import levels as player_levels
 # pp v3 ranking (see PP_SCORE_DESIGN.md)
 PP_WEIGHT = 0.95        # n-th best play counts 0.95^n
 PP_TOP_SCORES = 100     # plays that count towards a player's pp
@@ -346,7 +407,7 @@ def getstat(command, useris, raw=False, page=1):  # Added leveltemp parameter wi
     elif command == 'level':
         user = User.objects.get(username=useris)
         ranked_score = user.ranked_score if user and user.ranked_score is not None else 0
-        t = int(int(ranked_score) * leveltemp)
+        t = player_levels.level(int(ranked_score))
     
     elif command == 'rank':
         user = User.objects.get(username=useris)
@@ -463,9 +524,7 @@ def getmedals(user):
     rank=int(getstat('rank',user))
     points=int(getstat('points',user))
     score=int(getstat('score',user))
-    level=int(score*leveltemp)
-    if level<1:
-        level=1
+    level=player_levels.level(score)
     accuracy=getstat('accuracy',user)
     max=getstat('max',user)
     great=getstat('great',user)
@@ -546,7 +605,10 @@ def _extra_medal_checks(user):
     ranked_plays = plays.filter(ranked=1)
     play_count = plays.count()
     pp = u.ranked_points or 0
-    level = int((u.ranked_score or 0) * leveltemp)
+    level = player_levels.level(u.ranked_score or 0)
+    # Level medals earned under the old formula are kept (Chikara/levels.py)
+    from online.models import MedalUnlock
+    kept = set(MedalUnlock.objects.filter(username=user, title__in=("Seasoned", "Centurion")).values_list("title", flat=True))
     clears = _medal_clears(ranked_plays)
     levels = dict(Beatmap.objects.filter(ranked=1, beatmapid__in={c.beatmap_id for c in clears})
                   .values_list("beatmapid", "Level"))
@@ -558,8 +620,8 @@ def _extra_medal_checks(user):
         "plays1000": lambda: play_count >= 1000,
         "pp100": lambda: pp >= 100,
         "pp1000": lambda: pp >= 1000,
-        "level50": lambda: level >= 50,
-        "level100": lambda: level >= 100,
+        "level50": lambda: level >= 50 or "Seasoned" in kept,
+        "level100": lambda: level >= 100 or "Centurion" in kept,
         "ss": lambda: any(c.max and not (c.great or c.meh or c.bad) for c in clears),
         "fc30": lambda: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= 30 for c in clears),
         "acc98": lambda: play_count >= 50 and (u.accuracy or 0) >= 98,
@@ -581,6 +643,15 @@ def _extra_medal_checks(user):
         "ss10": lambda: len({c.beatmap_id for c in clears if c.max and not (c.great or c.meh or c.bad)}) >= 10,
         "plays5000": lambda: play_count >= 5000,
     }
+    for lv in (10, 20, 30, 40, 60, 80, 90, 100):
+        checks[f"pass{lv}"] = (lambda lv=lv: passed_lv(lv))
+    for lv in (10, 20, 40, 50, 60, 70, 80, 90, 100):
+        checks[f"fc{lv}"] = (lambda lv=lv: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= lv for c in clears))
+    # mod introductions: any ranked play with the mod and 70%+ (HT / NF allowed here, it's their medal)
+    mod_rows = list(ranked_plays.exclude(mods=None).exclude(mods="").only("mods", "max", "great", "meh", "bad"))
+    for mod in ("DT", "HT", "RND", "SL", "BT", "NF"):
+        checks["mod:" + mod] = (lambda mod=mod: any(mod in (sc.mods or "").upper() and "AT" not in (sc.mods or "").upper()
+                                                   and _accuracy(sc) >= MEDAL_MIN_ACCURACY for sc in mod_rows))
     from online.models import MedalUnlock
     claimed = set(MedalUnlock.objects.filter(username=user, medal__in=CLIENT_MEDALS.values()).values_list("medal", flat=True))
     for name, index in CLIENT_MEDALS.items():
@@ -1112,7 +1183,7 @@ def public_profile(name):
         data.update({"restricted": True, "status": "", "online": False})
         return data
     score = u.ranked_score or 0
-    level_raw = score * leveltemp
+    lvl = player_levels.progress(score)
     extra_hints = {t: h for t, _, h, _ in EXTRA_MEDALS}
     from online.medals import unlock_times  # when each medal was first earned (online.medals)
     unlocked = unlock_times(u.username)
@@ -1125,8 +1196,9 @@ def public_profile(name):
         "restricted": False,
         "team_role": getattr(moderation.staff_of(u.username), "role", ""),
         "score": score,
-        "level": max(1, int(level_raw)),
-        "level_pct": int((level_raw - int(level_raw)) * 100) if level_raw >= 1 else int(level_raw * 100),
+        "level": lvl["level"],
+        "level_pct": lvl["pct"],
+        "level_next_score": lvl["next"],
         "beatmap_counts": map_counts,
         "accuracy": round(u.accuracy or 0, 2),
         "max_combo": u.max_combo or 0,
@@ -1138,6 +1210,7 @@ def public_profile(name):
         "cardborder": CheaterCardBorder if u.restricted else (
             _pfp_url(moderation.border_shown(u.username, u.cardborder)) if moderation.border_shown(u.username, u.cardborder) else None),
         "medals": [{"title": t, "desc": d, "achieved": bool(g), "hint": MEDAL_HINTS.get(t) or extra_hints.get(t) or d,
+                    "category": medal_category(t)[0],
                     "achieved_at": int(unlocked[i].timestamp()) if g and i in unlocked else 0}
                    for i, (t, d, g) in enumerate(getmedals(u.username))],
         "best": [_score_json(sc) for sc in Score.objects.filter(username=u.username, ranked=1).order_by('-points')[:10]],
@@ -1540,7 +1613,7 @@ def api(request,command,value=None):
                             rankedscore = finalscore
                         else:
                             usr.ranked_score += finalscore
-                            level=int(usr.ranked_score*leveltemp)
+                            level=player_levels.level(usr.ranked_score)
                         if usr.max_combo != None:
                             maxcombo = int(usr.max_combo)
                         else:
@@ -1912,9 +1985,7 @@ def user_classic(request, user):
                 rank=usr.ranking
                 points=usr.ranked_points
                 score=usr.ranked_score
-                level=int(score*leveltemp)
-                if level<1:
-                    level=1
+                level=player_levels.level(score)
                 accuracy=usr.accuracy
                 max=usr.max
                 great=usr.great
@@ -2109,9 +2180,8 @@ def user(request, user):
     rank = usr.ranking if usr.ranking and usr.ranking > 0 else None
     points = usr.ranked_points or 0
     score = usr.ranked_score or 0
-    level_raw = score * leveltemp
-    level = max(1, int(level_raw))
-    level_pct = int((level_raw - int(level_raw)) * 100) if level_raw >= 1 else int(level_raw * 100)
+    lvl = player_levels.progress(score)
+    level, level_pct = lvl["level"], lvl["pct"]
     accuracy = round(usr.accuracy or 0, 2)
     hits = [("Perfect", usr.max or 0, "perfect"), ("Great", usr.great or 0, "great"),
             ("Meh", usr.meh or 0, "meh"), ("Miss", usr.bad or 0, "miss")]
@@ -2173,8 +2243,9 @@ def user(request, user):
     stats = '<section class="infobox column pf-section pf-stats">'
     stats += '<div class="pf-tiles">'
     stats += (f'<div class="pf-tile pf-tile-level"><span class="pf-tile-label">Level</span><span class="pf-tile-value">{level:,}</span>'
-             f'<span class="pf-level-bar" title="{level_pct}% to level {level + 1}"><span style="width:{level_pct}%"></span></span>'
-             f'<span class="pf-tile-sub">{level_pct}% to next</span></div>')
+             f'<span class="pf-level-bar" title="{lvl["into"]:,} / {lvl["needed"]:,} score into level {level} ({level_pct}%)">'
+             f'<span style="width:{level_pct}%"></span></span>'
+             f'<span class="pf-tile-sub">{_short_num(lvl["next"] - score)} score to level {level + 1}</span></div>')
     play_count = Score.objects.filter(username=usr.username).count()
     tiles = [("Accuracy", f"{accuracy}%"), ("Ranked score", f"{score:,}"), ("Play count", f"{play_count:,}"), ("Play time", playtime(usr.playtime)),
              ("Max combo", f"{usr.max_combo or 0:,}x")]
@@ -2240,19 +2311,28 @@ def user(request, user):
     earned = sum(1 for m in medal_list if m[2])
     html += '<section class="infobox column pf-section" id="medals">'
     html += f'<div class="pf-sec-head"><span class="title">Medals</span><span class="pf-dim">{earned} / {len(medal_list)} earned</span></div>'
-    html += '<div class="pf-medals">'
     extra_hints = {t: h for t, _, h, _ in EXTRA_MEDALS}
     from online.medals import unlock_times
     unlocked = unlock_times(user)
-    for index, (title, desc, show) in sorted(enumerate(medal_list), key=lambda m: not m[1][2]):
-        how = MEDAL_HINTS.get(title) or extra_hints.get(title) or desc
-        when = unlocked.get(index) if show else None
-        got = f"Got it on {when.strftime('%-d %b %Y')}! " if when else "Got it! "
-        hint = escape((got if show else "") + how)
-        html += (f'<div class="pf-medal{"" if show else " locked"}" tabindex="0" data-hint="{hint}" aria-label="{escape(title)}. {hint}">'
-                 f'<span class="pf-medal-icon">{"★" if show else "?"}</span>'
-                 f'<span><b>{title}</b><small>{desc}</small></span></div>')
-    html += '</div></section>'
+    groups = {}
+    for index, (title, desc, show) in enumerate(medal_list):
+        cat, key = medal_category(title)
+        groups.setdefault(cat, []).append((key, index, title, desc, show))
+    for cat, items in sorted(groups.items(), key=lambda g: min(i[0] for i in g[1])):
+        items.sort()
+        got_n = sum(1 for i in items if i[4])
+        html += (f'<div class="pf-medal-group"><div class="pf-medal-group-head"><span>{escape(cat)}</span>'
+                 f'<span class="pf-dim">{got_n} / {len(items)}</span></div><div class="pf-medals">')
+        for _key, index, title, desc, show in items:
+            how = MEDAL_HINTS.get(title) or extra_hints.get(title) or desc
+            when = unlocked.get(index) if show else None
+            got = f"Got it on {when.strftime('%-d %b %Y')}! " if when else "Got it! "
+            hint = escape((got if show else "") + how)
+            html += (f'<div class="pf-medal{"" if show else " locked"}" tabindex="0" data-hint="{hint}" aria-label="{escape(title)}. {hint}">'
+                     f'<span class="pf-medal-icon">{"★" if show else "?"}</span>'
+                     f'<span><b>{title}</b><small>{desc}</small></span></div>')
+        html += '</div></div>'
+    html += '</section>'
 
     # ---- scores
     html += '<div class="pf-score-cols">'

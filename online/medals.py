@@ -39,7 +39,9 @@ def _ts(dt):
 
 
 def medal_json(index, title, desc, hint, achieved):
-    return {"id": index, "title": title, "desc": desc, "hint": hint, "achieved_at": _ts(achieved)}
+    from Chikara.views import medal_category
+    return {"id": index, "title": title, "desc": desc, "hint": hint, "achieved_at": _ts(achieved),
+            "category": medal_category(title)[0]}
 
 
 def unlock_times(username):
