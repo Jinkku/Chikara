@@ -171,8 +171,23 @@ def time_left(expires):
 
 
 def kick_online(username, text):
-    """Tells a freshly banned player's game right away (it shows the ban; old games just lose online chat)."""
+    """Tells a freshly banned player's game right away (it shows the ban; old games just lose online chat),
+    and drops them from multiplayer (online/relay_consumer.py), since restricted accounts can't play with others."""
     _tell(username, {"type": "chat.kick", "text": text})
+    kick_relay(User.objects.filter(username=username).values_list("id", flat=True).first(), text)
+
+
+def kick_relay(user_id, text):
+    """Closes the account's multiplayer connections (online/relay_consumer.py) with `text`."""
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        from online.relay_consumer import relay_user_group
+        layer = get_channel_layer()
+        if user_id is not None and layer is not None:
+            async_to_sync(layer.group_send)(relay_user_group(user_id), {"type": "relay.kick", "text": text})
+    except Exception as e:
+        print(f"[moderation] couldn't close multiplayer for user {user_id}: {e}")
 
 
 def notify_unrestricted(username):

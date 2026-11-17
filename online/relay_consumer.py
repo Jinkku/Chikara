@@ -88,6 +88,17 @@ def as_int(v, default=0):
         return default
 
 
+def relay_user_group(user_id):
+    """Every multiplayer socket of one account; moderation.service.kick_online drops them when it's banned."""
+    return f"relay.user.{user_id}"
+
+
+@database_sync_to_async
+def user_id_of(username):
+    from dbview.models import User
+    return User.objects.filter(username=username).values_list("id", flat=True).first()
+
+
 class RelayConsumer(AsyncWebsocketConsumer):
     username = None
 
@@ -109,10 +120,20 @@ class RelayConsumer(AsyncWebsocketConsumer):
         self.successor = 0        # host: who its game wants to take over (sent with "update")
         self.join_task = None
         self.window_start, self.window_bytes, self.window_frames = time.monotonic(), 0, 0
+        self.user_id = await user_id_of(self.username)
+        if self.user_id is not None:
+            await self.channel_layer.group_add(relay_user_group(self.user_id), self.channel_name)
 
     async def disconnect(self, code):
+        if getattr(self, "user_id", None) is not None:
+            await self.channel_layer.group_discard(relay_user_group(self.user_id), self.channel_name)
         if self.username:
             await self.leave_session("The host left, so the room closed.")
+
+    async def relay_kick(self, e):
+        """This account was just banned: same message and close code as a restricted login (code 4001)."""
+        await self.send_op("error", fatal=True, text=e["text"])
+        await self.close(code=4001)
 
     async def send_op(self, op, **fields):
         await self.send(text_data=json.dumps({"op": op, **fields}))
