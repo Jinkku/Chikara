@@ -57,6 +57,11 @@ class User(models.Model):
     bannerpath = models.TextField(null=True, blank=True)  # profile banner, "/banners/<file>" under DataURL (usersettings.banner)
     country = models.CharField(max_length=2, null=True, blank=True, db_index=True)  # ISO 3166-1 alpha-2 (Chikara/countries.py)
     country_set = models.DateTimeField(null=True, blank=True)  # when it was set or last changed
+    hide_country = models.BooleanField(default=False)  # privacy: no flag on their profile / in rankings, left out of country stats
+    # presence privacy (Chikara/privacy.py): others see them the way an offline player looks
+    appear_offline = models.BooleanField(default=False)          # nobody sees them online, playing, or when they were last on
+    hide_activity = models.BooleanField(default=False)           # shown as "Online", but not what they're playing
+    presence_friends_only = models.BooleanField(default=False)   # only people on their friends list see any of it
 
     class Meta:
         db_table = 'users'

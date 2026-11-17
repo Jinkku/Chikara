@@ -278,7 +278,7 @@ def user_view(request, me, staff, args):
     from Chikara import countries
     hist = countries.history(u.id)
     data.update({
-        "country": u.country or "", "country_name": countries.name(u.country), "country_set": ts(u.country_set),
+        "country": u.country or "", "country_name": countries.name(u.country), "country_set": ts(u.country_set), "hide_country": u.hide_country, "privacy": [n for f, n in (("appear_offline", "appears offline"), ("hide_activity", "hides what they play"), ("presence_friends_only", "online to friends only")) if getattr(u, f)],
         "countries_seen": [{"code": c, "name": countries.name(c), "days": h["days"], "first": h["first"].isoformat(),
                             "last": h["last"].isoformat()} for c, h in sorted(hist.items(), key=lambda x: -x[1]["days"])],
         "all_countries": sorted(([c, n] for c, n in countries.NAMES.items()), key=lambda x: x[1]),

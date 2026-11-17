@@ -30,13 +30,15 @@ def is_friend(username, other):
 
 
 def friends_json(username):
+    from Chikara import privacy
     from Chikara.views import _player_json  # the same player fields getonline / getuser use
     names = friend_names(username)
     back = set(Friend.objects.filter(username__in=names, friend=username).values_list("username", flat=True))
     users = User.objects.filter(username__in=names, restricted=False)
+    viewer = privacy.Viewer(username=username)
     rows = []
     for u in users:
-        p = _player_json(u)
+        p = _player_json(u, viewer)
         p["mutual"] = u.username in back
         rows.append(p)
     rows.sort(key=lambda p: (not p["online"], p["username"].lower()))

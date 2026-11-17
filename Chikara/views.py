@@ -1221,9 +1221,12 @@ def getsimscore(achieved,max,mult,type=str):
 ONLINE_SECONDS = 60
 
 
-def online_players(limit=200):
+def online_players(limit=200, viewer=None):
+    """Players online now that `viewer` may see (Chikara/privacy.py)."""
+    from Chikara import privacy
     since = int(timezone.now().timestamp()) - ONLINE_SECONDS
-    return User.objects.filter(stattime__gte=since, restricted=False).exclude(username=None).order_by('ranking', 'username')[:limit]
+    return (User.objects.filter(stattime__gte=since, restricted=False).exclude(username=None)
+            .filter(privacy.visible_q(viewer)).order_by('ranking', 'username')[:limit])
 
 
 def registered_count():
@@ -1238,7 +1241,7 @@ def registered_count():
 
 def online_count():
     since = int(timezone.now().timestamp()) - ONLINE_SECONDS
-    return User.objects.filter(stattime__gte=since, restricted=False).count()
+    return User.objects.filter(stattime__gte=since, restricted=False, appear_offline=False).count()
 
 
 def _pfp_url(path):
@@ -1267,15 +1270,17 @@ def banner_style(url):
     return f' style="--banner:url(&quot;{escape(url)}&quot;)"' if url else ""
 
 
-def _player_json(u):
-    now = int(timezone.now().timestamp())
-    online = u.stattime is not None and now - u.stattime <= ONLINE_SECONDS
+def _player_json(u, viewer=None):
+    """A player for the game / website APIs. Presence is what `viewer` may see (Chikara/privacy.py): a hidden
+    player looks offline (online false, status "", last_seen 0), same fields and types either way."""
+    from Chikara import privacy
+    online, status, last_seen = privacy.presence(u, viewer, int(timezone.now().timestamp()), ONLINE_SECONDS)
     return {
         "id": u.id,
         "username": u.username,
         "online": online,
-        "status": (u.status or "") if online else "",
-        "last_seen": u.stattime or 0,
+        "status": status,
+        "last_seen": last_seen,
         "rank": u.ranking or 0,
         "points": u.ranked_points or 0,
         "pfp": _pfp_url(u.pfppath),
@@ -1302,11 +1307,11 @@ def _score_json(sc):
     }
 
 
-def public_profile(name):
+def public_profile(name, viewer=None):
     u = User.objects.filter(username=name).first()
     if u is None:
         return None
-    data = _player_json(u)
+    data = _player_json(u, viewer)
     if u.restricted:
         data.update({"restricted": True, "status": "", "online": False})
         return data
@@ -1364,17 +1369,19 @@ def _search_args(request):
 
 
 def search_players(request, online_only=False):
+    from Chikara import privacy
     query, start = _search_args(request)
+    viewer = privacy.Viewer(request)
     users = User.objects.filter(restricted=False).exclude(username=None).exclude(username="")
     if online_only:
-        users = users.filter(stattime__gte=int(timezone.now().timestamp()) - ONLINE_SECONDS)
+        users = users.filter(stattime__gte=int(timezone.now().timestamp()) - ONLINE_SECONDS).filter(privacy.visible_q(viewer))
     if query:
         users = users.filter(username__icontains=query)
     # Ranked players first (best rank on top), then everyone without a rank yet.
     users = users.order_by(F("ranking").asc(nulls_last=True), "username")
     rows = []
     for u in users[start:start + SEARCH_PAGE_SIZE]:
-        data = _player_json(u)
+        data = _player_json(u, viewer)
         data["accuracy"] = round(u.accuracy or 0, 2)
         data["rank"] = u.ranking if u.ranking and u.ranking > 0 else 0
         rows.append(data)
@@ -1791,11 +1798,14 @@ def api(request,command,value=None):
             except Exception as err:
                 return HttpResponse(err)
         elif command[0]=='getonline':
-            players = [_player_json(u) for u in online_players()]
+            from Chikara import privacy
+            viewer = privacy.Viewer(request)
+            players = [_player_json(u, viewer) for u in online_players(viewer=viewer)]
             return JsonResponse({"count": online_count(), "players": players})
         elif command[0]=='getuser' and len(command) > 1 and command[1] != "":
             try:
-                data = public_profile(urllib.parse.unquote(command[1]))
+                from Chikara import privacy
+                data = public_profile(urllib.parse.unquote(command[1]), privacy.Viewer(request))
             except Exception as err:
                 return JsonResponse({"error": 1, "reason": str(err)}, status=500)
             if data is None:
@@ -2153,10 +2163,14 @@ def user_classic(request, user):
             html += '<div class="infobox infoboxtile column spacetop spacebottom" style="flex-direction:row;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;">'
             html += '<span>'
             try:
-                if (usr.stattime,usr.status)!=(None,None) and not timezone.now().timestamp()-usr.stattime>300:
-                    html += usr.status
-                else:
-                    html += 'Last Seen '+str( timeform(timezone.now().timestamp()-usr.stattime))
+                from Chikara import privacy  # hidden by their privacy settings -> nothing shown
+                on, st, seen = privacy.presence(usr, privacy.Viewer(request), timezone.now().timestamp(), 300)
+                if on:
+                    html += escape(st or "Online")
+                elif seen:
+                    html += 'Last Seen '+str( timeform(timezone.now().timestamp()-seen))
+                elif usr.stattime is None:
+                    html += 'New player <3'
             except Exception as err:
                 html += 'New player <3'
             html += '</span>'
@@ -2324,12 +2338,15 @@ def user(request, user):
     total_hits = sum(h[1] for h in hits)
     name = escape(urllib.parse.unquote(usr.username))
 
-    online = usr.stattime is not None and now - usr.stattime <= 300
+    from Chikara import privacy
+    online, shown_status, last_seen = privacy.presence(usr, privacy.Viewer(request), now, 300)
     if online:
-        status_text = escape(usr.status) if usr.status else "Online"
+        status_text = escape(shown_status) if shown_status else "Online"
         presence = f'<span class="pf-presence on" title="{status_text}"><span class="pf-dot"></span><span class="pf-presence-text">{status_text}</span></span>'
+    elif last_seen:
+        presence = f'<span class="pf-presence">Last seen {timeform(now - last_seen).lower()}</span>'
     elif usr.stattime:
-        presence = f'<span class="pf-presence">Last seen {timeform(now - usr.stattime).lower()}</span>'
+        presence = ""  # hidden by their privacy settings: show nothing rather than a made-up "new player"
     else:
         presence = '<span class="pf-presence">New player &lt;3</span>'
     joined = ""
@@ -2365,7 +2382,7 @@ def user(request, user):
     html += f'<div class="pf-ident"><div class="pf-name-row"><h1 class="pf-name">{name}</h1>{team_badge(usr.username)}</div>'
     from Chikara import countries
     where = (f'<a class="pf-country" href="/ranking?country={usr.country}">{countries.flag(usr.country)}{escape(countries.name(usr.country))}</a>'
-             if countries.name(usr.country) else "")
+             if countries.name(usr.country) and not usr.hide_country else "")
     # line 1: country · joined; line 2: what they're doing (its own line, so long song names don't crowd the rest)
     html += f'<div class="pf-meta">{where}{joined}</div><div class="pf-status-row">{presence}</div></div>'
     html += f'<div class="pf-rank-block"><span class="pf-rank-label">Global rank</span><span class="pf-rank">#{format(rank, ",") if rank else "?"}</span>'
@@ -2530,14 +2547,14 @@ def country_ranking(request):
     """/ranking?type=countries: countries by their ranked players' total pp."""
     from Chikara import countries
     from django.db.models import Avg, Count, Sum
-    rows = list(User.objects.filter(restricted=False, ranked_points__gt=0).exclude(country=None).values("country")
+    rows = list(User.objects.filter(restricted=False, ranked_points__gt=0, hide_country=False).exclude(country=None).values("country")
                 .annotate(pp=Sum("ranked_points"), players=Count("id"), acc=Avg("accuracy"), score=Sum("ranked_score"))
                 .order_by("-pp"))
     rows = [r for r in rows if countries.name(r["country"])]
     top = {}
-    for u in User.objects.filter(restricted=False, ranked_points__gt=0).exclude(country=None).order_by("-ranked_points", "username"):
+    for u in User.objects.filter(restricted=False, ranked_points__gt=0, hide_country=False).exclude(country=None).order_by("-ranked_points", "username"):
         top.setdefault(u.country, u)
-    unknown = User.objects.filter(restricted=False, ranked_points__gt=0, country=None).count()
+    unknown = User.objects.filter(restricted=False, ranked_points__gt=0, country=None, hide_country=False).count()
     htmltemp = header(request, customhead='<link rel="stylesheet" href="/static/css/ranking.css?v=4">',
                       title="Qlute - country ranking", canonical=SiteURL + "/ranking?type=countries",
                       description="Qlute countries ranked by their players' total performance points.") \
@@ -2590,10 +2607,10 @@ def ranking(request, command=""):
     params = {k: v for k, v in (("type", "score" if by_score else ""), ("country", country)) if v}
     qs = ("?" + urllib.parse.urlencode(params)) if params else ""
     ranked = User.objects.filter(restricted=False, **{field + "__gt": 0})
-    present = sorted({c for c in ranked.exclude(country=None).values_list("country", flat=True) if countries.name(c)},
+    present = sorted({c for c in ranked.filter(hide_country=False).exclude(country=None).values_list("country", flat=True) if countries.name(c)},
                      key=countries.name)
     if country:
-        ranked = ranked.filter(country=country)
+        ranked = ranked.filter(country=country, hide_country=False)
     total = ranked.count()
     pages = max(1, -(-total // per_page))
     where = f" in {countries.name(country)}" if country else ""
@@ -2607,11 +2624,13 @@ def ranking(request, command=""):
     tols = len(users)
     now = int(timezone.now().timestamp())
     me = request.COOKIES.get('username', None)
+    from Chikara import privacy
+    viewer = privacy.Viewer(request)
 
     def stats(u):
         return {"points": u.ranked_points or 0, "score": u.ranked_score or 0, "acc": round(u.accuracy or 0, 2),
                 "perfect": u.max or 0, "great": u.great or 0, "meh": u.meh or 0, "miss": u.bad or 0,
-                "online": u.stattime is not None and now - u.stattime <= ONLINE_SECONDS,
+                "online": privacy.presence(u, viewer, now, ONLINE_SECONDS)[0],
                 "pfp": escape(_pfp_url(u.pfppath)), "href": "/user/" + escape(u.username or ""),
                 "banner": shown_banner(u),
                 "me": me is not None and urllib.parse.unquote(me) == urllib.parse.unquote(u.username or "")}
@@ -2639,7 +2658,7 @@ def ranking(request, command=""):
             html += (f"<a class='rk-pod rk-pod-{place}{' rk-me' if st['me'] else ''}{' has-banner' if st['banner'] else ''}' href='{st['href']}'{banner_style(st['banner'])}>"
                      f"<span class='rk-medal'>#{place}</span>"
                      f"<span class='rk-pod-avatar'><img src='{st['pfp']}' alt='' loading='lazy' width='88' height='88'>{dot}</span>"
-                     f"<span class='rk-pod-name'>{countries.flag(u.country)}{_rank_name(u)}</span>"
+                     f"<span class='rk-pod-name'>{'' if u.hide_country else countries.flag(u.country)}{_rank_name(u)}</span>"
                      + (f"<span class='rk-pod-pp'>{st['score']:,}<small> score</small></span>"
                         f"<span class='rk-pod-meta'>{st['acc']}% acc &middot; {st['points']:,} pp</span></a>" if by_score else
                         f"<span class='rk-pod-pp'>{st['points']:,}<small> pp</small></span>"
@@ -2659,7 +2678,7 @@ def ranking(request, command=""):
             acc_w = max(0, min(100, st["acc"]))
             html += (f"<tr class='{'rk-me' if st['me'] else ''}'><td class='rk-c-rank'>#{rank}</td>"
                      f"<td class='rk-c-player'><a href='{st['href']}'><span class='rk-avatar'><img src='{st['pfp']}' alt='' loading='lazy' width='34' height='34'>{dot}</span>"
-                     f"{countries.flag(u.country)}<span class='rk-name'>{_rank_name(u)}</span></a></td>"
+                     f"{'' if u.hide_country else countries.flag(u.country)}<span class='rk-name'>{_rank_name(u)}</span></a></td>"
                      f"<td class='rk-pp'>{st['score' if by_score else 'points']:,}</td>"
                      f"<td><span class='rk-acc'><span class='rk-acc-bar'><span style='width:{acc_w}%'></span></span>{st['acc']}%</span></td>"
                      f"<td class='rk-hide-sm'>{st['points' if by_score else 'score']:,}</td>"

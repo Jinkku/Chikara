@@ -20,12 +20,13 @@ def usersettings(request):
     if checklogin(username, request.COOKIES.get('password'))[0]:
         user = User.objects.filter(username=username).first()
         html = header(request, title="Qlute - User settings", robots="noindex, nofollow", customhead="""
-    <link rel="stylesheet" href="/static/css/usersettings.css?v=8">
-    <script src="/static/script/usersettings.js?v=8"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read() \
+    <link rel="stylesheet" href="/static/css/usersettings.css?v=13">
+    <script src="/static/script/usersettings.js?v=14"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read() \
             .replace("{avatar}", escape(_pfp_url(user.pfppath if user else None))) \
             .replace("{banner}", escape(banner_url(user.bannerpath if user else None))) \
             .replace("{bannerperk}", banner_perk_html(user)) \
             .replace("{countryblock}", country_html(user)) \
+            .replace("{privacyblock}", privacy_html(user)) \
             .replace("{borderperks}", "1" if user and moderation.has_supporter_perks(user.username) else "") \
             .replace("{bannerlocked}", "" if user and moderation.has_supporter_perks(user.username) else "1") \
             .replace("{username}", escape(username)) \
@@ -64,8 +65,76 @@ def country_html(user):
     return h
 
 
+PRIVACY_OPTIONS = [  # (users field, title, description) shown as switches under Privacy, saved at apiv2/privacy
+    ("appear_offline", "Appear offline",
+     "Nobody sees you online, what you're playing, or when you were last on. You can still play and chat as usual."),
+    ("hide_activity", "Hide what I'm playing",
+     "People see that you're online, but not the song you're playing."),
+    ("presence_friends_only", "Only friends see when I'm online",
+     "Only the people on your friends list see that you're online, what you're playing and when you were last on."),
+    ("hide_country", "Hide my country",
+     "Your flag won't show on your profile or in the rankings, and you won't be counted in the country ranking."),
+]
+PRESENCE_FIELDS = {"appear_offline", "hide_activity", "presence_friends_only"}
+
+
+def privacy_html(user):
+    """Settings: privacy switches (Chikara/privacy.py, countries.py)."""
+    if user is None:
+        return ""
+    h = ""
+    for field, title, desc in PRIVACY_OPTIONS:
+        h += (f'<label class="privacy-option" for="privacy-{field}">'
+              f'<span class="privacy-text"><span class="privacy-title">{escape(title)}</span>'
+              f'<span class="avatar-rules">{escape(desc)}</span></span>'
+              f'<input type="checkbox" class="toggle" role="switch" id="privacy-{field}" data-setting="{field}"'
+              + (' checked' if getattr(user, field) else '') + '></label>')
+    return h + ('<p class="avatar-rules">The Qlute team can still see all of this. Your friends list is the people you\'ve added.</p>'
+                '<p class="avatar-status" id="privacy-status"></p>')
+
+
+def privacy(request):
+    """POST apiv2/privacy {"appear_offline": true, ...}: change any of the privacy switches (PRIVACY_OPTIONS)."""
+    import json
+    if request.method != "POST":
+        return JsonResponse({"error": "Use POST."}, status=405)
+    user = moderation.request_user(request, write=True)
+    if user is None:
+        return JsonResponse({"error": "Log in first."}, status=401)
+    try:
+        data = json.loads(request.body or b"{}")
+        if not isinstance(data, dict):
+            raise ValueError
+    except ValueError:
+        return JsonResponse({"error": "Couldn't read that."}, status=400)
+    fields = {f for f, _, _ in PRIVACY_OPTIONS}
+    change = {k: v is True for k, v in data.items() if k in fields}
+    if not change:
+        return JsonResponse({"error": "Nothing to change."}, status=400)
+    User.objects.filter(id=user.id).update(**change)
+    if PRESENCE_FIELDS & change.keys():
+        _refresh_chat_presence(user.username)
+    return JsonResponse({"ok": True, **change})
+
+
+def _refresh_chat_presence(username):
+    """Tell everyone in online chat about this player again, so the new privacy settings apply right away
+    (online/chat_consumer.py: people who may no longer see them get "online": false)."""
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        from online.chat_consumer import PRESENCE_GROUP, is_online
+        if is_online(username):
+            async_to_sync(get_channel_layer().group_send)(PRESENCE_GROUP, {
+                "type": "chat.presence", "user": username, "online": True, "private": True, "refresh": True})
+    except Exception:
+        import sentry_sdk
+        sentry_sdk.capture_exception()
+
+
 def country(request):
-    """POST apiv2/country {"country": "XX"}: switch your country, if your history there allows it (Chikara/countries.py)."""
+    """POST apiv2/country {"country": "XX"}: switch your country, if your history there allows it (Chikara/countries.py).
+    POST apiv2/country {"hide": true|false}: hide or show your country to other players."""
     import json
     from Chikara import countries
     if request.method != "POST":
@@ -73,12 +142,19 @@ def country(request):
     user = moderation.request_user(request, write=True)
     if user is None:
         return JsonResponse({"error": "Log in first."}, status=401)
+    try:
+        data = json.loads(request.body or b"{}")
+        if not isinstance(data, dict):
+            raise ValueError
+    except ValueError:
+        return JsonResponse({"error": "Couldn't read that."}, status=400)
+    if "hide" in data:  # privacy is allowed for everyone, restricted or not
+        hide = data["hide"] is True
+        User.objects.filter(id=user.id).update(hide_country=hide)
+        return JsonResponse({"ok": True, "hide": hide})
     if user.restricted:
         return JsonResponse({"error": "Restricted accounts can't change their country."}, status=403)
-    try:
-        code = str(json.loads(request.body or b"{}").get("country") or "").upper()
-    except (ValueError, AttributeError):
-        return JsonResponse({"error": "Couldn't read that."}, status=400)
+    code = str(data.get("country") or "").upper()
     ok, why = countries.can_change(user, code)
     if not ok:
         return JsonResponse({"error": why}, status=403)

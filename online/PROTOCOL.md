@@ -52,6 +52,11 @@ Server → client
 | `invite` / `invite_gone` | `room`, `title`, `from` / `room` |
 | `presence` | `user`, `online` (bool) |
 | `online_list` | `online: [names]` |
+
+Presence privacy (Chikara/privacy.py): players who appear offline, or show their presence to friends only, are left
+out of `welcome.online` / `online_list` for anyone who may not see them, and get no `presence` for them (or
+`online: false` when they change the setting). Messages keep the same shape, so clients need no changes.
+
 | `error` | `text`, `fatal` (optional) |
 | `restricted` | `text`, `expires` (unix ms or null) (`ban`) your account is restricted: show it. Right after a ban the socket then closes with code `4002`; reconnect and you'll get this again, then only `unrestricted` |
 | `unrestricted` | `text` (`ban`) the restriction is over; the socket closes with `4002`: reconnect for the normal welcome |

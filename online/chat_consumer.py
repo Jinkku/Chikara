@@ -176,9 +176,29 @@ def drop_session(username, channel_name):
 
 
 @database_sync_to_async
-def online_users():
+def online_users(viewer):
+    """Who's online in chat, minus players who hide their presence from `viewer` (Chikara/privacy.py)."""
+    from Chikara import privacy
     since = timezone.now() - ONLINE_WINDOW
-    return sorted(set(OnlineSession.objects.filter(last_seen__gte=since).values_list("username", flat=True)))[:500]
+    names = sorted(set(OnlineSession.objects.filter(last_seen__gte=since).values_list("username", flat=True)))
+    return privacy.visible_names(names, viewer)[:500]
+
+
+@database_sync_to_async
+def presence_is_private(username):
+    from Chikara import privacy
+    return privacy.is_hidden_name(username)
+
+
+@database_sync_to_async
+def may_see(username, viewer):
+    from Chikara import privacy
+    return privacy.may_see_name(username, viewer)
+
+
+def is_online(username):
+    """Sync: does this player have a live chat connection? (for presence refreshes from settings)"""
+    return OnlineSession.objects.filter(username=username, last_seen__gte=timezone.now() - ONLINE_WINDOW).exists()
 
 
 def parse_dm(key):
@@ -318,7 +338,7 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
             "channels": [{"id": c, "title": c} for c in public_channels()],
             "rooms": [r for _, r in private] + dms,
             "invites": await my_invites(self.username),
-            "online": await online_users(),
+            "online": await online_users(self.username),
         })
         for ch in public_channels():
             await self.send_json({"op": "history", "channel": ch, "lines": await history(ch)})
@@ -326,7 +346,8 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"op": "history", "channel": r["id"], "lines": await history(r["id"])})
         for d in dms:
             await self.send_json({"op": "history", "channel": d["id"], "lines": await history(d["id"])})
-        await self.channel_layer.group_send(PRESENCE_GROUP, {"type": "chat.presence", "user": self.username, "online": True})
+        await self.channel_layer.group_send(PRESENCE_GROUP, {"type": "chat.presence", "user": self.username, "online": True,
+                                                             "private": await presence_is_private(self.username)})
 
     async def disconnect(self, code):
         if not self.username:
@@ -344,7 +365,8 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
         for room_id in self.rooms:
             await self.channel_layer.group_discard(room_group(room_id), self.channel_name)
         if went_offline:
-            await self.channel_layer.group_send(PRESENCE_GROUP, {"type": "chat.presence", "user": self.username, "online": False})
+            await self.channel_layer.group_send(PRESENCE_GROUP, {"type": "chat.presence", "user": self.username, "online": False,
+                                                                 "private": await presence_is_private(self.username)})
 
     def rate_limited(self):
         now = time.monotonic()
@@ -371,7 +393,7 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"op": "pong"})
             return
         if op == "online":
-            await self.send_json({"op": "online_list", "online": await online_users()})
+            await self.send_json({"op": "online_list", "online": await online_users(self.username)})
             return
         handler = {
             "msg": self.op_msg, "create": self.op_create, "invite": self.op_invite,
@@ -578,8 +600,16 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"op": "friend", "user": e["user"], "added": e["added"], "mutual": e.get("mutual", False)})
 
     async def chat_presence(self, e):
-        if e["user"] != self.username:
-            await self.send_json({"op": "presence", "user": e["user"], "online": e["online"]})
+        # "private": the player hides their presence from some people (Chikara/privacy.py); those get nothing, or
+        # "online": false when the player just changed their settings ("refresh"), so they drop off their list.
+        if e["user"] == self.username:
+            return
+        online = e["online"]
+        if e.get("private") and not await may_see(e["user"], self.username):
+            if not e.get("refresh"):
+                return
+            online = False
+        await self.send_json({"op": "presence", "user": e["user"], "online": online})
 
     async def chat_invite(self, e):
         await self.send_json({"op": "invite", "room": e["room"], "title": e["title"], "from": e["from"]})

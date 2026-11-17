@@ -307,3 +307,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }));
 });
+
+
+// ---------------------------------------------------------------- privacy switches (apiv2/privacy, usersettings.PRIVACY_OPTIONS)
+document.addEventListener("DOMContentLoaded", () => {
+  const status = document.getElementById("privacy-status");
+  const said = { on: {
+      appear_offline: "You appear offline now.", hide_activity: "What you're playing is hidden now.",
+      presence_friends_only: "Only your friends see when you're online now.", hide_country: "Your country is hidden now." },
+    off: {
+      appear_offline: "You show as online again.", hide_activity: "People can see what you're playing again.",
+      presence_friends_only: "Everyone can see when you're online again.", hide_country: "Your country is shown again." } };
+  document.querySelectorAll(".toggle[data-setting]").forEach(box => box.addEventListener("change", async () => {
+    const key = box.dataset.setting;
+    box.disabled = true;
+    try {
+      const res = await fetch("/apiv2/privacy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Chikara": "1" },
+        body: JSON.stringify({ [key]: box.checked }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "The server said " + res.status);
+      if (status) { status.textContent = said[box.checked ? "on" : "off"][key] || "Saved."; status.classList.remove("error"); }
+    } catch (err) {
+      box.checked = !box.checked;
+      if (status) { status.textContent = err.message; status.classList.add("error"); }
+    } finally {
+      box.disabled = false;
+    }
+  }));
+});
