@@ -177,3 +177,5 @@ __pycache__/
 
 # Chikara Config file
 config/config.conf
+# Anti-cheat rules stay private (the server loads it if present)
+Chikara/anticheat.py

@@ -122,6 +122,23 @@
         await load();
     }
 
+    // Anti-cheat reports: every check of each flagged / banned play (Chikara/anticheat.py), newest first
+    function evidenceHtml(list) {
+        const label = { pass: "pass", flag: "flag", fail: "fail", skip: "skip" };
+        return list.slice().reverse().map(e => `
+            <details class="adm-ev" ${e === list[list.length - 1] ? "open" : ""}>
+                <summary><span class="adm-pill ${e.outcome === "banned" ? "red" : e.outcome === "flagged" ? "yellow" : "purple"}">${esc(e.outcome)}</span>
+                    <b>${esc(e.map_name || "map")}</b> <span class="adm-meta">(${esc(e.map)}) ${when(e.at)}</span></summary>
+                <table class="adm-ev-table">
+                    <thead><tr><th>Check</th><th>Result</th><th>Measured</th><th>Expected</th></tr></thead>
+                    <tbody>${e.checks.map(c => `<tr class="ev-${esc(c.status)}">
+                        <td>${esc(c.check)}</td><td><span class="ev-status">${esc(label[c.status] || c.status)}</span></td>
+                        <td>${esc(c.value)}</td><td>${esc(c.limit)}</td></tr>`).join("")}</tbody>
+                </table>
+                <div class="adm-meta">Replay file: ${esc(e.replay)}</div>
+            </details>`).join("");
+    }
+
     function reportCard(r, changed) {
         const card = document.createElement("div");
         card.className = "adm-card" + (r.status === "open" ? "" : " closed");
@@ -133,8 +150,8 @@
                     ${r.target_open_reports > 1 ? `<span class="adm-pill purple">${r.target_open_reports} open reports</span>` : ""}</span>
                 <span>${statusPill} <span class="adm-pill">${esc(r.category_text)}</span></span>
             </div>
-            <div class="adm-meta">#${r.id} reported by ${userLink(r.reporter)} ${when(r.created)} from the ${r.source === "game" ? "game" : "website"}</div>
-            <p class="adm-text">${esc(r.details)}</p>
+            <div class="adm-meta">#${r.id} ${r.source === "system" ? "flagged by the anti-cheat" : `reported by ${userLink(r.reporter)}`} ${when(r.created)}${r.source === "system" ? "" : ` from the ${r.source === "game" ? "game" : "website"}`}</div>
+            ${r.evidence && r.evidence.length ? evidenceHtml(r.evidence) : `<p class="adm-text">${esc(r.details)}</p>`}
             ${r.context ? `<div class="adm-meta">Context: ${esc(r.context)}</div>` : ""}
             ${r.status !== "open" ? `<div class="adm-meta">${esc(r.status)} by ${esc(r.handled_by)} ${when(r.handled_at)}${r.note ? ": " + esc(r.note) : ""}</div>` : ""}
             <div class="adm-actions"></div>

@@ -56,6 +56,7 @@ def report_json(r):
         "category": r.category, "category_text": dict(Report.CATEGORIES).get(r.category, r.category),
         "details": r.details, "context": r.context, "source": r.source, "status": r.status,
         "created": ts(r.created), "handled_by": r.handled_by, "handled_at": ts(r.handled_at), "note": r.note,
+        "evidence": r.evidence or [],
     }
 
 

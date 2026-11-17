@@ -1173,7 +1173,7 @@ def admin_page(request):
         html = header(request, title="Qlute - the black hole of death.", robots=NOINDEX) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read().replace('{sitetitle}', "404 not found o-o")
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
         return HttpResponse(html, status=404)
-    head = '<link rel="stylesheet" href="/static/css/catalog.css"><link rel="stylesheet" href="/static/css/admin.css?v=3">'
+    head = '<link rel="stylesheet" href="/static/css/catalog.css"><link rel="stylesheet" href="/static/css/admin.css?v=4">'
     html = header(request, customhead=head, title="Qlute - admin panel", robots=NOINDEX)
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/admin.html").read()
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
@@ -1360,6 +1360,28 @@ def api(request,command,value=None):
                        finalscore = pointsdata.score
                    else:
                        finalscore = process_score(smax, sgreat, smeh, mult, info.notecount)
+                   # Anti-cheat: cheating is refused and banned, suspicious plays are kept and reported (admin panel).
+                   # The anti-cheat module is private (kept out of the public repo); without it plays are only re-played.
+                   try:
+                       from Chikara import anticheat
+                   except ImportError:
+                       anticheat = None
+                   if anticheat:
+                       ac_header, ac_presses = anticheat.parse(replay_data)
+                       ac_pp = User.objects.filter(username=user).values_list("ranked_points", flat=True).first() or 0
+                       verdict = anticheat.check(user, ac_header, ac_presses, pointsdata, beatmap_id, beatmapset_id, mods, speed_multi,
+                                                 anticheat.stored_replays(beatmap_id, exclude_path=replay_name),
+                                                 ranked=info.ranked, pp_limit=max(ac_pp * PP_JUMP_RATIO, PP_JUMP_FLOOR))
+                       ban_msg = anticheat.act(user, verdict, beatmap_id, info.title, replay_name,
+                                               pp=pointsdata.points if pointsdata else None,
+                                               acc=pointsdata.accuracy if pointsdata else None)
+                       if verdict.reject:
+                           if verdict.duplicate:
+                               os.remove(replay_name)
+                           print(f"[anticheat] refused {user} map {beatmap_id}: {verdict.ban_reason or verdict.reject}")
+                           return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,
+                                                "msg": ban_msg or verdict.reject,"error": 1})
+                       anticheat.accepted(user)
                    if info.ranked != 0:
                        points = pointsdata.points
                        maxpoints = pointsdata.max_points

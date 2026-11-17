@@ -45,3 +45,18 @@
 .nw-preview { text-align: left; line-height: 1.6; }
 .nw-preview h2 { margin: 0 0 8px; }
 .nw-preview ul, .nw-preview ol { display: block !important; }
+
+/* anti-cheat evidence on reports (admin.js evidenceHtml) */
+.adm-ev { background: #00000028; border-radius: 6px; padding: 6px 10px; margin: 4px 0; }
+.adm-ev summary { cursor: pointer; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0; }
+.adm-ev-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0; display: block; overflow-x: auto; }
+.adm-ev-table th { text-align: left; font-weight: normal; color: #ffffff90; font-size: 12px; padding: 4px 8px; white-space: nowrap; }
+.adm-ev-table td { padding: 5px 8px; border-top: 1px solid #ffffff12; vertical-align: top; }
+.adm-ev-table td:first-child { white-space: nowrap; font-weight: bold; }
+.ev-status { display: inline-block; min-width: 34px; text-align: center; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: bold; text-transform: uppercase; background: #ffffff20; }
+.ev-pass .ev-status { background: #67b93055; color: #c9f5ad; }
+.ev-flag .ev-status { background: #c5c220; color: #221E27; }
+.ev-fail .ev-status { background: #d43737; color: #fff; }
+.ev-skip .ev-status { background: #ffffff14; color: #ffffff80; }
+.ev-fail td { background: #d4373718; }
+.ev-flag td { background: #c5c22014; }

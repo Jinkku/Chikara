@@ -31,7 +31,7 @@ class Report(models.Model):
     STATUS_RESOLVED = "resolved"
     STATUS_DISMISSED = "dismissed"
     STATUSES = [(STATUS_OPEN, "Open"), (STATUS_RESOLVED, "Resolved"), (STATUS_DISMISSED, "Dismissed")]
-    SOURCES = [("web", "Website"), ("game", "Game")]
+    SOURCES = [("web", "Website"), ("game", "Game"), ("system", "Anti-cheat")]
 
     reporter = models.CharField(max_length=256, db_index=True)
     target = models.CharField(max_length=256, db_index=True)
@@ -44,6 +44,7 @@ class Report(models.Model):
     handled_by = models.CharField(max_length=256, blank=True, default="")
     handled_at = models.DateTimeField(null=True, blank=True)
     note = models.TextField(blank=True, default="")  # what the team did about it
+    evidence = models.JSONField(default=list, blank=True)  # anti-cheat: every check of each flagged play (Chikara/anticheat.py)
 
     def __str__(self):
         return f"#{self.id} {self.reporter} -> {self.target} ({self.category}, {self.status})"
