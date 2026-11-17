@@ -4,6 +4,7 @@ The server already re-plays every replay (ppv2calc), so judgements, combo, pp an
 This adds a few simple checks on the replay itself. Each check ends up as
 
   pass   nothing wrong
+  flag   suspicious: the score is kept and the team gets a report to look at
   fail   the score is refused and the team gets a report in the admin panel (with every check as evidence)
   skip   not enough data to judge
 
@@ -11,6 +12,7 @@ This adds a few simple checks on the replay itself. Each check ends up as
   Copied replay                the presses aren't an exact copy of another player's replay of the same map
   Timing                       the hits aren't all on the exact same millisecond offset (plain autoplay)
   pp jump                      one play isn't worth more than max(25% of their pp, 600pp)
+  Level jump                   a map far above the levels they usually play is flagged (score kept, team reviews)
 
 Set AUTO_BAN = True to also ban (permanently, or BAN_HOURS) when a check fails; by default the team decides.
 To write your own, copy this file to Chikara/anticheat.py (git-ignored) and change it: views.py uses that one first.
@@ -28,6 +30,11 @@ BAN_HOURS = None          # None = permanent (only with AUTO_BAN)
 MIN_HITS = 100            # the timing check needs this many hits
 MIN_UR = 5                # unstable rate below this (every hit within ~0.5 ms): autoplay
 MOD_ALIASES = ("AT", "DT", "HT", "SL", "BT", "RND", "NF")
+LEVEL_JUMP_ADD = 20         # a play above Lv max(usual + this, usual x LEVEL_JUMP_RATIO) is flagged ("usual": the
+LEVEL_JUMP_RATIO = 2.0      # 90th percentile level of their last LEVEL_JUMP_PLAYS plays at LEVEL_JUMP_ACC+ accuracy)
+LEVEL_JUMP_ACC = 0.80       # only plays at this accuracy count, both the new one and the earlier ones
+LEVEL_JUMP_PLAYS = 50
+LEVEL_JUMP_MIN_PLAYS = 10
 
 
 @dataclass
@@ -71,7 +78,7 @@ def _shifted_copy(a, b):
 
 
 def check(user, header, presses, result, beatmap_id, beatmapset_id, mods, speed, others,
-          ranked=0, pp_limit=None, now=None, history=None):
+          ranked=0, pp_limit=None, now=None, history=None, levels=None):
     """Run every check on one submission (same call as the private module).
 
     result:    ppv2calc.GameplayResult from re-playing the replay (None if the chart couldn't be read)
@@ -105,6 +112,8 @@ def check(user, header, presses, result, beatmap_id, beatmapset_id, mods, speed,
     else:
         v.add("Timing (unstable rate)", "skip", f"{hits} hits", f"{MIN_HITS}+ hits")
 
+    _level_jump(v, result, levels)
+
     if result and ranked and pp_limit is not None:
         v.add("pp jump", "fail" if result.points > pp_limit else "pass", f"{result.points:.0f}pp", f"{pp_limit:.0f}pp max")
 
@@ -114,6 +123,42 @@ def check(user, header, presses, result, beatmap_id, beatmapset_id, mods, speed,
         v.reject = "This play was rejected by the anti-cheat."
         v.ban_reason = f"Cheating detected by the anti-cheat: {', '.join(c['check'] for c in v.failed)} (map {beatmap_id})"
     return v
+
+
+def player_levels(user, before=None, exclude_path=None):
+    """Map levels (with their mods, ppv2calc.level_from_pp) of the player's latest LEVEL_JUMP_PLAYS stored plays
+    at LEVEL_JUMP_ACC+ accuracy, newest first. `before`: only plays older than this (re-checking a stored score)."""
+    from dbview.models import Score
+    rows = Score.objects.filter(username=user, maxpoints__gt=1)
+    if before is not None:
+        rows = rows.filter(created__lt=before)
+    if exclude_path:
+        from Chikara.settings import storage_root
+        rows = rows.exclude(replay_path=exclude_path[len(storage_root):] if exclude_path.startswith(storage_root) else exclude_path)
+    out = []
+    for mp, p, g, m, b in rows.order_by("-created").values_list("maxpoints", "max", "great", "meh", "bad")[:LEVEL_JUMP_PLAYS]:
+        n = (p or 0) + (g or 0) + (m or 0) + (b or 0)
+        if n and ((p or 0) + (g or 0) / 2 + (m or 0) / 3) / n >= LEVEL_JUMP_ACC:
+            out.append(ppv2calc.level_from_pp(mp))
+    return out
+
+
+def _level_jump(v, result, levels):
+    """Flag a play far above the levels this player usually plays (e.g. usually Lv 1-20, suddenly Lv 65)."""
+    if not result or levels is None:
+        return
+    level = ppv2calc.level_from_pp(result.max_pp)
+    if len(levels) < LEVEL_JUMP_MIN_PLAYS:
+        v.add("Level jump", "skip", f"{len(levels)} earlier plays at {LEVEL_JUMP_ACC:.0%}+", f"{LEVEL_JUMP_MIN_PLAYS}+ plays")
+        return
+    usual = sorted(levels)[int(len(levels) * 0.9)]  # their 90th percentile: the top of what they usually play
+    limit = max(usual + LEVEL_JUMP_ADD, int(usual * LEVEL_JUMP_RATIO))
+    if result.accuracy < LEVEL_JUMP_ACC:
+        v.add("Level jump", "pass", f"Lv {level} at {result.accuracy:.1%} (usually up to Lv {usual})",
+              f"only judged at {LEVEL_JUMP_ACC:.0%}+ accuracy")
+        return
+    v.add("Level jump", "flag" if level > limit else "pass",
+          f"Lv {level} at {result.accuracy:.1%}, usually up to Lv {usual}", f"up to Lv {limit}")
 
 
 def stored_replays(beatmap_id, exclude_path=None):
@@ -141,20 +186,22 @@ def accepted(user, result=None):
 
 
 def act(user, verdict, beatmap_id, map_name, replay_name, pp=None, acc=None):
-    """Report a refused play to the team (every check as evidence); ban too if AUTO_BAN.
+    """Report a refused or flagged play to the team (every check as evidence); ban too if AUTO_BAN and refused.
     Returns the ban message for the game when the player was banned, else ""."""
-    if verdict.duplicate or not verdict.failed:
+    if verdict.duplicate or not (verdict.failed or verdict.flagged):
         return ""
     try:
         from moderation import service
-        banned = AUTO_BAN and not service.is_staff(user)
-        details = [f"{'Banned' if banned else 'Refused'}: {map_name or 'map'} ({beatmap_id})"]
-        details += [f"- {c['check']}: {c['value']}" for c in verdict.failed]
+        refused = bool(verdict.failed)
+        banned = refused and AUTO_BAN and not service.is_staff(user)
+        what = "Banned" if banned else "Refused" if refused else "Flagged (score kept)"
+        details = [f"{what}: {map_name or 'map'} ({beatmap_id})"]
+        details += [f"- {c['check']}: {c['value']}" for c in verdict.failed + verdict.flagged]
         rep, _ = service.file_report(REPORTER, user, "cheating", "\n".join(details),
                                      f"replay {os.path.basename(replay_name)}"[:512], "system")
         rep.evidence = (rep.evidence or []) + [{
             "at": int(timezone.now().timestamp()), "map": beatmap_id, "map_name": map_name or "",
-            "replay": os.path.basename(replay_name), "outcome": "banned" if banned else "refused",
+            "replay": os.path.basename(replay_name), "outcome": "banned" if banned else "refused" if refused else "flagged",
             "checks": verdict.checks,
         }]
         rep.save(update_fields=["evidence"])
@@ -182,5 +229,5 @@ def score_review(sc):
         return {"error": f"Couldn't re-play it: {type(err).__name__}"}
     header, presses = ppv2calc._parse_replay(ppv2calc._read_lines(path))
     v = check(sc.username, header, presses, res, sc.beatmap_id, sc.beatmapset_id, sc.mods, sc.speed_multi,
-              stored_replays(sc.beatmap_id, exclude_path=path))
+              stored_replays(sc.beatmap_id, exclude_path=path), levels=player_levels(sc.username, before=sc.created))
     return {"percent": None, "factors": [], "checks": [c for c in v.checks if c["check"] != "pp jump"]}

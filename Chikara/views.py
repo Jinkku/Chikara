@@ -1594,7 +1594,8 @@ def api(request,command,value=None):
                        verdict = anticheat.check(user, ac_header, ac_presses, pointsdata, beatmap_id, beatmapset_id, mods, speed_multi,
                                                  anticheat.stored_replays(beatmap_id, exclude_path=replay_name),
                                                  ranked=info.ranked, pp_limit=max(ac_pp * PP_JUMP_RATIO, PP_JUMP_FLOOR),
-                                                 history=anticheat.player_urs(user, exclude_path=replay_name))
+                                                 history=anticheat.player_urs(user, exclude_path=replay_name),
+                                                 levels=anticheat.player_levels(user, exclude_path=replay_name))
                        ban_msg = anticheat.act(user, verdict, beatmap_id, info.title, replay_name,
                                                pp=pointsdata.points if pointsdata else None,
                                                acc=pointsdata.accuracy if pointsdata else None)
