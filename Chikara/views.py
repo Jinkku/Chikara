@@ -2090,7 +2090,7 @@ def user(request, user):
     public = usertest[0] and not usertest[1]
     seo = profile_seo(User.objects.filter(username=user).first()) if public else {}
     html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=17"><link rel="stylesheet" href="/static/css/favorites.css?v=2">'
-                                      '<link rel="stylesheet" href="/static/css/profile.css?v=6">',
+                                      '<link rel="stylesheet" href="/static/css/profile.css?v=9">',
                   robots=None if public else NOINDEX, **seo)
     status = 200 if usertest[0] else 404
     footer = (open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/report.html").read()
@@ -2164,10 +2164,10 @@ def user(request, user):
     html += '</section>'
     html += '<script src="/static/script/friends.js?v=1"></script>'
 
-    # ---- stats
-    html += '<section class="infobox column pf-section">'
-    html += '<div class="pf-tiles">'
-    html += (f'<div class="pf-tile pf-tile-level"><span class="pf-tile-label">Level</span><span class="pf-tile-value">{level:,}</span>'
+    # ---- stats (beside the history graph when there is one: history 70%, stats 30%)
+    stats = '<section class="infobox column pf-section pf-stats">'
+    stats += '<div class="pf-tiles">'
+    stats += (f'<div class="pf-tile pf-tile-level"><span class="pf-tile-label">Level</span><span class="pf-tile-value">{level:,}</span>'
              f'<span class="pf-level-bar" title="{level_pct}% to level {level + 1}"><span style="width:{level_pct}%"></span></span>'
              f'<span class="pf-tile-sub">{level_pct}% to next</span></div>')
     play_count = Score.objects.filter(username=usr.username).count()
@@ -2176,37 +2176,44 @@ def user(request, user):
     if usr.username == 'aquapoki':
         tiles.append(("Virgin Meter", "69.420%"))  # easter egg, carried over from the classic profile
     for label, value in tiles:
-        html += f'<div class="pf-tile"><span class="pf-tile-label">{label}</span><span class="pf-tile-value">{value}</span></div>'
-    html += '</div>'
+        wide = " pf-tile-wide" if label == "Ranked score" else ""  # long number: a full row in the narrow column
+        stats += f'<div class="pf-tile{wide}"><span class="pf-tile-label">{label}</span><span class="pf-tile-value">{value}</span></div>'
+    stats += '</div>'
     # hit distribution
-    html += '<div class="pf-hits"><div class="pf-hits-head"><span class="pf-sec-title">Hit distribution</span>'
-    html += f'<span class="pf-dim">{total_hits:,} notes hit</span></div>'
-    html += '<div class="pf-hitbar" role="img" aria-label="' + ", ".join(f"{h[0]} {h[1]:,}" for h in hits) + '">'
+    stats += '<div class="pf-hits"><div class="pf-hits-head"><span class="pf-sec-title">Hit distribution</span>'
+    stats += f'<span class="pf-dim">{total_hits:,} notes hit</span></div>'
+    stats += '<div class="pf-hitbar" role="img" aria-label="' + ", ".join(f"{h[0]} {h[1]:,}" for h in hits) + '">'
     if total_hits:
         for label, n, cls in hits:
             if n:
-                html += f'<span class="pf-hit-{cls}" style="flex:{n}" title="{label}: {n:,}"></span>'
-    html += '</div><div class="pf-hit-legend">'
+                stats += f'<span class="pf-hit-{cls}" style="flex:{n}" title="{label}: {n:,}"></span>'
+    stats += '</div><div class="pf-hit-legend">'
     for label, n, cls in hits:
         pct = f"{n / total_hits * 100:.1f}%" if total_hits else "0%"
-        html += f'<span><i class="pf-hit-{cls}"></i>{label} <b>{n:,}</b> <small>{pct}</small></span>'
-    html += '</div></div></section>'
+        stats += f'<span><i class="pf-hit-{cls}"></i>{label} <b>{n:,}</b> <small>{pct}</small></span>'
+    stats += '</div></div></section>'
 
     # ---- 90-day rank / pp / ranked score graph (Chikara/stathistory.py, drawn by profilehistory.js)
     from Chikara import stathistory
     stathistory.ensure_today()
     hist = stathistory.history(usr.id)
+    graph = ''
     if len(hist) >= 2:
-        html += '<section class="infobox column pf-section" id="profile-history">'
-        html += ('<div class="pf-sec-head"><span class="title">History</span>'
+        graph = '<section class="infobox column pf-section" id="profile-history">'
+        graph += ('<div class="pf-sec-head"><span class="title">History</span>'
                  '<div class="pf-hist-tabs" role="tablist">'
                  '<button type="button" class="pf-hist-tab" data-key="rank">Rank</button>'
                  '<button type="button" class="pf-hist-tab" data-key="pp">Performance</button>'
                  '<button type="button" class="pf-hist-tab" data-key="score">Ranked score</button></div></div>')
-        html += '<div class="pf-hist-summary"><span class="pf-hist-now"></span><span class="pf-hist-delta"></span><span class="pf-dim">last 90 days</span></div>'
-        html += '<div class="pf-hist-chart"></div>'
-        html += f'<script type="application/json" id="pf-history-data">{json.dumps(hist)}</script>'  # dates and numbers only
-        html += '</section><script src="/static/script/profilehistory.js?v=1"></script>'
+        graph += '<div class="pf-hist-summary"><span class="pf-hist-now"></span><span class="pf-hist-delta"></span><span class="pf-dim">last 90 days</span></div>'
+        graph += '<div class="pf-hist-chart"></div>'
+        graph += f'<script type="application/json" id="pf-history-data">{json.dumps(hist)}</script>'  # dates and numbers only
+        graph += '</section><script src="/static/script/profilehistory.js?v=3"></script>'
+
+    if graph:
+        html += '<div class="pf-stat-cols">' + graph + stats + '</div>'
+    else:
+        html += stats
 
     # ---- about me (ids kept for bioeditor.js)
     if usr.bio or owner:

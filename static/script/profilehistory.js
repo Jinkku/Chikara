@@ -71,7 +71,8 @@
         const s = series[key];
         const pts = rows.map((r, i) => ({ i, d: r.d, v: r[key] })).filter(p => p.v != null);
         chartEl.innerHTML = "";
-        const W = Math.max(280, chartEl.clientWidth), H = W < 500 ? 200 : 240;
+        // the chart box sets the size (CSS min-height, or taller when it fills a column beside the stats)
+        const W = Math.max(280, chartEl.clientWidth), H = Math.max(180, chartEl.clientHeight || (W < 500 ? 200 : 240));
         const m = { l: 52, r: 14, t: 12, b: 26 };
         const iw = W - m.l - m.r, ih = H - m.t - m.b;
         const vals = pts.map(p => p.v);
@@ -164,5 +165,8 @@
     tabs.forEach(t => t.addEventListener("click", () => select(t.dataset.key)));
     let resize;
     new ResizeObserver(() => { clearTimeout(resize); resize = setTimeout(draw, 80); }).observe(chartEl);
-    select(key);
+    // draw once the stats column beside the graph exists (it decides the height), and again after fonts / images load
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => select(key));
+    else select(key);
+    addEventListener("load", draw);
 })();

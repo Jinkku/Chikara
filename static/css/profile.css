@@ -191,3 +191,41 @@
 .pf-hist-tip b { font-size: 14px; }
 @media (max-width: 700px) { .pf-hist-tabs { display: flex; width: 100%; } #profile-page .pf-hist-tab { flex: 1; } }
 .pf-hist-tip[hidden] { display: none; }
+
+/* ---------- history (70%) beside level / stats / hits (30%); same outer width as an .infobox, like .pf-score-cols */
+.pf-stat-cols {
+    display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 3fr); gap: 12px;
+    width: calc(64% + 30px); margin-top: 12px; box-sizing: border-box;
+}
+.pf-stat-cols > .pf-section { width: auto; box-sizing: border-box; min-width: 0; margin-top: 0; }
+.pf-stat-cols #profile-history { justify-content: flex-start; }
+.pf-stat-cols .pf-hist-chart { flex: 1; }
+/* narrow column: two tiles a row, level across the top, smaller numbers */
+.pf-stat-cols .pf-stats .pf-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pf-stat-cols .pf-stats .pf-tile-level { grid-column: 1 / -1; }
+.pf-stat-cols .pf-stats .pf-tile { padding: 10px 12px; border-radius: 10px; }
+.pf-stat-cols .pf-stats .pf-tile-label { font-size: 11px; }
+.pf-stat-cols .pf-stats .pf-tile-value { font-size: 17px; }
+.pf-stat-cols .pf-stats .pf-hit-legend { gap: 4px 12px; font-size: 12px; }
+.pf-stat-cols .pf-hist-tabs { flex-wrap: wrap; }
+
+@media (max-width: 1100px) {
+    .pf-stat-cols { width: calc(100% - 24px); }
+}
+@media (max-width: 900px) {
+    .pf-stat-cols { grid-template-columns: 1fr; gap: 0; }
+    .pf-stat-cols > .pf-section { margin-top: 12px; }
+    .pf-stat-cols .pf-stats { order: -1; }  /* stats first, then the graph, like before */
+    .pf-stat-cols .pf-stats .pf-tiles { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+    .pf-stat-cols .pf-stats .pf-tile-level { grid-column: auto; }
+}
+@media (max-width: 700px) {
+    .pf-stat-cols { width: calc(100% - 16px); }
+}
+/* the graph fills its box: 240px tall on its own, the full column height beside the stats */
+.pf-hist-chart { min-height: 240px; }
+.pf-hist-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pf-stat-cols .pf-stats .pf-tile-wide { grid-column: 1 / -1; }
+@media (max-width: 900px) { .pf-stat-cols .pf-stats .pf-tile-wide { grid-column: auto; } }
+@media (max-width: 500px) { .pf-hist-chart { min-height: 200px; } }
+.pf-stat-cols .pf-stats .pf-tiles { grid-auto-flow: row dense; }  /* full-row tiles leave no holes */
