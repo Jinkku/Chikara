@@ -412,6 +412,19 @@
             ${u.scores ? `<div class="adm-row" style="margin-top:8px"><button class="adm-btn danger" id="wipe-all">Delete all ${u.scores.toLocaleString()} scores</button>
                 <a href="#scores=${encodeURIComponent(u.username)}"><button class="adm-btn">Delete recent scores...</button></a></div>
                 <p class="adm-msg" id="wmsg"></p>` : ""}
+            <div class="adm-section">Country</div>
+            <div class="adm-form" id="country">
+                <div class="adm-row">
+                    ${u.country ? `<img class="adm-flag" src="/static/img/flags/${esc(u.country.toLowerCase())}.svg" alt="">` : ""}
+                    <select id="country-pick"><option value="">No country</option>${u.all_countries.map(([c, n]) =>
+                        `<option value="${esc(c)}"${c === u.country ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>
+                    <button class="adm-btn" id="country-save">Set country</button>
+                    ${u.country_set ? `<span class="adm-meta">set ${when(u.country_set)}</span>` : ""}
+                </div>
+                <span class="adm-meta">Played from: ${u.countries_seen.length ? u.countries_seen.map(c =>
+                    `${esc(c.name)} (${c.days} day${c.days === 1 ? "" : "s"}, ${esc(c.first)} to ${esc(c.last)})`).join(" &middot; ") : "nowhere recorded yet"}</span>
+                <p class="adm-msg" id="cmsg"></p>
+            </div>
             <div class="adm-section">Supporter</div>
             <div id="support"></div>
             <div class="adm-section">Bans (${u.bans.length})</div>
@@ -419,6 +432,11 @@
             <div class="adm-section">Reports about them (${u.reports_against.length})</div>
             <div class="adm-list" id="reports"></div>`;
         supportBox(view.querySelector("#support"), u.username, u.supporter, u.can_grant_support, () => route());
+        view.querySelector("#country-save").onclick = async e => {
+            e.target.disabled = true;
+            try { await api("country", { username: u.username, country: view.querySelector("#country-pick").value }); route(); }
+            catch (err) { view.querySelector("#cmsg").textContent = err.message; e.target.disabled = false; }
+        };
         const wipeAll = view.querySelector("#wipe-all");
         if (wipeAll) wipeAll.onclick = async () => {
             if (!confirm(`Delete ALL ${u.scores} of ${u.username}'s scores? Their pp, accuracy and rank go back to what's left (nothing). This can't be undone.`)) return;

@@ -55,6 +55,8 @@ class User(models.Model):
     cardborder = models.TextField(null=True, blank=True)
     bio = models.TextField(null=True, blank=True)  # "About me" on the profile, set on the website's settings page
     bannerpath = models.TextField(null=True, blank=True)  # profile banner, "/banners/<file>" under DataURL (usersettings.banner)
+    country = models.CharField(max_length=2, null=True, blank=True, db_index=True)  # ISO 3166-1 alpha-2 (Chikara/countries.py)
+    country_set = models.DateTimeField(null=True, blank=True)  # when it was set or last changed
 
     class Meta:
         db_table = 'users'
@@ -134,3 +136,13 @@ class StatHistory(models.Model):
     class Meta:
         db_table = 'stat_history'
         unique_together = (('user_id', 'date'),)
+class CountrySeen(models.Model):
+    """Which country (from Cloudflare) a player was seen in, one row per player, day and country.
+    Their stable history here decides whether they may change their country (Chikara/countries.py)."""
+    user_id = models.IntegerField(db_index=True)
+    country = models.CharField(max_length=2)
+    day = models.DateField()
+
+    class Meta:
+        db_table = 'country_seen'
+        unique_together = (('user_id', 'day', 'country'),)

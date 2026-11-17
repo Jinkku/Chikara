@@ -48,6 +48,7 @@ urlpatterns = [
     path('apiv2/cardborder', usersettings.cardborder),
     path('apiv2/password', usersettings.password),
     path('apiv2/bio', usersettings.bio),
+    path('apiv2/country', usersettings.country),
     path('apiv2/bio/<str:action>', usersettings.bio),
     path('apiv2/<path:command>', views.api),
     path('apiv2/', views.api, {'command': ''}),

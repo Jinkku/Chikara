@@ -114,3 +114,19 @@ a.rk-page:hover, a.rk-page:focus-visible { background: #ffffff26; }
     .rk-tabs { display: flex; }
     .rk-tab { flex: 1; text-align: center; }
 }
+
+/* country flags (Chikara/countries.py) */
+.flag { width: 20px; height: 15px; border-radius: 2px; object-fit: cover; vertical-align: -2px; margin-right: 6px; box-shadow: 0 0 0 1px #00000040; flex: none; }
+.flag-lg { width: 28px; height: 21px; border-radius: 3px; }
+.rk-pod-name .flag { margin-right: 6px; }
+/* country filter under the tabs */
+.rk-filter { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0; }
+.rk-filter select {
+    padding: 7px 12px; border: 1px solid #ffffff1f; border-radius: 999px; background: #00000040; color: #fff;
+    font-family: inherit; font-size: 14px; cursor: pointer;
+}
+.rk-filter select:focus-visible { outline: 2px solid #f3baff88; outline-offset: 2px; }
+.rk-filter select option { background: #2a242f; }
+.rk-filter .rk-sub { flex: 1 1 200px; }
+.rk-countries .rk-c-player a { gap: 4px; }
+.rk-c-top a:hover { color: var(--rk-accent); }

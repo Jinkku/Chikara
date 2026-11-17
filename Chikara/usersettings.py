@@ -20,11 +20,12 @@ def usersettings(request):
     if checklogin(username, request.COOKIES.get('password'))[0]:
         user = User.objects.filter(username=username).first()
         html = header(request, title="Qlute - User settings", robots="noindex, nofollow", customhead="""
-    <link rel="stylesheet" href="/static/css/usersettings.css?v=7">
-    <script src="/static/script/usersettings.js?v=7"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read() \
+    <link rel="stylesheet" href="/static/css/usersettings.css?v=8">
+    <script src="/static/script/usersettings.js?v=8"></script>""") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/usersettings.html").read() \
             .replace("{avatar}", escape(_pfp_url(user.pfppath if user else None))) \
             .replace("{banner}", escape(banner_url(user.bannerpath if user else None))) \
             .replace("{bannerperk}", banner_perk_html(user)) \
+            .replace("{countryblock}", country_html(user)) \
             .replace("{borderperks}", "1" if user and moderation.has_supporter_perks(user.username) else "") \
             .replace("{bannerlocked}", "" if user and moderation.has_supporter_perks(user.username) else "1") \
             .replace("{username}", escape(username)) \
@@ -34,6 +35,55 @@ def usersettings(request):
         return HttpResponse(html)
     else:
         return HttpResponseForbidden("Please login...",)
+
+
+def country_html(user):
+    """Settings: your country, where you've played from, and which countries you may switch to (Chikara/countries.py)."""
+    from Chikara import countries
+    if user is None:
+        return ""
+    if countries.name(user.country):
+        since = f" since {user.country_set.strftime('%-d %B %Y')}" if user.country_set else ""
+        h = (f'<p class="country-now">{countries.flag(user.country, "lg")}<b>{escape(countries.name(user.country))}</b>'
+             f'<span class="avatar-rules">{since}</span></p>')
+    else:
+        h = '<p class="country-now"><b>Not set yet</b> <span class="avatar-rules">it fills in by itself the next time you play or visit the site</span></p>'
+    opts = countries.options(user)
+    if opts:
+        h += '<ul class="country-list">'
+        for o in opts:
+            act = (f'<button type="button" class="avatar-btn country-switch" data-country="{o["code"]}">Switch to {escape(o["name"])}</button>'
+                   if o["ok"] else f'<span class="avatar-rules">{escape(o["reason"])}</span>')
+            h += (f'<li>{countries.flag(o["code"])}<span class="country-name">{escape(o["name"])}</span>'
+                  f'<span class="avatar-rules">played from here on {o["days"]} day{"s" if o["days"] != 1 else ""}</span>{act}</li>')
+        h += '</ul>'
+    h += (f'<p class="avatar-rules">Your country is set from where you play. Moved? You can switch to another country once you\'ve '
+          f'played from there for {countries.CHANGE_AFTER_DAYS // 30} months (on most of the days you played, and recently), and at most '
+          f'once every {countries.CHANGE_AFTER_DAYS // 30} months. If something\'s wrong, ask the Qlute team.</p>'
+          '<p class="avatar-status" id="country-status"></p>')
+    return h
+
+
+def country(request):
+    """POST apiv2/country {"country": "XX"}: switch your country, if your history there allows it (Chikara/countries.py)."""
+    import json
+    from Chikara import countries
+    if request.method != "POST":
+        return JsonResponse({"error": "Use POST."}, status=405)
+    user = moderation.request_user(request, write=True)
+    if user is None:
+        return JsonResponse({"error": "Log in first."}, status=401)
+    if user.restricted:
+        return JsonResponse({"error": "Restricted accounts can't change their country."}, status=403)
+    try:
+        code = str(json.loads(request.body or b"{}").get("country") or "").upper()
+    except (ValueError, AttributeError):
+        return JsonResponse({"error": "Couldn't read that."}, status=400)
+    ok, why = countries.can_change(user, code)
+    if not ok:
+        return JsonResponse({"error": why}, status=403)
+    countries.set_country(user.id, code)
+    return JsonResponse({"ok": True, "country": code, "name": countries.name(code)})
 
 
 def banner_perk_html(user):

@@ -229,3 +229,20 @@
 @media (max-width: 900px) { .pf-stat-cols .pf-stats .pf-tile-wide { grid-column: auto; } }
 @media (max-width: 500px) { .pf-hist-chart { min-height: 200px; } }
 .pf-stat-cols .pf-stats .pf-tiles { grid-auto-flow: row dense; }  /* full-row tiles leave no holes */
+.pf-country { display: inline-flex; align-items: center; gap: 6px; color: #fff; }
+.pf-country:hover { color: var(--pf-accent); }
+.pf-country .flag { width: 20px; height: 15px; border-radius: 2px; object-fit: cover; box-shadow: 0 0 0 1px #00000040; }
+
+/* hero meta: "flag Country · Joined Nov 2026", then the status on its own line */
+.pf-meta { gap: 6px 0; align-items: center; }
+.pf-meta > * + *::before { content: "·"; margin: 0 10px; color: #ffffff55; }
+.pf-ident { gap: 8px; }
+.pf-status-row { display: flex; min-width: 0; }
+.pf-presence {
+    max-width: 100%; min-width: 0; padding: 4px 12px 4px 10px; border-radius: 999px;
+    background: #00000040; font-size: 13px; color: var(--pf-dim);
+}
+.pf-presence.on { color: #c9f5dc; background: #6ee7a01a; }
+.pf-presence-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-hero.has-banner .pf-presence { background: #00000066; }
+.pf-hero.has-banner .pf-presence.on { background: #0e2a1cb3; }

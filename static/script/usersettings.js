@@ -285,3 +285,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }).catch(() => { grid.innerHTML = '<p class="avatar-rules">Couldn\'t load card borders right now.</p>'; });
 });
 
+
+// ---------------------------------------------------------------- country: switch to one your play history allows
+(function () {
+  const status = document.getElementById("country-status");
+  document.querySelectorAll(".country-switch").forEach(b => b.addEventListener("click", async () => {
+    if (!confirm(`Switch your country to ${b.textContent.replace(/^Switch to /, "")}? You can't change it again for 6 months.`)) return;
+    b.disabled = true;
+    try {
+      const res = await fetch("/apiv2/country", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Chikara": "1" },
+        body: JSON.stringify({ country: b.dataset.country }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "The server said " + res.status);
+      location.reload();
+    } catch (err) {
+      if (status) { status.textContent = err.message; status.classList.add("error"); }
+      b.disabled = false;
+    }
+  }));
+})();

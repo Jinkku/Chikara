@@ -124,6 +124,7 @@ def api(request, action):
         ("news", False): news.news_view,
         ("news", True): news.news_edit_view,
         ("scores", True): scores_edit_view,
+        ("country", True): country_edit_view,
     }
     handler = handlers.get((name, write))
     if handler is None:
@@ -260,7 +261,29 @@ def user_view(request, me, staff, args):
         "supporter": supporter_json(Supporter.objects.filter(username=u.username).first()),
         "can_grant_support": staff.role == StaffMember.ROLE_ADMIN,
     })
+    from Chikara import countries
+    hist = countries.history(u.id)
+    data.update({
+        "country": u.country or "", "country_name": countries.name(u.country), "country_set": ts(u.country_set),
+        "countries_seen": [{"code": c, "name": countries.name(c), "days": h["days"], "first": h["first"].isoformat(),
+                            "last": h["last"].isoformat()} for c, h in sorted(hist.items(), key=lambda x: -x[1]["days"])],
+        "all_countries": sorted(([c, n] for c, n in countries.NAMES.items()), key=lambda x: x[1]),
+    })
     return JsonResponse(data)
+
+
+def country_edit_view(request, me, staff, args):
+    """POST apiv2/mod/country {"username", "country"}: the team sets anyone's country ("" clears it), no waiting period."""
+    from Chikara import countries
+    data = body(request)
+    u = User.objects.filter(username=str(data.get("username") or "")).first()
+    if u is None:
+        return fail("There's no player called that.", 404)
+    code = str(data.get("country") or "").upper()
+    if code and not countries.name(code):
+        return fail("Pick a country from the list.")
+    countries.set_country(u.id, code)
+    return JsonResponse({"ok": True, "country": code, "name": countries.name(code)})
 
 
 def can_ban(me, staff, target):

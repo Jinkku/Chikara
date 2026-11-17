@@ -1212,7 +1212,7 @@ def admin_page(request):
         html = header(request, title="Qlute - the black hole of death.", robots=NOINDEX) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read().replace('{sitetitle}', "404 not found o-o")
         html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
         return HttpResponse(html, status=404)
-    head = '<link rel="stylesheet" href="/static/css/catalog.css"><link rel="stylesheet" href="/static/css/admin.css?v=5">'
+    head = '<link rel="stylesheet" href="/static/css/catalog.css"><link rel="stylesheet" href="/static/css/admin.css?v=6">'
     html = header(request, customhead=head, title="Qlute - admin panel", robots=NOINDEX)
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/admin.html").read()
     html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
@@ -2090,7 +2090,7 @@ def user(request, user):
     public = usertest[0] and not usertest[1]
     seo = profile_seo(User.objects.filter(username=user).first()) if public else {}
     html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=17"><link rel="stylesheet" href="/static/css/favorites.css?v=2">'
-                                      '<link rel="stylesheet" href="/static/css/profile.css?v=9">',
+                                      '<link rel="stylesheet" href="/static/css/profile.css?v=12">',
                   robots=None if public else NOINDEX, **seo)
     status = 200 if usertest[0] else 404
     footer = (open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/report.html").read()
@@ -2120,15 +2120,16 @@ def user(request, user):
 
     online = usr.stattime is not None and now - usr.stattime <= 300
     if online:
-        presence = f'<span class="pf-presence on"><span class="pf-dot"></span>{escape(usr.status) if usr.status else "Online"}</span>'
+        status_text = escape(usr.status) if usr.status else "Online"
+        presence = f'<span class="pf-presence on" title="{status_text}"><span class="pf-dot"></span><span class="pf-presence-text">{status_text}</span></span>'
     elif usr.stattime:
         presence = f'<span class="pf-presence">Last seen {timeform(now - usr.stattime).lower()}</span>'
     else:
         presence = '<span class="pf-presence">New player &lt;3</span>'
     joined = ""
     if usr.created:
-        joined = (f'<span class="pf-joined" title="{timeform(now - usr.created.timestamp())}">'
-                  f'Joined {usr.created.day} {usr.created.strftime("%B %Y")}</span>')
+        joined = (f'<span class="pf-joined" title="Joined {usr.created.day} {usr.created.strftime("%B %Y")} '
+                  f'({timeform(now - usr.created.timestamp()).lower()})">Joined {usr.created.day} {usr.created.strftime("%B %Y")}</span>')
 
     viewer = request.COOKIES.get('username')
     viewerlogin = checklogin(viewer, request.COOKIES.get('password', None))
@@ -2156,7 +2157,11 @@ def user(request, user):
     html += (f'<div class="pf-avatar"><img src="{pfp}" id="userpfp" alt="{name}\'s avatar" width="120" height="120">'
              f'{"<span class=pf-avatar-dot title=online></span>" if online else ""}</div>')
     html += f'<div class="pf-ident"><div class="pf-name-row"><h1 class="pf-name">{name}</h1>{team_badge(usr.username)}</div>'
-    html += f'<div class="pf-meta">{presence}{joined}</div></div>'
+    from Chikara import countries
+    where = (f'<a class="pf-country" href="/ranking?country={usr.country}">{countries.flag(usr.country)}{escape(countries.name(usr.country))}</a>'
+             if countries.name(usr.country) else "")
+    # line 1: country · joined; line 2: what they're doing (its own line, so long song names don't crowd the rest)
+    html += f'<div class="pf-meta">{where}{joined}</div><div class="pf-status-row">{presence}</div></div>'
     html += f'<div class="pf-rank-block"><span class="pf-rank-label">Global rank</span><span class="pf-rank">#{format(rank, ",") if rank else "?"}</span>'
     html += f'<span class="pf-pp">{points:,} pp</span></div>'
     if actions:
@@ -2292,21 +2297,91 @@ def _rank_name(u):
     return escape(urllib.parse.unquote(u.username or "")) + moderation.supporter_heart(u.username)
 
 
+def ranking_tabs(active, country=""):
+    """Performance / Ranked score / Countries tabs at the top of /ranking (the country filter is kept)."""
+    keep = f"country={country}" if country else ""
+    tabs = (("pp", "Performance", "/ranking" + ("?" + keep if keep else "")),
+            ("score", "Ranked score", "/ranking?type=score" + ("&" + keep if keep else "")),
+            ("countries", "Countries", "/ranking?type=countries"))
+    return ("<div class='rk-head'><nav class='rk-tabs' aria-label='Ranking type'>"
+            + "".join(f"<a class='rk-tab{' active' if k == active else ''}' href='{escape(u)}'{' aria-current=page' if k == active else ''}>{t}</a>"
+                      for k, t, u in tabs) + "</nav></div>")
+
+
+def country_ranking(request):
+    """/ranking?type=countries: countries by their ranked players' total pp."""
+    from Chikara import countries
+    from django.db.models import Avg, Count, Sum
+    rows = list(User.objects.filter(restricted=False, ranked_points__gt=0).exclude(country=None).values("country")
+                .annotate(pp=Sum("ranked_points"), players=Count("id"), acc=Avg("accuracy"), score=Sum("ranked_score"))
+                .order_by("-pp"))
+    rows = [r for r in rows if countries.name(r["country"])]
+    top = {}
+    for u in User.objects.filter(restricted=False, ranked_points__gt=0).exclude(country=None).order_by("-ranked_points", "username"):
+        top.setdefault(u.country, u)
+    unknown = User.objects.filter(restricted=False, ranked_points__gt=0, country=None).count()
+    htmltemp = header(request, customhead='<link rel="stylesheet" href="/static/css/ranking.css?v=4">',
+                      title="Qlute - country ranking", canonical=SiteURL + "/ranking?type=countries",
+                      description="Qlute countries ranked by their players' total performance points.") \
+        + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/ranking.html").read()
+    html = ranking_tabs("countries")
+    html += (f"<p class='rk-sub'>{len(rows):,} {'country' if len(rows) == 1 else 'countries'} &middot; ranked by their players' total performance points"
+             + (f" &middot; {unknown:,} players don't have a country yet" if unknown else "") + "</p>")
+    if not rows:
+        html += "<div class='rk-empty'><h3>No countries yet: players get theirs the next time they log in.</h3></div>"
+    else:
+        html += ("<div class='table-scroll'><table class='rk-table rk-countries'><thead><tr>"
+                 "<th class='rk-c-rank'>Rank</th><th class='rk-c-player'>Country</th><th>Total pp</th><th>Players</th>"
+                 "<th class='rk-hide-sm'>Avg. accuracy</th><th class='rk-hide-sm'>Ranked score</th>"
+                 "<th class='rk-hide-sm rk-c-top'>Top player</th></tr></thead><tbody>")
+        for i, r in enumerate(rows, 1):
+            code = r["country"]
+            best = top.get(code)
+            acc = round(r["acc"] or 0, 2)
+            html += (f"<tr><td class='rk-c-rank'>#{i}</td>"
+                     f"<td class='rk-c-player'><a href='/ranking?country={code}'>{countries.flag(code, 'lg')}"
+                     f"<span class='rk-name'>{escape(countries.name(code))}</span></a></td>"
+                     f"<td class='rk-pp'>{r['pp'] or 0:,}</td><td>{r['players']:,}</td>"
+                     f"<td class='rk-hide-sm'><span class='rk-acc'><span class='rk-acc-bar'><span style='width:{max(0, min(100, acc))}%'></span></span>{acc}%</span></td>"
+                     f"<td class='rk-hide-sm'>{r['score'] or 0:,}</td>"
+                     f"<td class='rk-hide-sm rk-c-top'>"
+                     + (f"<a href='/user/{escape(best.username or '')}'>{_rank_name(best)}</a>" if best else "")
+                     + "</td></tr>")
+        html += "</tbody></table></div>"
+    html += "</div></div>"
+    html += open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/footer.html").read()
+    return HttpResponse(htmltemp.replace('{entry}', html))
+
+
 def ranking(request, command=""):
     try:
         page_no = max(1, int(command.strip("/") or 1))
     except ValueError:
         page_no = 1
     per_page = 50
-    # ?type=score ranks by ranked score instead of performance points
-    by_score = request.GET.get("type") == "score"
+    # ?type=score ranks by ranked score instead of performance points, ?type=countries ranks countries,
+    # ?country=XX shows only that country's players
+    from Chikara import countries
+    kind = request.GET.get("type")
+    if kind == "countries":
+        return country_ranking(request)
+    by_score = kind == "score"
     field = "ranked_score" if by_score else "ranked_points"
-    qs = "?type=score" if by_score else ""
+    country = (request.GET.get("country") or "").upper()
+    country = country if countries.name(country) else ""
+    params = {k: v for k, v in (("type", "score" if by_score else ""), ("country", country)) if v}
+    qs = ("?" + urllib.parse.urlencode(params)) if params else ""
     ranked = User.objects.filter(restricted=False, **{field + "__gt": 0})
+    present = sorted({c for c in ranked.exclude(country=None).values_list("country", flat=True) if countries.name(c)},
+                     key=countries.name)
+    if country:
+        ranked = ranked.filter(country=country)
     total = ranked.count()
     pages = max(1, -(-total // per_page))
-    title = ("Qlute - ranked score ranking" if by_score else "Qlute - global player ranking") + (f" (page {page_no})" if page_no > 1 else "")
-    htmltemp = header(request, customhead='<link rel="stylesheet" href="/static/css/ranking.css?v=3">', title=title,
+    where = f" in {countries.name(country)}" if country else ""
+    title = (f"Qlute - ranked score ranking{where}" if by_score else f"Qlute - player ranking{where}" if country
+             else "Qlute - global player ranking") + (f" (page {page_no})" if page_no > 1 else "")
+    htmltemp = header(request, customhead='<link rel="stylesheet" href="/static/css/ranking.css?v=4">', title=title,
                       canonical=SiteURL + "/ranking" + (f"/{page_no}" if page_no > 1 else "") + qs,
                       description="The global Qlute leaderboard: the top rhythm game players ranked by performance points, "
                                   "with score, accuracy and hit counts.") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/ranking.html").read()
@@ -2323,11 +2398,15 @@ def ranking(request, command=""):
                 "banner": shown_banner(u),
                 "me": me is not None and urllib.parse.unquote(me) == urllib.parse.unquote(u.username or "")}
 
-    html = ("<div class='rk-head'><nav class='rk-tabs' aria-label='Ranking type'>"
-            f"<a class='rk-tab{'' if by_score else ' active'}' href='/ranking'{'' if by_score else ' aria-current=page'}>Performance</a>"
-            f"<a class='rk-tab{' active' if by_score else ''}' href='/ranking?type=score'{' aria-current=page' if by_score else ''}>Ranked score</a>"
-            "</nav>"
-            f"<p class='rk-sub'>{total:,} ranked players &middot; ranked by {'ranked score' if by_score else 'performance points'}</p></div>")
+    html = ranking_tabs("score" if by_score else "pp", country)
+    # country filter: only countries that have ranked players
+    opts = "".join(f"<option value='{c}'{' selected' if c == country else ''}>{escape(countries.name(c))}</option>" for c in present)
+    html += ("<form class='rk-filter' method='get' action='/ranking'>"
+             + (f"<input type='hidden' name='type' value='score'>" if by_score else "")
+             + f"{countries.flag(country, 'lg') if country else ''}"
+             f"<select name='country' aria-label='Country' onchange='this.form.submit()'><option value=''>All countries</option>{opts}</select>"
+             "<noscript><button type='submit'>Show</button></noscript>"
+             f"<p class='rk-sub'>{total:,} ranked players{escape(where)} &middot; ranked by {'ranked score' if by_score else 'performance points'}</p></form>")
     if not tols:
         html += "<div class='rk-empty'><h3>Someone needs to play more! (｡•̀ᴖ•́｡)</h3></div>"
     rank = per_page * (page_no - 1)
@@ -2342,7 +2421,7 @@ def ranking(request, command=""):
             html += (f"<a class='rk-pod rk-pod-{place}{' rk-me' if st['me'] else ''}{' has-banner' if st['banner'] else ''}' href='{st['href']}'{banner_style(st['banner'])}>"
                      f"<span class='rk-medal'>#{place}</span>"
                      f"<span class='rk-pod-avatar'><img src='{st['pfp']}' alt='' loading='lazy' width='88' height='88'>{dot}</span>"
-                     f"<span class='rk-pod-name'>{_rank_name(u)}</span>"
+                     f"<span class='rk-pod-name'>{countries.flag(u.country)}{_rank_name(u)}</span>"
                      + (f"<span class='rk-pod-pp'>{st['score']:,}<small> score</small></span>"
                         f"<span class='rk-pod-meta'>{st['acc']}% acc &middot; {st['points']:,} pp</span></a>" if by_score else
                         f"<span class='rk-pod-pp'>{st['points']:,}<small> pp</small></span>"
@@ -2362,7 +2441,7 @@ def ranking(request, command=""):
             acc_w = max(0, min(100, st["acc"]))
             html += (f"<tr class='{'rk-me' if st['me'] else ''}'><td class='rk-c-rank'>#{rank}</td>"
                      f"<td class='rk-c-player'><a href='{st['href']}'><span class='rk-avatar'><img src='{st['pfp']}' alt='' loading='lazy' width='34' height='34'>{dot}</span>"
-                     f"<span class='rk-name'>{_rank_name(u)}</span></a></td>"
+                     f"{countries.flag(u.country)}<span class='rk-name'>{_rank_name(u)}</span></a></td>"
                      f"<td class='rk-pp'>{st['score' if by_score else 'points']:,}</td>"
                      f"<td><span class='rk-acc'><span class='rk-acc-bar'><span style='width:{acc_w}%'></span></span>{st['acc']}%</span></td>"
                      f"<td class='rk-hide-sm'>{st['points' if by_score else 'score']:,}</td>"
@@ -2374,7 +2453,7 @@ def ranking(request, command=""):
     def pg(n, label=None, cls=""):
         if n == page_no and label is None:
             return f"<span class='rk-page rk-page-cur' aria-current='page'>{n}</span>"
-        return f"<a class='rk-page {cls}' href='/ranking/{n}{qs}'>{label or n}</a>"
+        return f"<a class='rk-page {cls}' href='/ranking/{n}{escape(qs)}'>{label or n}</a>"
     nav = []
     if page_no > 1:
         nav.append(pg(page_no - 1, "&lsaquo; prev", "rk-page-step"))

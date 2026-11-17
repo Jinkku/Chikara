@@ -61,3 +61,4 @@
 .ev-fail td { background: #d4373718; }
 .ev-flag td { background: #c5c22014; }
 .ev-warn .ev-status { background: #d4703755; color: #ffd2b5; }
+.adm-flag { width: 28px; height: 21px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px #00000040; }
