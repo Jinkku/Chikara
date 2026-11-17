@@ -50,6 +50,7 @@ urlpatterns = [
     path('apiv2/bio', usersettings.bio),
     path('apiv2/country', usersettings.country),
     path('apiv2/privacy', usersettings.privacy),
+    path('apiv2/username', usersettings.username),
     path('apiv2/bio/<str:action>', usersettings.bio),
     path('apiv2/<path:command>', views.api),
     path('apiv2/', views.api, {'command': ''}),

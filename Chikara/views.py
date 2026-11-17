@@ -1309,6 +1309,10 @@ def _score_json(sc):
 
 def public_profile(name, viewer=None):
     u = User.objects.filter(username=name).first()
+    if u is None:  # an old name (Chikara/accounts.py)
+        from Chikara import accounts
+        old_id = accounts.resolve_old(name)
+        u = User.objects.filter(id=old_id).first() if old_id else None
     if u is None:
         return None
     data = _player_json(u, viewer)
@@ -1325,8 +1329,10 @@ def public_profile(name, viewer=None):
     owned = Beatmap.objects.filter(beatmapsetid__in=Submission.objects.filter(owner=u.username).values("beatmapsetid"))
     map_counts = {sid: rows.values("beatmapsetid").distinct().count() for sid, rows in
                   (("1", owned.filter(ranked=1)), ("4", owned.filter(ranked__in=(2, 4))), ("0", owned.filter(ranked__lte=0)))}
+    from Chikara import accounts
     data.update({
         "restricted": False,
+        "previous_usernames": accounts.previous_names(u.id),
         "team_role": getattr(moderation.staff_of(u.username), "role", ""),
         "score": score,
         "level": lvl["level"],
@@ -1501,7 +1507,8 @@ def api(request,command,value=None):
             try:
                 username = request.META.get('HTTP_USERNAME', '')
                 password = request.META.get('HTTP_PASSWORD', '')
-                accept=bool(password) and not checklogin(username, '',signup=True)[0]
+                from Chikara import accounts  # a name someone just changed away from stays theirs for a while
+                accept=bool(password) and not checklogin(username, '',signup=True)[0] and not accounts.taken(username)
                 
                 # Process the credentials (authentication logic here)
                 if accept:  
@@ -2302,6 +2309,10 @@ def user(request, user):
         user = found.username or user
     else:
         found = User.objects.filter(username=target).first()
+        if found is None:  # an old name (Chikara/accounts.py) still leads to the profile, like osu!
+            from Chikara import accounts
+            old_id = accounts.resolve_old(target)
+            found = User.objects.filter(id=old_id).first() if old_id else None
         if found:
             qs = request.META.get("QUERY_STRING", "")
             return HttpResponseRedirect(f"/user/{found.id}" + (f"?{qs}" if qs else ""))
@@ -2311,7 +2322,7 @@ def user(request, user):
     public = usertest[0] and not usertest[1]
     seo = profile_seo(User.objects.filter(username=user).first()) if public else {}
     html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=17"><link rel="stylesheet" href="/static/css/favorites.css?v=2">'
-                                      '<link rel="stylesheet" href="/static/css/profile.css?v=13">',
+                                      '<link rel="stylesheet" href="/static/css/profile.css?v=14">',
                   robots=None if public else NOINDEX, **seo)
     status = 200 if usertest[0] else 404
     footer = (open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/report.html").read()
@@ -2384,7 +2395,11 @@ def user(request, user):
     where = (f'<a class="pf-country" href="/ranking?country={usr.country}">{countries.flag(usr.country)}{escape(countries.name(usr.country))}</a>'
              if countries.name(usr.country) and not usr.hide_country else "")
     # line 1: country · joined; line 2: what they're doing (its own line, so long song names don't crowd the rest)
-    html += f'<div class="pf-meta">{where}{joined}</div><div class="pf-status-row">{presence}</div></div>'
+    from Chikara import accounts
+    old_names = accounts.previous_names(usr.id)
+    aka = (f'<span class="pf-aka" title="Previously known as {escape(", ".join(old_names))}">Previously known as '
+           f'{escape(", ".join(old_names[:3]))}{f" +{len(old_names) - 3}" if len(old_names) > 3 else ""}</span>') if old_names else ""
+    html += f'<div class="pf-meta">{where}{joined}{aka}</div><div class="pf-status-row">{presence}</div></div>'
     html += f'<div class="pf-rank-block"><span class="pf-rank-label">Global rank</span><span class="pf-rank">#{format(rank, ",") if rank else "?"}</span>'
     html += f'<span class="pf-pp">{points:,} pp</span></div>'
     if actions:

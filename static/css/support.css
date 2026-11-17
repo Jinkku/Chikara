@@ -26,6 +26,7 @@
 }
 .sp-perk-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .sp-perk h3 { font-size: 16px; }
+.sp-perk-wide { grid-column: 1 / -1; }  /* "Keep Qlute free": a closing row under the perks */
 .sp-perk p { color: #ffffffb3; font-size: 14px; line-height: 1.5; }
 
 /* plans */

@@ -117,6 +117,7 @@ def api(request, action):
         ("ban", True): ban_view,
         ("warn", True): warn_view,
         ("reset", True): reset_view,
+        ("rename", True): rename_view,
         ("takedowns", False): takedowns_view,
         ("takedowns", True): takedowns_edit_view,
         ("unban", True): unban_view,
@@ -255,6 +256,7 @@ def users_view(request, me, staff, args):
 
 
 def user_view(request, me, staff, args):
+    from Chikara import accounts
     name = "/".join(args)
     u = User.objects.filter(username=name).first()
     if u is None:
@@ -267,6 +269,8 @@ def user_view(request, me, staff, args):
         "scores": Score.objects.filter(username=u.username).count(),
         "bans": [ban_json(b) for b in Ban.objects.filter(username=u.username).order_by("-created")[:50]],
         "warnings": [warning_json(w) for w in Warning.objects.filter(username=u.username).order_by("-created")[:50]],
+        "names": [{"old": h.old_name, "new": h.new_name, "by": h.by, "forced": h.forced, "hidden": h.hidden,
+                   "reason": h.reason, "created": ts(h.created)} for h in accounts.history(u.id, include_hidden=True)],
         "profile": {"avatar": u.pfppath != NoProfilePictureURL, "banner": bool(u.bannerpath), "bio": bool(u.bio),
                     "cardborder": bool(u.cardborder)},
         "reports_against": [report_json(r) for r in Report.objects.filter(target=u.username).order_by("-created")[:50]],
@@ -391,6 +395,29 @@ def reset_view(request, me, staff, args):
         return fail("Pick what to reset.")
     _close_reports(u, me, data, f"Profile reset ({', '.join(done)}): {reason}")
     return JsonResponse({"ok": True, "reset": done})
+
+
+def rename_view(request, me, staff, args):
+    """POST mod/rename {username, new_name, reason, rule, hide_old (default true), close_reports}
+    (rules: Names & profiles: the team may reset a username). Skips the player's cooldown."""
+    from Chikara import accounts
+    got, err = _target_and_reason(request, me, staff)
+    if err:
+        return err
+    u, reason, rule, report, data = got
+    new = str(data.get("new_name") or "")
+    old = u.username
+    hide = data.get("hide_old", True) is not False
+    why = accounts.rename(u, new, by=me.username, forced=True, hide_old=hide, reason=reason)
+    if why:
+        return fail(why)
+    from online.notifications import push
+    push(new, "moderation", "Qlute team",
+         f"The Qlute team changed your username from {old} to {new} ({rules.label(rule or 'profiles')}): {reason}",
+         rules.link(rule or "profiles"))
+    u.username = new
+    _close_reports(u, me, data, f"Renamed from {old} to {new}: {reason}")
+    return JsonResponse({"ok": True, "username": new})
 
 
 def takedowns_view(request, me, staff, args):

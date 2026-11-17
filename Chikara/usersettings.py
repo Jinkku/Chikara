@@ -27,6 +27,7 @@ def usersettings(request):
             .replace("{bannerperk}", banner_perk_html(user)) \
             .replace("{countryblock}", country_html(user)) \
             .replace("{privacyblock}", privacy_html(user)) \
+            .replace("{usernameblock}", username_html(user)) \
             .replace("{borderperks}", "1" if user and moderation.has_supporter_perks(user.username) else "") \
             .replace("{bannerlocked}", "" if user and moderation.has_supporter_perks(user.username) else "1") \
             .replace("{username}", escape(username)) \
@@ -76,6 +77,70 @@ PRIVACY_OPTIONS = [  # (users field, title, description) shown as switches under
      "Your flag won't show on your profile or in the rankings, and you won't be counted in the country ranking."),
 ]
 PRESENCE_FIELDS = {"appear_offline", "hide_activity", "presence_friends_only"}
+
+
+def username_html(user):
+    """Settings: change your username (Chikara/accounts.py), with the names you had before."""
+    from Chikara import accounts
+    if user is None:
+        return ""
+    wait = accounts.next_change(user.id)
+    perk = moderation.has_supporter_perks(user.username)
+    if perk:
+        h = '<p class="banner-perk on">&#9829; Supporter perk &middot; thank you for supporting Qlute!</p>'
+    else:
+        h = (f'<p class="banner-perk">&#9829; Changing your username is a supporter perk. '
+             f'<a href="{escape(SUPPORT_URL)}" target="_blank" rel="noopener">Become a supporter</a></p>')
+    h += '<div class="username-row">'
+    if user.restricted:
+        h += '<p class="avatar-rules">Restricted accounts can\'t change their name.</p>'
+    elif not perk:
+        h += f'<input type="text" class="username-input" value="{escape(user.username)}" disabled aria-label="Username">'
+    elif wait:
+        h += (f'<input type="text" class="username-input" value="{escape(user.username)}" disabled>'
+              f'<p class="avatar-rules">You can change your name again from {wait.strftime("%-d %B %Y")}.</p>')
+    else:
+        h += (f'<input type="text" class="username-input" id="username-new" value="{escape(user.username)}" '
+              f'maxlength="{accounts.MAX_LEN}" autocomplete="off" spellcheck="false" aria-label="New username">'
+              '<button type="button" class="avatar-btn" id="username-save">Change name</button>')
+    h += '</div>'
+    old = accounts.previous_names(user.id)
+    if old:
+        h += f'<p class="avatar-rules">Previously known as: {escape(", ".join(old))}</p>'
+    h += (f'<p class="avatar-rules">{accounts.MIN_LEN} to {accounts.MAX_LEN} characters: letters, numbers, spaces, and _ - [ ]. '
+          f'You can change it once every {accounts.RENAME_COOLDOWN_DAYS} days. Your old name shows on your profile, and stays '
+          f'yours for {accounts.NAME_HOLD_DAYS // 30} months, so nobody else can take it. After changing it, log in to the game '
+          'with the new name.</p><p class="avatar-status" id="username-status"></p>')
+    return h
+
+
+def username(request):
+    """POST apiv2/username {"username": new}: rename yourself (Chikara/accounts.py). Sets the new login cookie."""
+    import json
+    from Chikara import accounts
+    if request.method != "POST":
+        return JsonResponse({"error": "Use POST."}, status=405)
+    user = moderation.request_user(request, write=True)
+    if user is None:
+        return JsonResponse({"error": "Log in first."}, status=401)
+    if user.restricted:
+        return JsonResponse({"error": "Restricted accounts can't change their name."}, status=403)
+    if not moderation.has_supporter_perks(user.username):
+        return JsonResponse({"error": "Changing your username is a supporter perk."}, status=403)
+    wait = accounts.next_change(user.id)
+    if wait:
+        return JsonResponse({"error": f"You can change your name again from {wait.strftime('%-d %B %Y')}."}, status=403)
+    try:
+        new = str(json.loads(request.body or b"{}").get("username") or "")
+    except (ValueError, AttributeError):
+        return JsonResponse({"error": "Couldn't read that."}, status=400)
+    why = accounts.rename(user, new, by=user.username)
+    if why:
+        return JsonResponse({"error": why}, status=400)
+    response = JsonResponse({"ok": True, "username": new, "profile": f"/user/{user.id}"})
+    if request.COOKIES.get("username"):
+        response.set_cookie("username", new, max_age=31536000)  # the website login is the name + password cookies
+    return response
 
 
 def privacy_html(user):

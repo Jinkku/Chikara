@@ -327,8 +327,12 @@ def sync_orders(orders):
 
 # ---------------------------------------------------------------- the /support page
 
+from Chikara import accounts as _accounts
+
 PERKS = [
     ("banner", "Profile banner", "Put any image behind your name on your profile, the friends list, the ranking podium and your header card."),
+    ("name", "Change your username", f"Pick a new name in your settings, once every {_accounts.RENAME_COOLDOWN_DAYS} days. "
+             f"Your old names show on your profile and stay yours for {_accounts.NAME_HOLD_DAYS // 30} months, so nobody can take them."),
     ("heart", "Supporter badge", "A pink heart badge on your profile and a heart after your name in the ranking, friends lists and beatmap comments."),
     ("chat", "Pink name in chat", "Your name shows up pink with a heart in chat, so everyone knows who keeps Qlute going."),
     ("border", "Supporter card borders", "Wear the card borders made just for supporters."),
@@ -342,6 +346,7 @@ ICONS = {
     "chat": '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12Z"/>',
     "border": '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h6M7 14h4"/>',
     "up": '<path d="M12 19V5M5 12l7-7 7 7"/>',
+    "name": '<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/>',
 }
 
 
@@ -350,9 +355,10 @@ def support_page(request):
     username = request.COOKIES.get("username")
     login = checklogin(username, request.COOKIES.get("password"))
     me = username if login[0] and not login[1] else None
-    html = header(request, customhead='<link rel="stylesheet" href="/static/css/support.css?v=2">',
-                  title="Qlute supporter - support Qlute and get a profile banner",
-                  description="Become a Qlute supporter: get a profile banner and a supporter badge, and help keep Qlute free.")
+    html = header(request, customhead='<link rel="stylesheet" href="/static/css/support.css?v=3">',
+                  title="Qlute supporter - support Qlute, get a profile banner and change your username",
+                  description="Become a Qlute supporter: get a profile banner, a supporter badge and username changes, "
+                              "and help keep Qlute free.")
 
     status = ""
     if me:
@@ -362,7 +368,7 @@ def support_page(request):
             status = f'<p class="sp-status on">&#9829; You\'re a supporter {until}. Thank you! Buying more adds to your time.</p>'
 
     perks = "".join(
-        f'<li class="sp-perk"><span class="sp-perk-ico"><svg viewBox="0 0 24 24" aria-hidden="true">{ICONS[i]}</svg></span>'
+        f'<li class="sp-perk{" sp-perk-wide" if i == "server" else ""}"><span class="sp-perk-ico"><svg viewBox="0 0 24 24" aria-hidden="true">{ICONS[i]}</svg></span>'
         f'<h3>{escape(t)}</h3><p>{escape(d)}</p></li>' for i, t, d in PERKS)
     cards = "".join(
         f'<label class="sp-plan"><input type="radio" name="sp-plan" value="{p["months"]}"{" checked" if n == 0 else ""}>'

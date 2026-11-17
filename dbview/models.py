@@ -151,3 +151,19 @@ class CountrySeen(models.Model):
     class Meta:
         db_table = 'country_seen'
         unique_together = (('user_id', 'day', 'country'),)
+
+
+class UsernameChange(models.Model):
+    """One rename (Chikara/accounts.py). Old names show on the profile as "previously known as" (osu!-style),
+    except ones the team changed for breaking the rules (hidden), which only the team sees."""
+    user_id = models.IntegerField(db_index=True)
+    old_name = models.CharField(max_length=256, db_index=True)
+    new_name = models.CharField(max_length=256)
+    created = models.DateTimeField(auto_now_add=True)
+    by = models.CharField(max_length=256, blank=True, default="")      # who did it: the player, or a team member
+    forced = models.BooleanField(default=False)                         # changed by the team
+    hidden = models.BooleanField(default=False)                         # old name not shown publicly, never reusable
+    reason = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = 'username_history'

@@ -338,3 +338,33 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }));
 });
+
+
+// ---------------------------------------------------------------- username (apiv2/username, Chikara/accounts.py)
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("username-new"), save = document.getElementById("username-save");
+  const status = document.getElementById("username-status");
+  if (!input || !save) return;
+  const before = input.value;
+  const go = async () => {
+    const name = input.value;
+    if (name === before) { status.textContent = "That's already your name."; status.classList.add("error"); return; }
+    if (!confirm(`Change your username to "${name}"?\n\nYou can't change it again for 30 days, and you'll log in to the game with the new name.`)) return;
+    save.disabled = input.disabled = true;
+    try {
+      const res = await fetch("/apiv2/username", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Chikara": "1" },
+        body: JSON.stringify({ username: name }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "The server said " + res.status);
+      location.reload();
+    } catch (err) {
+      status.textContent = err.message; status.classList.add("error");
+      save.disabled = input.disabled = false;
+    }
+  };
+  save.addEventListener("click", go);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+});

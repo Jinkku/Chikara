@@ -196,16 +196,20 @@ def notify_unrestricted(username):
 
 
 def _tell(username, event):
+    _tell_id(User.objects.filter(username=username).values_list("id", flat=True).first(), event, username)
+
+
+def _tell_id(uid, event, username=""):
+    """Sends `event` to every online chat connection of account `uid` (online/chat_consumer.py)."""
     try:
         from asgiref.sync import async_to_sync
         from channels.layers import get_channel_layer
         from online.chat_consumer import user_group
-        uid = User.objects.filter(username=username).values_list("id", flat=True).first()
         layer = get_channel_layer()
         if uid is not None and layer is not None:
             async_to_sync(layer.group_send)(user_group(uid), event)
     except Exception as e:  # the ban / unban itself already happened; never fail it over chat
-        print(f"[moderation] couldn't tell {username}'s game: {e}")
+        print(f"[moderation] couldn't tell {username or uid}'s game: {e}")
 
 
 # ---------------------------------------------------------------- reports

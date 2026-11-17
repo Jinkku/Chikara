@@ -300,7 +300,7 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def dispatch(self, message):
         # A restricted connection only hears about its own ban / unban.
-        if self.restricted and message.get("type", "").startswith("chat.") and message["type"] not in ("chat.kick", "chat.unrestricted"):
+        if self.restricted and message.get("type", "").startswith("chat.") and message["type"] not in ("chat.kick", "chat.unrestricted", "chat.renamed"):
             return
         await super().dispatch(message)
 
@@ -527,6 +527,11 @@ class OnlineChatConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"op": "restricted", "text": e["text"]})
             await self.close(code=RECONNECT_CODE)
             return
+        await self.send_json({"op": "error", "fatal": True, "text": e["text"]})
+        await self.close(code=4001)
+
+    async def chat_renamed(self, e):
+        # Sent by Chikara/accounts.py after a rename: this login is for the old name, so log in again.
         await self.send_json({"op": "error", "fatal": True, "text": e["text"]})
         await self.close(code=4001)
 
