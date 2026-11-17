@@ -118,6 +118,9 @@ DATABASES = {
         'HOST': 'localhost',  # Change if the database is on another server
         'PORT': '3306',  # Default MariaDB/MySQL port
         'CONN_MAX_AGE': 600,
+        # utf8mb4 so emoji (4-byte characters) can be saved; Django's MySQL default is 3-byte utf8mb3, which
+        # refuses them even though the tables are utf8mb4
+        'OPTIONS': {'charset': 'utf8mb4'},
     }
 }
 
