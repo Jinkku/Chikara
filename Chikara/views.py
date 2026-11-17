@@ -598,6 +598,9 @@ def getmedals(user):
 LIVE_MEDALS = {"The End", "Top 1,000", "Top 100", "Top 50", "Top 10", "Supporter", "Making the game better",
                "Team Moderator"}
 
+# When the Lv 1-9 pass / full combo medals were added: only plays set from then on earn them.
+STARTER_MEDALS_SINCE = datetime.datetime(2026, 11, 16, 21, 29, 52)
+
 WELCOME_BACK_DAYS = 30
 
 
@@ -744,10 +747,16 @@ def _extra_medal_checks(user):
         "ss10": lambda: len({c.beatmap_id for c in clears if c.max and not (c.great or c.meh or c.bad)}) >= 10,
         "plays5000": lambda: play_count >= 5000,
     }
-    for lv in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 60, 80, 90, 100):
+    for lv in (10, 20, 30, 40, 60, 80, 90, 100):
         checks[f"pass{lv}"] = (lambda lv=lv: passed_lv(lv))
-    for lv in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 40, 50, 60, 70, 80, 90, 100):
+    for lv in (10, 20, 40, 50, 60, 70, 80, 90, 100):
         checks[f"fc{lv}"] = (lambda lv=lv: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= lv for c in clears))
+    # Lv 1-9 medals only count plays set after they were added (STARTER_MEDALS_SINCE): nobody gets them for old plays
+    new_ids = set(ranked_plays.filter(created__gte=STARTER_MEDALS_SINCE).values_list("id", flat=True))
+    fresh = [c for c in clears if c.id in new_ids]
+    for lv in range(1, 10):
+        checks[f"pass{lv}"] = (lambda lv=lv: any((levels.get(c.beatmap_id) or 0) >= lv for c in fresh))
+        checks[f"fc{lv}"] = (lambda lv=lv: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= lv for c in fresh))
     # mod introductions: any ranked play with the mod and 70%+ (HT / NF allowed here, it's their medal)
     mod_rows = list(ranked_plays.exclude(mods=None).exclude(mods="").only("mods", "max", "great", "meh", "bad"))
     for mod in ("DT", "HT", "RND", "SL", "BT", "NF"):

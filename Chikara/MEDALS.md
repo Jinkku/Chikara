@@ -167,6 +167,9 @@ Neither was a real clear.
 
 Ranked-only also stops anyone from uploading an easy joke map and SS-ing it for a medal.
 
+The Lv 1-9 pass / full combo medals (`pass1`-`pass9`, `fc1`-`fc9`) only count plays set on or after
+`STARTER_MEDALS_SINCE` (2026-11-16 21:29:52, when they were added), so nobody got them for older plays.
+
 ## Categories (`MEDAL_CATEGORIES`)
 
 The profile groups medals like this, easiest first inside each group; the APIs send each medal's `category`.
