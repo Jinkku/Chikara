@@ -1932,6 +1932,10 @@ def api(request,command,value=None):
             username = request.META.get('HTTP_USERNAME', '')
             password = request.META.get('HTTP_PASSWORD', '')
             text = request.META.get('HTTP_NOWPLAYING', '')
+            try:  # headers arrive decoded as Latin-1; the game sends UTF-8 (Japanese, Chinese... titles)
+                text = text.encode('latin-1').decode('utf-8')
+            except (UnicodeEncodeError, UnicodeDecodeError):
+                pass
             login = checklogin(username, password)
             accept = login[0] and not login[1]
             if accept and len(text) >0:
