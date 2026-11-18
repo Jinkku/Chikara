@@ -1578,21 +1578,30 @@ def api(request,command,value=None):
                    sgreat = int(request.META.get("HTTP_GREAT",""))
                    smeh = int(request.META.get("HTTP_MEH",""))
                    sbad = int(request.META.get("HTTP_BAD",""))
-                   beatmap_id = int(request.META.get("HTTP_BEATMAPID",""))
-                   beatmapset_id = int(request.META.get("HTTP_BEATMAPSETID",""))
                    speed_multi = float(request.META.get("HTTP_MULTIPLIER",""))
                    mult = getmult(mods,speed=speed_multi)
-                   info = Beatmap.objects.filter(beatmapid = beatmap_id, beatmapsetid = beatmapset_id).first()
-                   
-                   from moderation import takedowns
-                   if info is not None and takedowns.is_down(beatmapset_id):
-                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "This beatmap was taken down, so scores on it can't be submitted.","error": 1})
-                   if info == None:
+                   # The map is recognised by the hash of the game's .osu (Chikara/beatmaphash.py), so an edited or
+                   # outdated copy can't submit. The ids the game sends are only a hint; the server's own are stored.
+                   from Chikara import beatmaphash
+                   filehash = request.META.get("HTTP_BEATMAPHASH", "")
+                   if not filehash:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Please update to the latest version to submit scores.\nThis score will not be submitted :<","error": 1})
+                   info, map_status = beatmaphash.find(filehash, request.META.get("HTTP_BEATMAPID",""), request.META.get("HTTP_BEATMAPSETID",""))
+                   if map_status == beatmaphash.OUTDATED:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "This beatmap was updated on the server, so this score can't be submitted.\nUpdate it (the Update button on its leaderboard) to submit scores on it.","error": 1})
+                   if map_status == beatmaphash.MODIFIED:
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "Your copy of this beatmap is different from the server's (it was edited or is outdated), so this score can't be submitted.\nRe-download the beatmap to submit scores on it.","error": 1})
+                   if info == None or map_status != beatmaphash.OK:
                     return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "There is no beatmaps that I recognize with this one :/","error": 1})
-                   else:
-                        ranked = info.ranked
-                        difficulty = info.difficulty
-                        bpm = info.BPM
+                   beatmap_id = info.beatmapid
+                   beatmapset_id = info.beatmapsetid
+
+                   from moderation import takedowns
+                   if takedowns.is_down(beatmapset_id):
+                    return JsonResponse({"rank": 0,"points": 0,"level": 0,"score":0,"accuracy": 0,"maxcombo": 0,"rankedmap": 0,"msg": "This beatmap was taken down, so scores on it can't be submitted.","error": 1})
+                   ranked = info.ranked
+                   difficulty = info.difficulty
+                   bpm = info.BPM
                    # every accepted play counts towards the catalog's "Plays" sort
                    from django.db.models import F
                    Beatmap.objects.filter(id=info.id).update(playcount=F("playcount") + 1)
@@ -1841,7 +1850,27 @@ def api(request,command,value=None):
                 return JsonResponse(getdifficulties(request.META.get('HTTP_BEATMAPSETID', '')),safe=False)
             except Exception as error:
                 return JsonResponse({"error" : 1,"reason": str(error)})
+        elif command[0]=='getleaderboard' and request.META.get('HTTP_BEATMAPHASH', ''):
+            # The game's copy is recognised by its .osu hash (Chikara/beatmaphash.py); ids are only a hint. The list stays
+            # a plain JSON array, and Beatmap-Status says why it's empty: "outdated" (an older version of the server's
+            # chart), "modified" (edited) or "unknown" (not a map the server has). For outdated / modified copies,
+            # Beatmap-Setid + Beatmap-Download say where to get the server's version (the game's Update button).
+            try:
+                from Chikara import beatmaphash
+                from moderation import takedowns
+                from urllib.parse import quote
+                row, status = beatmaphash.find(request.META.get('HTTP_BEATMAPHASH', ''),
+                                               request.META.get('HTTP_BEATMAPID', ''), request.META.get('HTTP_BEATMAPSETID', ''))
+                response = JsonResponse(get_leaderboard(row.beatmapid) if status == beatmaphash.OK else [], safe=False)
+                response["Beatmap-Status"] = status
+                if row is not None and status != beatmaphash.OK and row.beatmapfile and not takedowns.is_down(row.beatmapsetid):
+                    response["Beatmap-Setid"] = str(row.beatmapsetid)
+                    response["Beatmap-Download"] = DataURL + quote(row.beatmapfile, safe="/")  # headers must be ASCII
+                return response
+            except Exception as error:
+                return JsonResponse({"error" : 1,"reason": str(error)})
         elif command[0]=='getleaderboard' and not request.META.get('HTTP_BEATMAPID', '') == "":
+            # Older game versions (no hash): by id, as before.
             try:
                 return JsonResponse(get_leaderboard(request.META.get('HTTP_BEATMAPID', '')),safe=False)
             except Exception as error:

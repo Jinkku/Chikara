@@ -99,10 +99,26 @@ class Beatmap(models.Model):
     nsfw = models.BooleanField(null=True, blank=True)  # explicit content
     video = models.BooleanField(null=True, blank=True)
     storyboard = models.BooleanField(null=True, blank=True)
+    # SHA-256 of the chart file with line endings and a BOM normalised (Chikara/beatmaphash.py): how a player's copy
+    # of the map is recognised, so edited or outdated copies get no leaderboard and can't submit. filehash_mtime is
+    # the chart file's mtime (ns) when it was hashed; a rewritten file is hashed again. Nullable for recheck.py's INSERTs.
+    filehash = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    filehash_mtime = models.BigIntegerField(null=True, blank=True)
 
 
     class Meta:
         db_table = 'beatmaps'
+class BeatmapHashHistory(models.Model):
+    """Hashes a map's chart had before it was rewritten (osu! update re-crawled, metadata edited...). A player's copy
+    with one of these is an outdated copy of that map: the game offers to update it (Chikara/beatmaphash.py)."""
+    beatmap = models.IntegerField(db_index=True)  # beatmaps.id
+    filehash = models.CharField(max_length=64, db_index=True)
+    replaced = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'beatmap_hash_history'
+
+
 class Beatmapset(models.Model):
     """osu! API metadata per set, written by regen/grabnew.py when a set is downloaded."""
     beatmapsetid = models.IntegerField(primary_key=True)
