@@ -57,6 +57,17 @@
             return n.count > 1 && n.kind === "dm" ? `${n.actor} sent you ${n.count} messages` : n.text;
         }
 
+        // Title (bold, one line) + description, like the game's notification cards.
+        function fillBody(body, n) {
+            const title = document.createElement("strong");
+            title.className = "hb-title";
+            title.textContent = n.title || "Notification";
+            const text = document.createElement("span");
+            text.className = "hb-text";
+            text.textContent = label(n);
+            body.append(title, text);
+        }
+
         function render(items) {
             list.textContent = "";
             if (!items.length) {
@@ -71,7 +82,7 @@
                 a.innerHTML = `<span class="hb-ico">${iconSvg(n.kind)}</span>`;
                 const body = document.createElement("span");
                 body.className = "hb-body";
-                body.textContent = label(n);
+                fillBody(body, n);
                 const time = document.createElement("span");
                 time.className = "hb-time";
                 time.textContent = ago(n.created);
@@ -150,7 +161,7 @@
             a.innerHTML = `<span class="hb-ico">${iconSvg(n.kind)}</span>`;
             const body = document.createElement("span");
             body.className = "hb-body";
-            body.textContent = label(n);
+            fillBody(body, n);
             a.appendChild(body);
             a.addEventListener("click", ev => {
                 ev.preventDefault();

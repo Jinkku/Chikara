@@ -9,7 +9,9 @@
 
 Open pages hear about changes right away over ws/v1/notify/ (online/notify_consumer.py).
 
-A notification: {"id", "kind" (friend / invite / dm / comment / supporter / medal), "actor", "text", "link", "count", "read", "created" (unix)}.
+A notification: {"id", "kind" (friend / invite / dm / comment / supporter / medal / moderation), "actor", "title", "text",
+"link", "count", "read", "created" (unix)}. "title" is a short heading worked out from the kind (see title_for); "text"
+is the description under it. The game shows the same title + description on its notification cards.
 Same auth as apiv2/friends (game headers, or website cookies + "X-Chikara: 1" for POSTs).
 Nothing here may fail the action that caused it, so push() swallows its own errors.
 """
@@ -71,8 +73,28 @@ def unread_count(username):
     return Notification.objects.filter(username=username, read=False).count()
 
 
+def title_for(kind, actor="", count=1):
+    """The heading shown above a notification's text (website bell, toasts, and the game's cards)."""
+    if kind == "dm":
+        return f"{count} messages from {actor}" if count > 1 and actor else f"Message from {actor}" if actor else "New message"
+    if kind == "invite":
+        return "Chat room invite"
+    if kind == "friend":
+        return "New friend"
+    if kind == "comment":
+        return "New comment"
+    if kind == "supporter":
+        return "Qlute supporter"
+    if kind == "medal":
+        return "Medal unlocked!"
+    if kind == "moderation":
+        return "From the Qlute team"
+    return "Notification"
+
+
 def _json(n):
-    return {"id": n.id, "kind": n.kind, "actor": n.actor, "text": n.text, "link": n.link,
+    return {"id": n.id, "kind": n.kind, "actor": n.actor, "title": title_for(n.kind, n.actor, n.count),
+            "text": n.text, "link": n.link,
             "count": n.count, "read": n.read, "created": int(n.created.timestamp())}
 
 

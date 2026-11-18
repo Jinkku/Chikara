@@ -48,6 +48,8 @@
 }
 .hb-ico svg { width: 16px; height: 16px; }
 .hb-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.hb-title { display: block; color: #fff; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-text { display: block; }
 .hb-time { display: block; margin-top: 2px; color: #ffffff80; font-size: 12px; }
 .hb-dot { flex: none; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: #f3baff; }
 
