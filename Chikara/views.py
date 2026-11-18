@@ -59,11 +59,11 @@ EXTRA_MEDALS = (
     ("Seasoned", "Halfway to triple digits!", "Reach level 50", "level50"),
     ("Centurion", "Triple digits, baby!", "Reach level 100", "level100"),
     ("Flawless", "Not a single hair out of place", "SS a ranked map, every hit Perfect (no HT, NF or slowdowns)", "ss"),
-    ("Unbreakable", "Your combo has plot armour", "Full combo a ranked Lv 30+ difficulty (no HT, NF or slowdowns)", "fc30"),
+    ("Unbreakable", "Your combo has plot armour", "Full combo a ranked Lv 30-39 difficulty (no HT, NF or slowdowns)", "fc30"),
     ("Sharpshooter", "Do you even miss?", "Keep 98%+ overall accuracy over 50+ plays", "acc98"),
     ("Combo Monster", "Om nom nom, combos", "Hit a 3,000 combo", "combo3000"),
-    ("Deep End", "No floaties allowed \U0001F3CA", "Clear a ranked Lv 50+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "lv50"),
-    ("Into the Abyss", "It stared back. You didn't blink.", "Clear a ranked Lv 70+ difficulty, the black ones, with 70%+ accuracy (no HT, NF or slowdowns)", "lv70"),
+    ("Deep End", "No floaties allowed \U0001F3CA", "Clear a ranked Lv 50-59 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "lv50"),
+    ("Into the Abyss", "It stared back. You didn't blink.", "Clear a ranked Lv 70-79 difficulty, the black ones, with 70%+ accuracy (no HT, NF or slowdowns)", "lv70"),
     ("Marathon", "Your chair has your shape now", "Play for 24 hours in total", "playtime24"),
     ("Mapper", "Making the notes instead of hitting them", "Upload a beatmap set, or get an osu! claim accepted", "mapper"),
     ("Ranked Mapper", "Officially certified banger \U0001F3B6", "Own a beatmap set that gets ranked", "rankedmapper"),
@@ -87,22 +87,22 @@ EXTRA_MEDALS = (
     ("Doki Doki", "Listening to Qlute's heartbeat \U0001F493", "Hover the logo on the main menu and just... listen for a while", "client:heartbeat"),
     # 47+: map level medals, pass and full combo every 10 levels (Deep End = Lv 50 pass, Into the Abyss = Lv 70 pass,
     # Unbreakable = Lv 30 FC already exist). Same clean-clear rules as the skill medals.
-    ("Warming Up", "The keyboard's getting warm", "Clear a ranked Lv 10+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass10"),
-    ("Finding the Rhythm", "Tap tap tap, it's clicking", "Clear a ranked Lv 20+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass20"),
-    ("Getting Serious", "No more warm-up maps", "Clear a ranked Lv 30+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass30"),
-    ("Over the Hill", "It's all downhill from here. Right?", "Clear a ranked Lv 40+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass40"),
-    ("Uncharted Waters", "Here be dragons \U0001F409", "Clear a ranked Lv 60+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass60"),
-    ("Event Horizon", "Even light can't escape these notes", "Clear a ranked Lv 80+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass80"),
-    ("Beyond Reason", "Your fingers have left the chat", "Clear a ranked Lv 90+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass90"),
+    ("Warming Up", "The keyboard's getting warm", "Clear a ranked Lv 10-19 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass10"),
+    ("Finding the Rhythm", "Tap tap tap, it's clicking", "Clear a ranked Lv 20-29 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass20"),
+    ("Getting Serious", "No more warm-up maps", "Clear a ranked Lv 30-39 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass30"),
+    ("Over the Hill", "It's all downhill from here. Right?", "Clear a ranked Lv 40-49 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass40"),
+    ("Uncharted Waters", "Here be dragons \U0001F409", "Clear a ranked Lv 60-69 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass60"),
+    ("Event Horizon", "Even light can't escape these notes", "Clear a ranked Lv 80-89 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass80"),
+    ("Beyond Reason", "Your fingers have left the chat", "Clear a ranked Lv 90-99 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass90"),
     ("Summit", "Nothing left to climb \U0001F3D4", "Clear a ranked Lv 100+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass100"),
-    ("Clean Sweep", "Not a single note dropped", "Full combo a ranked Lv 10+ difficulty (no HT, NF or slowdowns)", "fc10"),
-    ("Steady Hands", "Calm, cool, collected", "Full combo a ranked Lv 20+ difficulty (no HT, NF or slowdowns)", "fc20"),
-    ("Iron Focus", "Blink and you'll miss it. You didn't.", "Full combo a ranked Lv 40+ difficulty (no HT, NF or slowdowns)", "fc40"),
-    ("Untouchable", "The misses can't find you", "Full combo a ranked Lv 50+ difficulty (no HT, NF or slowdowns)", "fc50"),
-    ("Zero Gravity", "Floating through the chaos", "Full combo a ranked Lv 60+ difficulty (no HT, NF or slowdowns)", "fc60"),
-    ("Abyss Walker", "You walked out of the deep without a scratch", "Full combo a ranked Lv 70+ difficulty (no HT, NF or slowdowns)", "fc70"),
-    ("Perfect Storm", "Thunder, lightning, zero misses \u26A1", "Full combo a ranked Lv 80+ difficulty (no HT, NF or slowdowns)", "fc80"),
-    ("Mythical", "People will tell stories about this one", "Full combo a ranked Lv 90+ difficulty (no HT, NF or slowdowns)", "fc90"),
+    ("Clean Sweep", "Not a single note dropped", "Full combo a ranked Lv 10-19 difficulty (no HT, NF or slowdowns)", "fc10"),
+    ("Steady Hands", "Calm, cool, collected", "Full combo a ranked Lv 20-29 difficulty (no HT, NF or slowdowns)", "fc20"),
+    ("Iron Focus", "Blink and you'll miss it. You didn't.", "Full combo a ranked Lv 40-49 difficulty (no HT, NF or slowdowns)", "fc40"),
+    ("Untouchable", "The misses can't find you", "Full combo a ranked Lv 50-59 difficulty (no HT, NF or slowdowns)", "fc50"),
+    ("Zero Gravity", "Floating through the chaos", "Full combo a ranked Lv 60-69 difficulty (no HT, NF or slowdowns)", "fc60"),
+    ("Abyss Walker", "You walked out of the deep without a scratch", "Full combo a ranked Lv 70-79 difficulty (no HT, NF or slowdowns)", "fc70"),
+    ("Perfect Storm", "Thunder, lightning, zero misses \u26A1", "Full combo a ranked Lv 80-89 difficulty (no HT, NF or slowdowns)", "fc80"),
+    ("Mythical", "People will tell stories about this one", "Full combo a ranked Lv 90-99 difficulty (no HT, NF or slowdowns)", "fc90"),
     ("Absolute", "There is nothing beyond this", "Full combo a ranked Lv 100+ difficulty (no HT, NF or slowdowns)", "fc100"),
     # mod introductions: clear a ranked map with each mod (any speed), 70%+ accuracy
     ("Double Trouble", "Twice the speed, twice the fun", "Clear a ranked map with Double Time, 70%+ accuracy", "mod:DT"),
@@ -112,24 +112,24 @@ EXTRA_MEDALS = (
     ("Lights Out", "Who needs to see the notes anyway?", "Clear a ranked map with Black-out, 70%+ accuracy", "mod:BT"),
     ("Safety Net", "Failing is optional now", "Clear a ranked map with No-Fail, 70%+ accuracy", "mod:NF"),
     # map level medals for the first steps: pass and full combo at every level 1-9
-    ("Hello World", "Your very first clear 🌟", "Clear a ranked Lv 1+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass1"),
-    ("Tiny Steps", "One foot in front of the other", "Clear a ranked Lv 2+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass2"),
-    ("Getting the Hang of It", "Oh, so THAT'S how it works", "Clear a ranked Lv 3+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass3"),
-    ("Feeling It", "The rhythm is taking over", "Clear a ranked Lv 4+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass4"),
-    ("High Five", "✋ Up top!", "Clear a ranked Lv 5+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass5"),
-    ("On a Roll", "Can't stop, won't stop", "Clear a ranked Lv 6+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass6"),
-    ("Lucky Seven", "Jackpot 🎰", "Clear a ranked Lv 7+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass7"),
-    ("Eight Beat", "Four on the floor, twice", "Clear a ranked Lv 8+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass8"),
-    ("Cloud Nine", "Floating after that one", "Clear a ranked Lv 9+ difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass9"),
-    ("Spotless Start", "Not a single miss, from day one", "Full combo a ranked Lv 1+ difficulty (no HT, NF or slowdowns)", "fc1"),
-    ("Double Clean", "Two levels in, still spotless", "Full combo a ranked Lv 2+ difficulty (no HT, NF or slowdowns)", "fc2"),
-    ("Hat Trick", "Three's a charm 🎩", "Full combo a ranked Lv 3+ difficulty (no HT, NF or slowdowns)", "fc3"),
-    ("Four on the Floor", "Every beat, right on time", "Full combo a ranked Lv 4+ difficulty (no HT, NF or slowdowns)", "fc4"),
-    ("Clean Hands", "Not a smudge on that combo", "Full combo a ranked Lv 5+ difficulty (no HT, NF or slowdowns)", "fc5"),
-    ("Six Pack", "Your combo's been working out", "Full combo a ranked Lv 6+ difficulty (no HT, NF or slowdowns)", "fc6"),
-    ("Seventh Heaven", "Combo bliss", "Full combo a ranked Lv 7+ difficulty (no HT, NF or slowdowns)", "fc7"),
-    ("Figure Eight", "Smooth as ice ⛸", "Full combo a ranked Lv 8+ difficulty (no HT, NF or slowdowns)", "fc8"),
-    ("Nine Lives", "...and you didn't need a single one", "Full combo a ranked Lv 9+ difficulty (no HT, NF or slowdowns)", "fc9"),
+    ("Hello World", "Your very first clear 🌟", "Clear a ranked Lv 1 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass1"),
+    ("Tiny Steps", "One foot in front of the other", "Clear a ranked Lv 2 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass2"),
+    ("Getting the Hang of It", "Oh, so THAT'S how it works", "Clear a ranked Lv 3 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass3"),
+    ("Feeling It", "The rhythm is taking over", "Clear a ranked Lv 4 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass4"),
+    ("High Five", "✋ Up top!", "Clear a ranked Lv 5 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass5"),
+    ("On a Roll", "Can't stop, won't stop", "Clear a ranked Lv 6 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass6"),
+    ("Lucky Seven", "Jackpot 🎰", "Clear a ranked Lv 7 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass7"),
+    ("Eight Beat", "Four on the floor, twice", "Clear a ranked Lv 8 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass8"),
+    ("Cloud Nine", "Floating after that one", "Clear a ranked Lv 9 difficulty with 70%+ accuracy (no HT, NF or slowdowns)", "pass9"),
+    ("Spotless Start", "Not a single miss, from day one", "Full combo a ranked Lv 1 difficulty (no HT, NF or slowdowns)", "fc1"),
+    ("Double Clean", "Two levels in, still spotless", "Full combo a ranked Lv 2 difficulty (no HT, NF or slowdowns)", "fc2"),
+    ("Hat Trick", "Three's a charm 🎩", "Full combo a ranked Lv 3 difficulty (no HT, NF or slowdowns)", "fc3"),
+    ("Four on the Floor", "Every beat, right on time", "Full combo a ranked Lv 4 difficulty (no HT, NF or slowdowns)", "fc4"),
+    ("Clean Hands", "Not a smudge on that combo", "Full combo a ranked Lv 5 difficulty (no HT, NF or slowdowns)", "fc5"),
+    ("Six Pack", "Your combo's been working out", "Full combo a ranked Lv 6 difficulty (no HT, NF or slowdowns)", "fc6"),
+    ("Seventh Heaven", "Combo bliss", "Full combo a ranked Lv 7 difficulty (no HT, NF or slowdowns)", "fc7"),
+    ("Figure Eight", "Smooth as ice ⛸", "Full combo a ranked Lv 8 difficulty (no HT, NF or slowdowns)", "fc8"),
+    ("Nine Lives", "...and you didn't need a single one", "Full combo a ranked Lv 9 difficulty (no HT, NF or slowdowns)", "fc9"),
 )
 
 # How the profile groups medals, in this order; inside a group they show in this order (easiest first).
@@ -720,7 +720,10 @@ def _extra_medal_checks(user):
     clears = _medal_clears(ranked_plays)
     levels = dict(Beatmap.objects.filter(ranked=1, beatmapid__in={c.beatmap_id for c in clears})
                   .values_list("beatmapid", "Level"))
-    passed_lv = lambda lv: any((levels.get(c.beatmap_id) or 0) >= lv for c in clears)
+    # map level medals count only maps of their own level, so one hard clear doesn't unlock every easier medal:
+    # Lv 1-9 = that exact level, Lv 10-90 = that band of ten (Lv 50 = 50-59), Lv 100 = 100 and up
+    in_band = lambda lv, b: (lv <= b) and (b == lv if lv < 10 else (b < lv + 10 if lv < 100 else True))
+    passed_lv = lambda lv: any(in_band(lv, levels.get(c.beatmap_id) or 0) for c in clears)
     owned = Submission.objects.filter(owner=user).values("beatmapsetid")
     following = Friend.objects.filter(username=user).values("friend")
     checks = {
@@ -731,7 +734,7 @@ def _extra_medal_checks(user):
         "level50": lambda: level >= 50,
         "level100": lambda: level >= 100,
         "ss": lambda: any(c.max and not (c.great or c.meh or c.bad) for c in clears),
-        "fc30": lambda: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= 30 for c in clears),
+        "fc30": lambda: any(c.max and not c.bad and in_band(30, levels.get(c.beatmap_id) or 0) for c in clears),
         "acc98": lambda: play_count >= 50 and (u.accuracy or 0) >= 98,
         "combo3000": lambda: (u.max_combo or 0) >= 3000,
         "lv50": lambda: passed_lv(50),
@@ -754,13 +757,13 @@ def _extra_medal_checks(user):
     for lv in (10, 20, 30, 40, 60, 80, 90, 100):
         checks[f"pass{lv}"] = (lambda lv=lv: passed_lv(lv))
     for lv in (10, 20, 40, 50, 60, 70, 80, 90, 100):
-        checks[f"fc{lv}"] = (lambda lv=lv: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= lv for c in clears))
+        checks[f"fc{lv}"] = (lambda lv=lv: any(c.max and not c.bad and in_band(lv, levels.get(c.beatmap_id) or 0) for c in clears))
     # Lv 1-9 medals only count plays set after they were added (STARTER_MEDALS_SINCE): nobody gets them for old plays
     new_ids = set(ranked_plays.filter(created__gte=STARTER_MEDALS_SINCE).values_list("id", flat=True))
     fresh = [c for c in clears if c.id in new_ids]
     for lv in range(1, 10):
-        checks[f"pass{lv}"] = (lambda lv=lv: any((levels.get(c.beatmap_id) or 0) >= lv for c in fresh))
-        checks[f"fc{lv}"] = (lambda lv=lv: any(c.max and not c.bad and (levels.get(c.beatmap_id) or 0) >= lv for c in fresh))
+        checks[f"pass{lv}"] = (lambda lv=lv: any(in_band(lv, levels.get(c.beatmap_id) or 0) for c in fresh))
+        checks[f"fc{lv}"] = (lambda lv=lv: any(c.max and not c.bad and in_band(lv, levels.get(c.beatmap_id) or 0) for c in fresh))
     # mod introductions: any ranked play with the mod and 70%+ (HT / NF allowed here, it's their medal)
     mod_rows = list(ranked_plays.exclude(mods=None).exclude(mods="").only("mods", "max", "great", "meh", "bad"))
     for mod in ("DT", "HT", "RND", "SL", "BT", "NF"):
