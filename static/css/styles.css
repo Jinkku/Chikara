@@ -356,3 +356,5 @@ button:hover {
 div .footerspacer {
     display: flex;
 }
+.footer-textlink { color: #f3baff; text-decoration: none; }
+.footer-textlink:hover, .footer-textlink:focus-visible { text-decoration: underline; }

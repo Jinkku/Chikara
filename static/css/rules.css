@@ -17,3 +17,10 @@
 .rl-list li { margin: 5px 0; }
 .rl-list b { color: #fff; }
 .rl-footnote { margin: 6px 0 0; font-size: 14px; color: #ffffff99; text-align: center; }
+.dm-mail {
+    align-self: flex-start; padding: 8px 16px; border-radius: 999px;
+    background: #f3baff40; color: #fff; text-decoration: none; font-size: 16px; font-weight: bold;
+}
+.dm-mail:hover, .dm-mail:focus-visible { background: #f3baff66; }
+.rl-intro a, .rl-list a, .rl-footnote a { color: #f3baff; }
+#dmca-page code { background: #ffffff1a; padding: 1px 5px; border-radius: 4px; font-size: 13px; word-break: break-all; }

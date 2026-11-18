@@ -260,7 +260,7 @@ def getspp(offset=0,limit=0):
 
 SITEMAP_PAGES = (("/", "1.0", "daily"), ("/download", "0.9", "weekly"), ("/beatmaps", "0.9", "daily"),
                  ("/ranking", "0.8", "daily"), ("/search", "0.5", "weekly"), ("/news", "0.7", "weekly"),
-                 ("/rules", "0.4", "monthly"))
+                 ("/rules", "0.4", "monthly"), ("/dmca", "0.2", "yearly"))
 SITEMAP_MAX_SETS = 40000  # one sitemap file holds at most 50,000 urls
 SITEMAP_MAX_PLAYERS = 5000
 _sitemap_cache = {"at": 0, "xml": ""}
@@ -855,7 +855,7 @@ def beatmap(request, command):
         html = header(request, customhead=head, title="Qlute - beatmap unavailable", robots=NOINDEX)
         html += ('<div class="infoboxcontainer"><div class="infobox column verticalpadding spacetop spacebottom">'
                  '<h2>This beatmap set isn\'t available</h2><p>It was taken down by the Qlute team '
-                 '(see <a href="/rules#beatmaps">the beatmap rules</a>).</p>')
+                 '(see <a href="/rules#beatmaps">the beatmap rules</a> and <a href="/dmca">copyright claims</a>).</p>')
         if team:
             html += (f'<p class="catalog-hint">Team only: {escape(down.title)} &middot; {escape(down.reason)} &middot; '
                      f'by {escape(down.by)}. <a href="/admin#takedowns">Restore it in the admin panel</a>.</p>')
@@ -2806,10 +2806,15 @@ def base(request, uri,command=""):
                       description="Download Qlute free for Windows 10+, macOS and Linux, or grab the source code on GitHub. "
                                   "A mania-style rhythm game inspired by osu!mania.") + download_html()
     elif uri.strip("/") == "rules":
-        html = header(request, customhead='<link rel="stylesheet" href="/static/css/rules.css?v=1">', title="Qlute - rules",
+        html = header(request, customhead='<link rel="stylesheet" href="/static/css/rules.css?v=2">', title="Qlute - rules",
                       canonical=SiteURL + "/rules",
                       description="The Qlute community rules: accounts, fair play, chat conduct, multiplayer, "
                                   "profiles, beatmap submissions and how rules are enforced.") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/rules.html").read()
+    elif uri.strip("/") == "dmca":
+        html = header(request, customhead='<link rel="stylesheet" href="/static/css/rules.css?v=2">', title="Qlute - DMCA & copyright",
+                      canonical=SiteURL + "/dmca",
+                      description="How copyright holders can ask for content on Qlute to be taken down, "
+                                  "and how uploaders can file a counter-notice.") + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/dmca.html").read()
     else:
         status = 404
         html = header(request, title="Qlute - the black hole of death.", robots=NOINDEX) + open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/404.html").read().replace('{sitetitle}',"404 not found o-o")
