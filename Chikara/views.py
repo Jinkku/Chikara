@@ -1456,7 +1456,7 @@ def friends_page(request):
     from online.friends import friends_json
     username = request.COOKIES.get('username')
     login = checklogin(username, request.COOKIES.get('password', None))
-    html = header(request, customhead='<link rel="stylesheet" href="/static/css/friends.css?v=2">', title="Qlute - friends", robots=NOINDEX)
+    html = header(request, customhead='<link rel="stylesheet" href="/static/css/friends.css?v=3">', title="Qlute - friends", robots=NOINDEX)
     html += '<div class="infoboxcontainer"><div class="infobox column spacetop spacebottom friends-page">'
     if not login[0]:
         html += '<div class="title">Friends</div><p class="friends-empty">Log in to see your friends.</p>'
@@ -2322,7 +2322,7 @@ def user(request, user):
     public = usertest[0] and not usertest[1]
     seo = profile_seo(User.objects.filter(username=user).first()) if public else {}
     html = header(request, customhead='<link rel="stylesheet" href="/static/css/catalog.css?v=17"><link rel="stylesheet" href="/static/css/favorites.css?v=2">'
-                                      '<link rel="stylesheet" href="/static/css/profile.css?v=14">',
+                                      '<link rel="stylesheet" href="/static/css/profile.css?v=15">',
                   robots=None if public else NOINDEX, **seo)
     status = 200 if usertest[0] else 404
     footer = (open(str(BASE_DIR) + "/" + STATIC_ROOT + "/html/report.html").read()
