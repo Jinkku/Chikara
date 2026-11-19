@@ -389,14 +389,31 @@ def _parse_beatmap(lines: list[str]):
     return od, last_note_time
 
 
-def _load_notes(lines: list[str], random_seed):
+def _shuffled_columns(seed: int) -> list[int]:
+    """Gameplay.ShuffledColumns: Random mod = the 4 columns shuffled once (Fisher-Yates on .NET Random(seed)),
+    rerolled until it isn't the unshuffled order (at most 32 tries)."""
+    rnd = DotNetRandom(seed)
+    cols = [0, 1, 2, 3]
+    for _attempt in range(32):
+        for i in range(len(cols) - 1, 0, -1):
+            j = rnd.next(0, i + 1)
+            cols[i], cols[j] = cols[j], cols[i]
+        if cols != [0, 1, 2, 3]:
+            break
+    return cols
+
+
+def _load_notes(lines: list[str], random_seed, legacy_random: bool = True):
     """
     Gameplay.ReloadBeatmap: (column, time) in file order, duplicates
     (same time + column) skipped, Random mod columns from the replay seed.
+    Replays with a "#Random: columns" line shuffle whole columns; older ones (legacy_random) gave every note its
+    own random column.
     """
     notes: list[tuple[int, int]] = []
     seen = set()
-    rnd = DotNetRandom(random_seed) if random_seed is not None else None
+    shuffle = _shuffled_columns(random_seed) if random_seed is not None and not legacy_random else None
+    rnd = DotNetRandom(random_seed) if random_seed is not None and shuffle is None else None
     in_hit = False
     for raw in lines:
         if raw.strip() == "[HitObjects]":
@@ -412,6 +429,8 @@ def _load_notes(lines: list[str], random_seed):
             col = rnd.next(0, 4)
         else:
             col = min(3, max(0, math.floor(int(section[0].strip()) * 4 / 512.0)))
+            if shuffle is not None:
+                col = shuffle[col]
         if (t, col) in seen:
             continue
         seen.add((t, col))
@@ -495,7 +514,8 @@ def calculate_ppv2(
     seed = None
     if "RND" in mods:
         seed = _try_int(header.get("Seed", "")) or 0
-    notes = map_notes if seed is None else _load_notes(osu_lines, seed)
+    random_columns = header.get("Random", "") == "columns"  # newer replays: Random shuffles whole columns
+    notes = map_notes if seed is None else _load_notes(osu_lines, seed, legacy_random=not random_columns)
 
     result = _simulate(notes, presses, od, song_end)
     result.note_count = n
