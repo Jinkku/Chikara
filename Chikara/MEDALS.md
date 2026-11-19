@@ -172,7 +172,7 @@ The Lv 1-9 pass / full combo medals (`pass1`-`pass9`, `fc1`-`fc9`) only count pl
 
 ## Categories (`MEDAL_CATEGORIES`)
 
-The profile groups medals like this, easiest first inside each group; the APIs send each medal's `category`.
+The profile groups medals like this, easiest first inside each group; the APIs send each medal's `category`, plus `category_order` and `order` (its place) so the game can show the same grouping.
 
 - **Progress**: Baby Steps, Getting Hooked, Rising Star, Big Leagues, Elite, Seasoned, Centurion, Marathon, No Life, Dedicated
 - **Ranking**: Top 1,000, Top 100, Top 50, Top 10, The End

@@ -14,7 +14,8 @@ The first check for a player (MedalBaseline) records what they already had as se
   POST apiv2/medals/claim/NAME -> {"medals": [medal]}   a secret medal the game noticed you earning (Konami code,
                                   rage quit...). NAME must be in Chikara/views.py CLIENT_MEDALS; the medal comes back
                                   (already marked shown) the first time, [] after that
-A medal: {"id" (index), "title", "desc", "hint" (how to earn it), "achieved_at" (unix, 0 = not earned)}.
+A medal: {"id" (index), "title", "desc", "hint" (how to earn it), "achieved_at" (unix, 0 = not earned),
+"category" (views.MEDAL_CATEGORIES), "category_order" + "order" (that category's place, then the medal's place in it)}.
 Auth is the same as apiv2/friends: the game's Username + Password headers, or the website's login cookies.
 Score submissions (apiv2/ss) also check and send the new ones in their reply's "medals".
 """
@@ -40,8 +41,9 @@ def _ts(dt):
 
 def medal_json(index, title, desc, hint, achieved):
     from Chikara.views import medal_category
+    category, (category_order, order) = medal_category(title)
     return {"id": index, "title": title, "desc": desc, "hint": hint, "achieved_at": _ts(achieved),
-            "category": medal_category(title)[0]}
+            "category": category, "category_order": category_order, "order": order}
 
 
 def unlock_times(username):

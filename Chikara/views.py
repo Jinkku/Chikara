@@ -1353,6 +1353,8 @@ def public_profile(name, viewer=None):
             _pfp_url(moderation.border_shown(u.username, u.cardborder)) if moderation.border_shown(u.username, u.cardborder) else None),
         "medals": [{"title": t, "desc": d, "achieved": bool(g), "hint": MEDAL_HINTS.get(t) or extra_hints.get(t) or d,
                     "category": medal_category(t)[0],
+                    # where the profile puts it: category position, then position inside it (the game sorts by these)
+                    "category_order": medal_category(t)[1][0], "order": medal_category(t)[1][1],
                     "achieved_at": int(unlocked[i].timestamp()) if g and i in unlocked else 0}
                    for i, (t, d, g) in enumerate(getmedals(u.username))],
         "best": [_score_json(sc) for sc in Score.objects.filter(username=u.username, ranked=1).order_by('-points')[:10]],
