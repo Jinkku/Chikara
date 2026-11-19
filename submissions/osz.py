@@ -27,6 +27,7 @@ from django.utils import timezone
 from PIL import Image
 
 import Chikara.ppv2calc as ppv2calc
+from Chikara import beatmaphash
 from Chikara.settings import storage_root
 from dbview.models import Beatmap, Beatmapset, Score
 
@@ -267,6 +268,17 @@ def check_charts(z, charts):
 # ---------------------------------------------------------------- writing a set
 
 @contextmanager
+def hash_charts(rows):
+    """Hashes the rows' chart files right away (Chikara/beatmaphash.py), so the game recognises the maps from the
+    first leaderboard request or score, even copies without a BeatmapID. A row whose chart changed keeps its old hash
+    in the history, so copies of the previous version show up as outdated at once. Never fails the caller."""
+    for row in rows:
+        try:
+            beatmaphash.current_hash(row)
+        except Exception as e:
+            print(f"[submit] couldn't hash beatmap {row.beatmapid}: {e}")
+
+
 def submit_lock():
     """One upload/edit at a time across every server process (ids, file names)."""
     if connection.vendor != "mysql":  # tests on SQLite: one process anyway
@@ -470,6 +482,7 @@ def _submit_locked(z, charts, skipped, username, staff):
 
     # ---- database
     now = timezone.now()
+    saved = []
     with transaction.atomic():
         for c in charts:
             row = by_id.get(c.beatmapid) or Beatmap(beatmapid=c.beatmapid, beatmapsetid=setid, ranked=0, playcount=0)
@@ -496,6 +509,7 @@ def _submit_locked(z, charts, skipped, username, staff):
             if keep is not None:
                 row.genre, row.language, row.nsfw = keep.genre, keep.language, keep.nsfw
             row.save()
+            saved.append(row)
         Beatmap.objects.filter(beatmapsetid=setid, beatmapid__in=[b.beatmapid for b in removed]).delete()
         if sub is None:
             sub = Submission.objects.create(beatmapsetid=setid, owner=username, filename=filename)
@@ -504,6 +518,7 @@ def _submit_locked(z, charts, skipped, username, staff):
             sub.uploads += 1
             sub.updated = now
             sub.save()
+    hash_charts(saved)  # after the commit: the hashes go on rows that exist
 
     return Result(
         setid=setid, updated=bool(existing), skipped=[os.path.basename(s) for s in skipped],
@@ -597,4 +612,5 @@ def edit_set(setid, changes, versions, by):
             if meta:
                 Beatmapset.objects.filter(beatmapsetid=setid).update(**meta)
             Submission.objects.filter(beatmapsetid=setid).update(edited_by=by, edited_at=timezone.now())
+        hash_charts(rows)  # the chart files were rewritten
     return len(rows)
