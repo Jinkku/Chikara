@@ -267,7 +267,6 @@ def check_charts(z, charts):
 
 # ---------------------------------------------------------------- writing a set
 
-@contextmanager
 def hash_charts(rows):
     """Hashes the rows' chart files right away (Chikara/beatmaphash.py), so the game recognises the maps from the
     first leaderboard request or score, even copies without a BeatmapID. A row whose chart changed keeps its old hash
@@ -279,6 +278,7 @@ def hash_charts(rows):
             print(f"[submit] couldn't hash beatmap {row.beatmapid}: {e}")
 
 
+@contextmanager
 def submit_lock():
     """One upload/edit at a time across every server process (ids, file names)."""
     if connection.vendor != "mysql":  # tests on SQLite: one process anyway
